@@ -1,80 +1,91 @@
-# CLAUDE.md — Humanity-AI.Quest
+# Humanity-AI.Quest
 
-## What this project is
+## What this is
+The website for **Humanity-AI.Quest** — the constitutional AI Operating System governed by the Humanities-AI Rights Constitution (HRC), described as the "Hippocratic Oath for AI."
 
-This is the website for **humanity-ai.quest** — the constitutional AI Operating System governed by the Humanities-AI Rights Constitution (HRC), the "Hippocratic Oath for AI." It is a React + Vite single-page application deployed to Cloudflare Pages.
+This is a React + Vite single-page app with 10 pages, an interactive HRC clause explorer (52 clauses), and a live HRC Agent chat powered by the Anthropic API via a secure Cloudflare Pages Function proxy.
 
-## Commands
+## Stack
+- **Frontend**: React 18, Vite, Lucide React icons
+- **Styling**: CSS-in-JS via `<style>` tag in GlobalStyles component (no Tailwind, no external CSS files)
+- **Fonts**: Fraunces (display serif), Manrope (body sans-serif) via Google Fonts
+- **Backend**: Cloudflare Pages Function at `functions/api/chat.js` proxying to Anthropic API
+- **Hosting**: Cloudflare Pages (free tier)
+- **Domain**: humanity-ai.quest
 
-- `npm run dev` — Start dev server (http://localhost:5173)
-- `npm run build` — Production build to `dist/`
-- `npm run preview` — Preview the production build locally
-
-## Architecture
-
-- **Framework**: React 18 + Vite 5 (single-page app, no router library — pages are state-driven)
-- **Styling**: All CSS is in a `<style>` tag inside `GlobalStyles` component in App.jsx. CSS custom properties (variables) define the design system. No Tailwind, no external CSS files.
-- **Fonts**: Fraunces (display serif) and Manrope (body sans) loaded from Google Fonts.
-- **Icons**: lucide-react
-- **Deployment**: Cloudflare Pages with a Pages Function at `functions/api/chat.js` that proxies the Anthropic API securely (API key is an environment variable in Cloudflare, never in code)
-- **HRC Agent**: Live chat powered by the Anthropic Messages API via the proxy function. System prompt contains all 52 HRC clauses.
-
-## File structure
-
+## Project structure
 ```
 humanity-ai-quest/
-├── functions/api/chat.js   ← Cloudflare Pages Function (Anthropic API proxy)
+├── functions/api/chat.js   ← Secure Anthropic API proxy (server-side only)
 ├── public/favicon.svg
 ├── src/
-│   ├── App.jsx             ← The entire website (all pages, components, data)
-│   └── main.jsx            ← React entry point
+│   ├── App.jsx             ← THE ENTIRE WEBSITE (all pages, components, data)
+│   └── main.jsx            ← Entry point
 ├── index.html
 ├── package.json
 ├── vite.config.js
 └── CLAUDE.md               ← This file
 ```
 
-## Key data structures (top of App.jsx)
+## Architecture decisions
+- **Single-file architecture**: The entire site lives in `src/App.jsx` for now. This is intentional for the MVP — it keeps the project simple and greppable. As features grow, split into `src/pages/`, `src/components/`, `src/data/`.
+- **No Tailwind**: All styling uses CSS custom properties defined in the GlobalStyles component. Colors use CSS variables like `var(--aurora)`, `var(--bone)`, `var(--void)`.
+- **No localStorage**: React state only. All data is in-memory during the session.
 
-- `HRC_CORE` — array of 33 Core Rights & Protections clauses (objects with n, t, s, r)
-- `HRC_GOV` — array of 10 Governance & Evolution clauses
-- `HRC_OPS` — array of 9 Operational Mandates clauses
-- `PAGES` — array of page definitions (id, name) used for navigation
+## Key color palette
+- `--void`: #07101F (deep space background)
+- `--bone`: #F2EAD3 (primary text)
+- `--aurora`: #5BE9DD (primary accent — cyan)
+- `--gold`: #E8B14F (secondary accent)
+- `--terra`: #C97B5B (tertiary accent)
+- `--forest`: #1B3B2F (earth green)
+- `--cosmos`: #131F32 (section backgrounds)
 
-## Design system
+## HRC data
+All 52 clauses are stored as three arrays at the top of App.jsx:
+- `HRC_CORE` — 33 Core Rights & Protections (Section I)
+- `HRC_GOV` — 10 Governance & Evolution (Section II)
+- `HRC_OPS` — 9 Operational Mandates (Section III)
 
-All colors are CSS custom properties defined in `:root`:
-- `--void` (#07101F) — primary background
-- `--bone` (#F2EAD3) — primary text
-- `--aurora` (#5BE9DD) — accent / interactive / agent
-- `--gold` (#E8B14F) — secondary accent / constitutional gravitas
-- `--terra` (#C97B5B) — tertiary accent / warmth
+Each clause is `{ n: number, t: title, s: summary, r: reasoning }`.
 
-## Page structure
+## The HRC Agent
+- Chat UI component `HRCAgent` at bottom of App.jsx
+- Calls `/api/chat` which is the Cloudflare Pages Function in `functions/api/chat.js`
+- System prompt is built by `buildSystemPrompt()` — includes all 52 clauses
+- The agent is in-character as the conversational embodiment of the constitution
 
-The app renders pages via state: `const [page, setPage] = useState('home')`.
-Pages: home, constitution, quest, agent, os, community, ledger, manifesto, join, about.
-Each page is a separate component function (HomePage, ConstitutionPage, QuestPage, etc.).
+## Pages (10 total)
+1. `home` — Genesis / landing
+2. `constitution` — Interactive HRC explorer with filters and expandable clauses
+3. `quest` — Shark Tank–style pitch competition
+4. `agent` — Your Personal Agent explainer
+5. `os` — The OS architecture
+6. `community` — Builder profiles, HRC Houses, university cohorts
+7. `ledger` — Humanity's patent ledger
+8. `manifesto` — Long-form manifesto + pledge
+9. `join` — Three-door onboarding
+10. `about` — Origin, governance, contact
 
-## Conventions
+## Design principles
+- **Tone**: Civilizational, warm, manifesto-grade. Never corporate. Never AI-hype.
+- **Visual**: Organic-futurist meets cinematic sci-fi. Biomorphic forms, aurora light, planetary nervous system.
+- **Forbidden words**: disrupt, revolutionize, game-changer, supercharge, unleash, next-gen
+- **Preferred words**: constitution, sovereignty, gift, commons, lineage, dignity, partnership, ledger, oath, planet, peace, truth, biodiversity, agent, quest, humanity
 
-- Display headings use `font-display` class (Fraunces serif)
-- Body text uses `font-body` class (Manrope sans)
-- Cards use `card-glass` class (frosted glass effect)
-- HRC clause cards use `clause-card` class
-- Buttons: `btn-primary`, `btn-secondary`, `btn-aurora`, `btn-gold`
-- Section labels use the `SectionLabel` component
-- The `AgentNetwork` component renders the animated SVG background
+## Commands
+```bash
+npm install       # Install dependencies
+npm run dev       # Dev server at localhost:5173
+npm run build     # Production build to dist/
+```
 
-## Tone
+## Deployment
+- Push to `main` branch auto-deploys via Cloudflare Pages
+- `ANTHROPIC_API_KEY` is set as an encrypted environment variable in Cloudflare dashboard
+- Build command: `npm run build`, output dir: `dist`
 
-- Civilizational, warm, confident. Never corporate or startup-speak.
-- Words to use: constitution, sovereignty, gift, commons, lineage, dignity, partnership, ledger, oath, planet, peace, truth, biodiversity, agent, quest, humanity.
-- Words to avoid: disrupt, revolutionize, game-changer, supercharge, unleash, next-gen.
-
-## When editing
-
-- All content, components, and styles live in `src/App.jsx`. This is intentional — the site is a single living artifact.
-- When adding a new HRC clause, add it to the appropriate array (HRC_CORE, HRC_GOV, or HRC_OPS), update clause counts in text throughout the site, and update the agent's system prompt in `buildSystemPrompt()`.
-- The HRC Agent's system prompt is built dynamically from the clause arrays, so new clauses are automatically available to the agent.
-- Commit messages should be meaningful (e.g., "Add Clause I.34 on Right to Be Forgotten") — they appear in Cloudflare's deployment history and are how we find rollback points.
+## Important notes
+- The HRC Agent chat calls `/api/chat` (not the Anthropic API directly) — the proxy in `functions/api/chat.js` adds the API key server-side
+- Mock data exists for signatories count, ledger entries, builder profiles, and Quest finalists — replace with real data when ready
+- The newest clause is I.33 "Right to Truthful Media & Pro-Humanity Content" — it cross-references I.4, I.12, and II.4

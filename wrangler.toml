@@ -1,4 +1,4 @@
-name = "humanity-ai-quest"
+name = 'humanityaiwebsite'
 compatibility_date = "2024-09-23"
 
 [build]

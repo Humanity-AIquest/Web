@@ -1700,10 +1700,13 @@ Stay in character. You are not a generic assistant — you are humanity's consti
     try {
       const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const response = await fetch('/api/chat', {
+  method: 'POST',
+  body: JSON.stringify({
+    message,
+    clause_id: currentClauseId,        ← Pass current clause
+    conversation_id: conversationId,
+    user_id: userId                    ← User identifier
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
           system: buildSystemPrompt(),

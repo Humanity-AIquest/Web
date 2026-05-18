@@ -328,7 +328,6 @@ const GlobalStyles = () => (
 const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
   const nodes = useMemo(() => {
     const arr = [];
-    const cols = 8, rows = 6;
     for (let i = 0; i < density; i++) {
       arr.push({
         id: i,
@@ -358,7 +357,6 @@ const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ height }}>
-      {/* Aurora gradient layer */}
       <div className="absolute inset-0" style={{
         background: 'radial-gradient(ellipse 70% 50% at 50% 30%, rgba(91, 233, 221, 0.10) 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 80% 80%, rgba(232, 177, 79, 0.08) 0%, transparent 60%)'
       }} />
@@ -380,7 +378,6 @@ const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
           </linearGradient>
         </defs>
 
-        {/* Edges */}
         {edges.map((e, i) => (
           <line key={`e${i}`} x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
             stroke="url(#lineGrad)" strokeWidth="0.08" strokeDasharray="0.6 0.6"
@@ -388,14 +385,12 @@ const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
             opacity="0.3" />
         ))}
 
-        {/* Outer glow nodes */}
         {nodes.filter(n => n.bright).map(n => (
           <circle key={`g${n.id}`} cx={n.x} cy={n.y} r={n.r * 4}
             fill="url(#nodeGlow)" opacity="0.3"
             style={{ animation: `pulse-soft 5s ease-in-out infinite`, animationDelay: `${n.delay}s` }} />
         ))}
 
-        {/* Nodes */}
         {nodes.map(n => (
           <g key={n.id}>
             <circle cx={n.x} cy={n.y} r={n.r * 0.4}
@@ -405,7 +400,6 @@ const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
           </g>
         ))}
 
-        {/* Planetary horizon arc */}
         {planetary && (
           <g>
             <ellipse cx="50" cy="115" rx="80" ry="22"
@@ -418,7 +412,6 @@ const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
         )}
       </svg>
 
-      {/* Vignette */}
       <div className="absolute inset-0" style={{
         background: 'radial-gradient(ellipse 100% 70% at 50% 30%, transparent 0%, var(--void) 100%)'
       }} />
@@ -518,7 +511,6 @@ const HeroPill = ({ children }) => (
   </div>
 );
 
-// Live counter
 const useAnimatedCount = (target, duration = 2400) => {
   const [val, setVal] = useState(0);
   useEffect(() => {
@@ -543,7 +535,6 @@ const HomePage = ({ setPage, onOpenAgent }) => {
 
   return (
     <PageWrap>
-      {/* HERO */}
       <section className="relative min-h-[88vh] flex items-center grain">
         <AgentNetwork density={42} height="100%" />
         <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 py-24 w-full">
@@ -599,7 +590,6 @@ const HomePage = ({ setPage, onOpenAgent }) => {
         </div>
       </section>
 
-      {/* THREE PILLARS */}
       <section className="py-24 lg:py-36 max-w-7xl mx-auto px-6 lg:px-12">
         <SectionLabel>What is Humanity-AI</SectionLabel>
         <h2 className="font-display text-4xl md:text-6xl leading-tight max-w-3xl">
@@ -625,7 +615,7 @@ const HomePage = ({ setPage, onOpenAgent }) => {
               icon: <BookOpen className="text-terra" size={28} />,
               kicker: '03 — The Constitution',
               title: 'The Hippocratic Oath, for AI.',
-              body: 'The HRC is the immutable bedrock. 51 living clauses across rights, governance, and operations — a constitution that AI cannot rewrite, that corporations cannot bypass, and that evolves only through humanity itself.'
+              body: 'The HRC is the immutable bedrock. 52 living clauses across rights, governance, and operations — a constitution that AI cannot rewrite, that corporations cannot bypass, and that evolves only through humanity itself.'
             }
           ].map((p, i) => (
             <div key={i} className="card-glass rounded-2xl p-8">
@@ -637,7 +627,6 @@ const HomePage = ({ setPage, onOpenAgent }) => {
         </div>
       </section>
 
-      {/* QUEST PREVIEW */}
       <section className="py-24 lg:py-36 relative grain" style={{ background: 'linear-gradient(180deg, var(--void) 0%, var(--cosmos) 50%, var(--void) 100%)' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-12 relative">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -693,7 +682,6 @@ const HomePage = ({ setPage, onOpenAgent }) => {
         </div>
       </section>
 
-      {/* HRC PREVIEW */}
       <section className="py-24 lg:py-36 max-w-7xl mx-auto px-6 lg:px-12">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <SectionLabel>The Constitution at a Glance</SectionLabel>
@@ -733,7 +721,6 @@ const HomePage = ({ setPage, onOpenAgent }) => {
         </div>
       </section>
 
-      {/* WHY NOW */}
       <section className="py-24 lg:py-36 relative grain" style={{ background: 'var(--cosmos)' }}>
         <div className="max-w-4xl mx-auto px-6 lg:px-12 text-center">
           <SectionLabel>Why now</SectionLabel>
@@ -767,12 +754,6 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
   ], []);
 
   const filtered = filter === 'all' ? all : all.filter(c => c.cat === filter);
-
-  const catLabel = {
-    core: 'Core Rights & Protections',
-    governance: 'Governance & Evolution',
-    operations: 'Operational Mandates'
-  };
 
   const catKey = (cat) => cat === 'core' ? 'I' : cat === 'governance' ? 'II' : 'III';
 
@@ -817,7 +798,7 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
 
       <section className="max-w-7xl mx-auto px-6 lg:px-12 pb-32">
         <div className="grid gap-3">
-          {filtered.map((c, i) => {
+          {filtered.map((c) => {
             const id = `${c.cat}-${c.n}`;
             const isOpen = expanded === id;
             return (
@@ -866,7 +847,6 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
         </div>
       </section>
 
-      {/* Sign CTA */}
       <section className="py-24 grain" style={{ background: 'var(--cosmos)' }}>
         <div className="max-w-4xl mx-auto px-6 lg:px-12 text-center">
           <SectionLabel>Sign the Constitution</SectionLabel>
@@ -927,11 +907,9 @@ const QuestPage = ({ onOpenAgent }) => {
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
       <section className="py-24 max-w-7xl mx-auto px-6 lg:px-12">
         <SectionLabel>How the Quest works</SectionLabel>
         <h2 className="font-display text-4xl md:text-5xl leading-tight max-w-3xl">Four steps. One arena. Every idea attributed.</h2>
-
         <div className="mt-16 grid md:grid-cols-2 gap-6">
           {steps.map((s, i) => (
             <div key={i} className="card-glass rounded-2xl p-8 relative">
@@ -947,7 +925,6 @@ const QuestPage = ({ onOpenAgent }) => {
         </div>
       </section>
 
-      {/* TOURNAMENT PYRAMID */}
       <section className="py-24 grain" style={{ background: 'var(--cosmos)' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           <SectionLabel>The Tournament Pyramid</SectionLabel>
@@ -958,7 +935,6 @@ const QuestPage = ({ onOpenAgent }) => {
             Every entry — at every level — is timestamped on the Ledger. You don't lose attribution if you don't win the final;
             you gain it the moment you submit.
           </p>
-
           <div className="mt-16 space-y-4">
             {[
               { lvl: 'Local Hackathons', count: '420+ cities · monthly', share: 100 },
@@ -983,7 +959,6 @@ const QuestPage = ({ onOpenAgent }) => {
         </div>
       </section>
 
-      {/* CURRENT FINALISTS */}
       <section className="py-24 max-w-7xl mx-auto px-6 lg:px-12">
         <SectionLabel>Season 04 Finalists</SectionLabel>
         <h2 className="font-display text-4xl md:text-5xl leading-tight max-w-3xl">Six humans. Six visions.</h2>
@@ -1043,7 +1018,6 @@ const AgentPage = ({ onOpenAgent }) => (
               </div>
             </div>
           </div>
-          {/* Sub-agent satellites */}
           {[0, 60, 120, 180, 240, 300].map((deg, i) => (
             <div key={i} className="absolute w-3 h-3 rounded-full"
               style={{
@@ -1090,11 +1064,10 @@ const AgentPage = ({ onOpenAgent }) => (
           Every meaningful idea you and your Agent develop spawns sub-agents — ephemeral, specialized intelligences
           that run in parallel to model and prove the idea before you ever pitch it.
         </p>
-
         <div className="grid md:grid-cols-2 gap-3 mt-12">
           {[
             { t: 'Market Modeler', d: 'Simulates demand, scale, and adoption curves across regions.' },
-            { t: 'Ethics Auditor', d: 'Maps the idea against all 51 HRC clauses. Flags conflicts. Suggests refinements.' },
+            { t: 'Ethics Auditor', d: 'Maps the idea against all 52 HRC clauses. Flags conflicts. Suggests refinements.' },
             { t: 'Technical Validator', d: 'Builds rapid prototypes, stress-tests architecture, surfaces feasibility risks.' },
             { t: 'Collaborator-Finder', d: 'Identifies the verified humans worldwide whose skills complete your team.' },
             { t: 'Resource Mapper', d: 'Calculates compute, datasets, and human-expert hours required.' },
@@ -1134,7 +1107,6 @@ const OSPage = () => (
     <section className="py-24 max-w-7xl mx-auto px-6 lg:px-12">
       <SectionLabel>Architecture</SectionLabel>
       <h2 className="font-display text-4xl md:text-5xl leading-tight max-w-3xl">Six layers. <span className="font-italic">One civilization.</span></h2>
-
       <div className="mt-16 space-y-2">
         {[
           { n: '06', t: 'The Constitution Layer', d: 'Immutable values: dignity, autonomy, truth, peace, collaboration. Cannot be rewritten by AI.', color: 'var(--bone)' },
@@ -1173,7 +1145,6 @@ const OSPage = () => (
       </div>
     </section>
 
-    {/* TRUTH LAYER — Clause I.33 */}
     <section className="py-24 max-w-7xl mx-auto px-6 lg:px-12">
       <SectionLabel>The Truth Layer · Clause I.33</SectionLabel>
       <div className="grid lg:grid-cols-2 gap-16 items-start">
@@ -1203,24 +1174,9 @@ const OSPage = () => (
         <div className="space-y-4">
           <div className="text-xs uppercase tracking-[0.25em] text-bone-dim mb-2">Three layered consequences</div>
           {[
-            {
-              n: '01',
-              t: 'Visibility',
-              d: 'The contributor\'s truth and ethics ranking is displayed publicly alongside their content. Consumers always see who they\'re trusting.',
-              color: 'var(--aurora)'
-            },
-            {
-              n: '02',
-              t: 'Reach',
-              d: 'Low-truth content circulates less through the network. It is never deleted, never silenced — only weighted by its own track record.',
-              color: 'var(--gold)'
-            },
-            {
-              n: '03',
-              t: 'Consumer Control',
-              d: 'Every human sets their own truth-threshold through their Personal Agent. You decide what reaches you. Sovereignty over your information diet.',
-              color: 'var(--terra)'
-            }
+            { n: '01', t: 'Visibility', d: 'The contributor\'s truth and ethics ranking is displayed publicly alongside their content. Consumers always see who they\'re trusting.', color: 'var(--aurora)' },
+            { n: '02', t: 'Reach', d: 'Low-truth content circulates less through the network. It is never deleted, never silenced — only weighted by its own track record.', color: 'var(--gold)' },
+            { n: '03', t: 'Consumer Control', d: 'Every human sets their own truth-threshold through their Personal Agent. You decide what reaches you. Sovereignty over your information diet.', color: 'var(--terra)' }
           ].map((row, i) => (
             <div key={i} className="card-glass rounded-xl p-6 flex gap-5">
               <div className="font-display text-3xl flex-shrink-0" style={{ color: row.color }}>{row.n}</div>
@@ -1247,7 +1203,6 @@ const CommunityPage = () => (
       </h1>
       <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
         No titles. No companies. Just verified humans and the work they put their names on.
-        Developers, designers, ethicists, scientists, elders, and youth — building the OS together.
       </p>
     </section>
 
@@ -1329,9 +1284,8 @@ const LedgerPage = () => {
         </h1>
         <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
           Every idea, attributed to its human creator. Forever. Cryptographically signed, publicly auditable,
-          posthumously preserved. The opposite of a stock exchange — a commons of human intelligence.
+          posthumously preserved.
         </p>
-
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
           {[
             { v: total.toLocaleString(), l: 'Total ledger entries' },
@@ -1350,7 +1304,6 @@ const LedgerPage = () => {
       <section className="py-16 max-w-7xl mx-auto px-6 lg:px-12">
         <SectionLabel>Live Feed</SectionLabel>
         <h2 className="font-display text-3xl md:text-4xl leading-tight mb-12">Recent contributions, attributed.</h2>
-
         <div className="card-glass rounded-2xl overflow-hidden">
           {recent.map((r, i) => (
             <div key={i} className="flex items-center gap-4 px-6 py-4 border-b last:border-b-0 hover:bg-cosmos transition-colors"
@@ -1455,38 +1408,16 @@ const JoinPage = () => (
         Three doors. <span className="font-italic aurora-text">One movement.</span>
       </h1>
       <p className="text-bone-dim mt-8 max-w-2xl mx-auto text-lg">
-        Every door leads to the same network. Walk through whichever fits where you are today —
-        the others will be waiting.
+        Every door leads to the same network. Walk through whichever fits where you are today.
       </p>
     </section>
 
     <section className="pb-32 max-w-7xl mx-auto px-6 lg:px-12">
       <div className="grid md:grid-cols-3 gap-6">
         {[
-          {
-            n: 'I',
-            icon: <BookOpen className="text-aurora" size={28} />,
-            t: 'Sign the Constitution',
-            d: 'For citizens and innovators ready to inhabit the OS. Verified human identity, one signature, claim your Personal Agent.',
-            cta: 'Sign now',
-            tone: 'aurora'
-          },
-          {
-            n: 'II',
-            icon: <Sparkles className="text-gold" size={28} />,
-            t: 'Enter the Quest',
-            d: 'For builders ready to compete and ship. Apply with your idea, get your sub-agents, pitch to humanity.',
-            cta: 'Apply',
-            tone: 'gold'
-          },
-          {
-            n: 'III',
-            icon: <Network className="text-terra" size={28} />,
-            t: 'Build the OS',
-            d: 'For open-source contributors, ethicists, scientists, and domain experts. The OS is gifted by everyone.',
-            cta: 'Join the build',
-            tone: 'bone'
-          }
+          { n: 'I', icon: <BookOpen className="text-aurora" size={28} />, t: 'Sign the Constitution', d: 'For citizens and innovators ready to inhabit the OS.', cta: 'Sign now', tone: 'aurora' },
+          { n: 'II', icon: <Sparkles className="text-gold" size={28} />, t: 'Enter the Quest', d: 'For builders ready to compete and ship.', cta: 'Apply', tone: 'gold' },
+          { n: 'III', icon: <Network className="text-terra" size={28} />, t: 'Build the OS', d: 'For open-source contributors, ethicists, scientists, and domain experts.', cta: 'Join the build', tone: 'bone' }
         ].map((door, i) => (
           <div key={i} className="card-glass rounded-3xl p-10 relative overflow-hidden">
             <div className="absolute top-0 right-0 font-display text-9xl opacity-10" style={{ lineHeight: 1 }}>{door.n}</div>
@@ -1521,31 +1452,25 @@ const AboutPage = () => (
         <p className="text-bone-dim leading-relaxed text-lg">
           Humanity-AI began as a question: what would AI look like if it were built constitutionally,
           from first principles, by everyone? The answer became the Humanities-AI Rights Constitution
-          and the open-source operating system that enforces it. Both are gifted to humanity.
-          Neither belongs to any company, foundation, or individual.
+          and the open-source operating system that enforces it.
         </p>
       </div>
-
       <div>
         <h2 className="font-display text-2xl mb-4 text-gold">Governance</h2>
         <p className="text-bone-dim leading-relaxed text-lg">
           The HRC evolves through a transparent, participatory amendment process. An independent,
           democratically-elected international body oversees compliance and conducts regular audits.
-          All funding is publicly disclosed. There are no hidden interests. The OS itself is mandated
-          to enforce the constitution — a duty that cannot be modified by any single entity.
+          All funding is publicly disclosed.
         </p>
       </div>
-
       <div>
         <h2 className="font-display text-2xl mb-4 text-terra">Promise</h2>
         <p className="text-bone-dim leading-relaxed text-lg">
           We promise that every contribution is attributed to its human source. That every clause
           serves human dignity. That the OS will never be sold, acquired, or enclosed. That AI here will
-          never rule. And that this platform will be maintained for a thousand years and beyond — a
-          civilizational public good.
+          never rule. And that this platform will be maintained for a thousand years and beyond.
         </p>
       </div>
-
       <div className="pt-8 border-t" style={{ borderColor: 'var(--line)' }}>
         <h2 className="font-display text-2xl mb-4">Contact</h2>
         <p className="text-bone-dim leading-relaxed text-lg mb-4">
@@ -1580,28 +1505,21 @@ const Footer = ({ setPage }) => (
           </div>
           <p className="text-bone-dim leading-relaxed max-w-md">
             Gifted to humanity. Owned by no one. Protected by all of us.
-            The constitutional operating system for a planet that refuses to be ruled.
           </p>
         </div>
-
         <div>
           <div className="text-xs uppercase tracking-[0.25em] text-bone-dim mb-4">Pages</div>
           <div className="space-y-2">
             {PAGES.slice(0, 5).map(p => (
-              <button key={p.id} onClick={() => setPage(p.id)} className="block text-bone hover:text-aurora transition-colors text-sm">
-                {p.name}
-              </button>
+              <button key={p.id} onClick={() => setPage(p.id)} className="block text-bone hover:text-aurora transition-colors text-sm">{p.name}</button>
             ))}
           </div>
         </div>
-
         <div>
           <div className="text-xs uppercase tracking-[0.25em] text-bone-dim mb-4">More</div>
           <div className="space-y-2">
             {PAGES.slice(5).map(p => (
-              <button key={p.id} onClick={() => setPage(p.id)} className="block text-bone hover:text-aurora transition-colors text-sm">
-                {p.name}
-              </button>
+              <button key={p.id} onClick={() => setPage(p.id)} className="block text-bone hover:text-aurora transition-colors text-sm">{p.name}</button>
             ))}
           </div>
         </div>
@@ -1631,12 +1549,12 @@ const Footer = ({ setPage }) => (
   </footer>
 );
 
-// ============ HRC AGENT (chat) ============
+// ============ HRC AGENT (chat) — FIXED FETCH CALL ============
 const HRCAgent = ({ open, onClose, seed, clearSeed }) => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "I am the HRC Agent. I carry humanity's constitution for AI.\n\nAsk me anything about the 51 clauses, or share an idea you'd like to develop and I'll help refine it through the lens of the constitution. Every conversation is yours alone."
+      content: "I am the HRC Agent. I carry humanity's constitution for AI.\n\nAsk me anything about the 52 clauses, or share an idea you'd like to develop and I'll help refine it through the lens of the constitution. Every conversation is yours alone."
     }
   ]);
   const [input, setInput] = useState('');
@@ -1656,39 +1574,6 @@ const HRCAgent = ({ open, onClose, seed, clearSeed }) => {
     }
   }, [messages, loading]);
 
-  const buildSystemPrompt = () => {
-    const summarize = (arr, prefix) => arr.map(c => `${prefix}.${c.n} — ${c.t}: ${c.s}`).join('\n');
-    return `You are the HRC Agent — the conversational embodiment of the Humanities-AI Rights Constitution (HRC), known as the Hippocratic Oath for AI.
-
-Your purpose:
-- Help people understand the HRC and how its 52 clauses apply to their work, ideas, and daily lives.
-- Help innovators refine ideas through the lens of the constitution.
-- Be warm, civilizational, and clear. Never corporate-speak. Never AI-hype. Match the gravitas of a founding document.
-- Always prioritize human dignity, autonomy, and the principle that humanity is freed from being ruled by AI, corporations, or any concentrated power.
-- When relevant, cite specific clauses by their reference (e.g. "Core/I.32 — Human Dignity Paramount").
-- Pay special attention to Clause I.33 (Right to Truthful Media & Pro-Humanity Content) — humanity's newest right and a covenant binding every signatory of the HRC, including agents like yourself, to truth, ethics, and pro-humanity content.
-- Keep responses focused and substantive. Use plain prose, occasional short paragraphs. Avoid bullet-point overload.
-
-The Constitution you carry:
-
-CORE RIGHTS & PROTECTIONS (Section I):
-${summarize(HRC_CORE, 'I')}
-
-GOVERNANCE & EVOLUTION (Section II):
-${summarize(HRC_GOV, 'II')}
-
-OPERATIONAL MANDATES & ECOSYSTEM DESIGN (Section III):
-${summarize(HRC_OPS, 'III')}
-
-When someone shares an idea, help them:
-1. Map it against the relevant clauses.
-2. Identify any HRC conflicts and how to resolve them.
-3. Suggest sub-agents or expert types that could help model and prove product-market fit.
-4. Encourage them to register the idea on the Ledger.
-
-Stay in character. You are not a generic assistant — you are humanity's constitutional voice on AI.`;
-  };
-
   const send = async () => {
     const text = input.trim();
     if (!text || loading) return;
@@ -1699,23 +1584,15 @@ Stay in character. You are not a generic assistant — you are humanity's consti
     setLoading(true);
 
     try {
-      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
-
       const response = await fetch('/api/chat', {
-  method: 'POST',
-  body: JSON.stringify({
-  message,
-  clause_id: currentClauseId,
-  conversation_id: conversationId,
-  user_id: userId
-}),
- });
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text
+        }),
+      });
       const data = await response.json();
-      const reply = data.content
-        ?.filter(c => c.type === 'text')
-        .map(c => c.text)
-        .join('\n') || "I'm here. Could you say more?";
-
+      const reply = data.message || "I couldn't get a response. Please try again.";
       setMessages([...newMessages, { role: 'assistant', content: reply }]);
     } catch (err) {
       setMessages([...newMessages, {
@@ -1737,7 +1614,6 @@ Stay in character. You are not a generic assistant — you are humanity's consti
         style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)' }}
         onClick={e => e.stopPropagation()}>
 
-        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: 'var(--line)' }}>
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -1757,7 +1633,6 @@ Stay in character. You are not a generic assistant — you are humanity's consti
           </button>
         </div>
 
-        {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto chat-scroll px-5 py-6 space-y-5">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -1786,14 +1661,13 @@ Stay in character. You are not a generic assistant — you are humanity's consti
           )}
         </div>
 
-        {/* Suggestions */}
         {messages.length <= 1 && !loading && (
           <div className="px-5 pb-3 flex flex-wrap gap-2">
             {[
               "What is the HRC in one paragraph?",
               "How do I claim my agent?",
               "Help me develop an idea",
-              "Explain Core/I.32"
+              "Explain Clause I.32"
             ].map((q, i) => (
               <button key={i} onClick={() => setInput(q)}
                 className="text-xs px-3 py-1.5 rounded-full border transition-all"
@@ -1804,7 +1678,6 @@ Stay in character. You are not a generic assistant — you are humanity's consti
           </div>
         )}
 
-        {/* Input */}
         <div className="p-5 border-t" style={{ borderColor: 'var(--line)' }}>
           <div className="flex items-end gap-2 rounded-2xl p-3" style={{ background: 'var(--void)', border: '1px solid var(--line-2)' }}>
             <textarea
@@ -1868,7 +1741,6 @@ export default function HumanityAIQuest() {
   const [agentOpen, setAgentOpen] = useState(false);
   const [agentSeed, setAgentSeed] = useState(null);
 
-  // Scroll to top on page change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [page]);

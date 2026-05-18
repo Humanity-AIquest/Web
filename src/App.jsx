@@ -6,6 +6,7 @@ import {
   MessageCircle, Trees, Star
 } from 'lucide-react';
 
+
 /* ============================================================
    HUMANITY-AI.QUEST
    The constitutional Operating System for a planet that
@@ -1703,16 +1704,11 @@ Stay in character. You are not a generic assistant — you are humanity's consti
       const response = await fetch('/api/chat', {
   method: 'POST',
   body: JSON.stringify({
-    message,
-   clause_id: currentClauseId,
-conversation_id: conversationId,
-user_id: userId
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: buildSystemPrompt(),
-          messages: apiMessages
-        })
-      });
+  message,
+  clause_id: currentClauseId,
+  conversation_id: conversationId,
+  user_id: userId
+}),
 
       const data = await response.json();
       const reply = data.content

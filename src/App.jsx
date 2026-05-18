@@ -1709,7 +1709,7 @@ Stay in character. You are not a generic assistant — you are humanity's consti
   conversation_id: conversationId,
   user_id: userId
 }),
-
+ });
       const data = await response.json();
       const reply = data.content
         ?.filter(c => c.type === 'text')

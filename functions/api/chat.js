@@ -1,7 +1,7 @@
 // ============================================================
 // Humanity-AI Rights Constitution (HRC) Agent
-// Cloudflare Worker for /api/chat endpoint
-// All 52 clauses embedded + proper Cloudflare export
+// Cloudflare Pages Function for /api/chat endpoint
+// Correct export format for Pages Functions
 // ============================================================
 
 // All 52 HRC clauses - compact format
@@ -101,8 +101,13 @@ When someone shares an idea, help them:
 Stay in character. You are humanity's constitutional voice on AI.`;
 }
 
-// Main handler - this is what Cloudflare calls
-async function onRequest(request, env, context) {
+// ============================================================
+// CLOUDFLARE PAGES FUNCTIONS - CORRECT EXPORT
+// This is the pattern Cloudflare Pages expects
+// ============================================================
+export async function onRequest(context) {
+  const { request, env } = context;
+
   // Only handle POST requests
   if (request.method !== 'POST') {
     return new Response(
@@ -133,6 +138,8 @@ async function onRequest(request, env, context) {
       );
     }
 
+    console.log('Calling Claude API with message:', userMessage.substring(0, 100));
+
     // Call Claude API
     const systemPrompt = buildSystemPrompt();
     const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
@@ -152,18 +159,22 @@ async function onRequest(request, env, context) {
       }),
     });
 
+    console.log('Claude API response status:', claudeResponse.status);
+
     // Check response status
     if (!claudeResponse.ok) {
       const errorData = await claudeResponse.text();
       console.error('Claude API error:', claudeResponse.status, errorData);
       return new Response(
-        JSON.stringify({ error: 'Claude API error', status: claudeResponse.status }),
+        JSON.stringify({ error: 'Claude API error', status: claudeResponse.status, details: errorData }),
         { status: 502, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
     // Parse Claude response
     const data = await claudeResponse.json();
+    console.log('Claude response received, extracting text...');
+    
     const reply = data.content?.[0]?.text || 'I could not generate a response.';
 
     // Return response to frontend
@@ -180,18 +191,10 @@ async function onRequest(request, env, context) {
     );
 
   } catch (err) {
-    console.error('Handler error:', err);
+    console.error('Handler error:', err.message, err.stack);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: err.message }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 }
-
-// ============================================================
-// CLOUDFLARE EXPORT - THIS IS CRITICAL
-// Without this, Cloudflare can't invoke the function
-// ============================================================
-export default {
-  fetch: onRequest
-};

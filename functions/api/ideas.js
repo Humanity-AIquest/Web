@@ -1,4 +1,3 @@
-javascript
 /**
  * HRC Ideas Recording Endpoint
  * Cloudflare Pages Function at: functions/api/ideas.js

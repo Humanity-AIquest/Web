@@ -274,8 +274,7 @@ export async function onRequest(context) {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       }
     );
-
-  } catch (error) {
+ } catch (error) {
     console.error('Chat endpoint error:', error.message, error.stack);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),

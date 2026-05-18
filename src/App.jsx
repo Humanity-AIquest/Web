@@ -1704,9 +1704,9 @@ Stay in character. You are not a generic assistant — you are humanity's consti
   method: 'POST',
   body: JSON.stringify({
     message,
-    clause_id: currentClauseId,        ← Pass current clause
-    conversation_id: conversationId,
-    user_id: userId                    ← User identifier
+   clause_id: currentClauseId,
+conversation_id: conversationId,
+user_id: userId
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
           system: buildSystemPrompt(),

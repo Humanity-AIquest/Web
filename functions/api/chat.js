@@ -9,7 +9,7 @@
  */
 
 // ─── CANONICAL MODEL ─────────────────────────────────────────────────────────
-const CANONICAL_MODEL = "claude-3-7-sonnet-latest";
+const CANONICAL_MODEL = "claude-sonnet-4-20250514";
 
 // ─── HRC CLAUSES (all 52, full text) ─────────────────────────────────────────
 const HRC_CLAUSES = `
@@ -277,7 +277,7 @@ export async function onRequestPost(context) {
     // Call Anthropic Messages API
     let anthropicResponse;
     try {
-      anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
+     anthropicResponse = await fetch("https://gateway.ai.cloudflare.com/v1/2214ec50b147719452e0b01267351411/claudierapii2/anthropic/v1/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

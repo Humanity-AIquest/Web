@@ -5,9 +5,10 @@ import {
   Loader2, Search, Filter, Edit2, Save, X, AlertTriangle,
   RefreshCw, Eye, EyeOff, Clock, User, Ban, UserCheck,
   ChevronUp, MoreHorizontal, Check, Tag, Plus, Zap, SortAsc,
-  ArrowUpDown, Settings2, Bookmark
+  ArrowUpDown, Settings2, Bookmark, Mic, Volume2, ExternalLink, Key,
+  Star, StarOff, Play, Square, Globe
 } from 'lucide-react';
-import { useTTS, ListenButton } from './useTTS';
+import { useTTS, ListenButton, TTS_PLUGINS } from './useTTS';
 
 /* ============================================================
    ADMIN DASHBOARD — Humanity-AI.Quest
@@ -1345,6 +1346,383 @@ const CmsTab = ({ auth, level }) => {
 };
 
 /* ============================================================
+   TAB 7 — TTS PLUGIN MANAGER
+   ============================================================ */
+const LS_PREFIX = 'hrc_tts_';
+const getLS = (key, def) => { try { const v = localStorage.getItem(LS_PREFIX + key); return v != null ? JSON.parse(v) : def; } catch { return def; } };
+const setLS = (key, val) => { try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(val)); } catch {} };
+
+const Stars = ({ n }) => (
+  <span style={{ display: 'inline-flex', gap: 2 }}>
+    {[1,2,3,4,5].map(i => (
+      <Star key={i} size={11} fill={i <= n ? 'var(--gold)' : 'none'} color={i <= n ? 'var(--gold)' : 'var(--dust)'} />
+    ))}
+  </span>
+);
+
+const TtsPluginManager = ({ auth }) => {
+  const [activePlugin, setActivePlugin] = useState(() => getLS('plugin', 'webspeech'));
+  const [keys, setKeys] = useState({});
+  const [extras, setExtras] = useState({});
+  const [expanded, setExpanded] = useState(null);
+  const [testingId, setTestingId] = useState(null);
+  const tts = useTTS();
+
+  // Load stored keys/extras on mount
+  useEffect(() => {
+    const saved = {};
+    const savedExtras = {};
+    TTS_PLUGINS.forEach(p => {
+      if (p.needsKey) saved[p.id] = getLS(`${p.id}_key`, '');
+      if (p.regionLabel) savedExtras[p.id + '_region'] = getLS(`${p.id}_region`, '');
+      if (p.secretLabel) savedExtras[p.id + '_secret'] = getLS(`${p.id}_secret`, '');
+      if (p.id === 'streamelements') savedExtras['se_voice'] = getLS('seVoice', 'Brian');
+      if (p.id === 'elevenlabs') savedExtras['el_voice'] = getLS('elVoice', 'EXAVITQu4vr4xnSDxMaL');
+    });
+    setKeys(saved);
+    setExtras(savedExtras);
+  }, []);
+
+  const activate = (pluginId) => {
+    setLS('plugin', pluginId);
+    setActivePlugin(pluginId);
+  };
+
+  const saveKey = (pluginId, key) => {
+    setLS(`${pluginId}_key`, key);
+    setKeys(prev => ({ ...prev, [pluginId]: key }));
+  };
+
+  const saveExtra = (storageKey, value) => {
+    setLS(storageKey, value);
+    setExtras(prev => ({ ...prev, [storageKey]: value }));
+  };
+
+  const testPlugin = async (plugin) => {
+    setTestingId(plugin.id);
+    // Temporarily switch to this plugin
+    const prev = getLS('plugin', 'webspeech');
+    setLS('plugin', plugin.id);
+    await new Promise(r => setTimeout(r, 50));
+    tts.speak(`test_${plugin.id}`, 'Hello! This is the Humanity AI Quest speaking with ' + plugin.name + '. The listen feature is a central part of the experience. How does this sound?');
+    setTimeout(() => { setTestingId(null); }, 200);
+  };
+
+  const typeColor = (type) => {
+    if (type.includes('Browser')) return { bg: 'rgba(91,233,221,0.12)', fg: 'var(--aurora)' };
+    if (type.includes('Open')) return { bg: 'rgba(52,211,153,0.12)', fg: '#34d399' };
+    if (type.includes('Paid')) return { bg: 'rgba(251,146,60,0.12)', fg: '#fb923c' };
+    if (type.includes('Non-commercial')) return { bg: 'rgba(167,139,250,0.12)', fg: '#a78bfa' };
+    return { bg: 'rgba(232,177,79,0.12)', fg: 'var(--gold)' };
+  };
+
+  const SE_VOICES = ['Brian','Ivy','Emma','Russell','Amy','Joey','Justin','Nicole','Geraint','Salli'];
+  const EL_VOICES = [
+    { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella' },
+    { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
+    { id: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi' },
+    { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli' },
+    { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh' },
+    { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold' },
+    { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' },
+    { id: 'yoZ06aMxZJJ28mfd3POQ', name: 'Sam' },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Header */}
+      <div style={{ ...cardStyle, background: 'linear-gradient(135deg,rgba(91,233,221,0.08) 0%,rgba(12,24,40,0.6) 100%)', border: '1px solid rgba(91,233,221,0.2)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(91,233,221,0.12)', border: '1px solid rgba(91,233,221,0.25)', flexShrink: 0 }}>
+            <Mic size={20} color="var(--aurora)" />
+          </div>
+          <div>
+            <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: 'var(--bone)' }}>TTS Plugin Manager</h3>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', lineHeight: 1.5 }}>
+              Select and configure the best text-to-speech engine for the site. The Listen feature is a central part of the Humanity-AI experience.
+              Currently active: <strong style={{ color: 'var(--aurora)' }}>{TTS_PLUGINS.find(p => p.id === activePlugin)?.name || activePlugin}</strong>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Plugin grid */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {TTS_PLUGINS.map(plugin => {
+          const isActive = activePlugin === plugin.id;
+          const isExpanded = expanded === plugin.id;
+          const isTesting = testingId === plugin.id || (tts.speakingId === `test_${plugin.id}`);
+          const tc = typeColor(plugin.type);
+
+          return (
+            <div key={plugin.id} style={{
+              ...cardStyle,
+              border: isActive
+                ? '1px solid rgba(91,233,221,0.4)'
+                : '1px solid var(--line)',
+              background: isActive
+                ? 'linear-gradient(135deg,rgba(91,233,221,0.07) 0%,rgba(12,24,40,0.5) 100%)'
+                : cardStyle.background,
+              transition: 'all 0.2s',
+            }}>
+              {/* Top row */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                {/* Active indicator */}
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 2,
+                  border: `2px solid ${isActive ? 'var(--aurora)' : 'rgba(107,117,147,0.4)'}`,
+                  background: isActive ? 'var(--aurora)' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {isActive && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--void)' }} />}
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--bone)' }}>{plugin.name}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 9999, background: tc.bg, color: tc.fg, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      {plugin.type}
+                    </span>
+                    {plugin.badge && (
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 9999, background: 'rgba(232,177,79,0.12)', color: 'var(--gold)', letterSpacing: '0.03em' }}>
+                        ★ {plugin.badge}
+                      </span>
+                    )}
+                    <Stars n={plugin.stars} />
+                  </div>
+                  <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--bone-dim)', lineHeight: 1.5 }}>{plugin.description}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--dust)' }}>
+                    <span style={{ fontWeight: 600 }}>Voices:</span> {plugin.voices}
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+                  <button
+                    onClick={() => testPlugin(plugin)}
+                    disabled={isTesting}
+                    style={btnStyle(isTesting ? 'aurora' : 'ghost', true)}
+                    title="Test this plugin"
+                  >
+                    {isTesting ? <Square size={11} fill="var(--aurora)" /> : <Play size={11} />}
+                    {isTesting ? 'Stop' : 'Test'}
+                  </button>
+                  {!isActive && (
+                    <button onClick={() => activate(plugin.id)} style={btnStyle('primary', true)}>
+                      <CheckCircle size={11} /> Activate
+                    </button>
+                  )}
+                  {isActive && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--aurora)', padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(91,233,221,0.3)', background: 'rgba(91,233,221,0.08)' }}>
+                      ✓ Active
+                    </span>
+                  )}
+                  {(plugin.needsKey || plugin.id === 'streamelements' || plugin.id === 'elevenlabs') && (
+                    <button onClick={() => setExpanded(isExpanded ? null : plugin.id)} style={btnStyle('ghost', true)}>
+                      <Settings2 size={11} /> {isExpanded ? 'Hide' : 'Configure'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Pros/cons */}
+              <div style={{ display: 'flex', gap: 16, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+                <div style={{ flex: 1 }}>
+                  {plugin.pros.map(p => (
+                    <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#34d399', marginBottom: 2 }}>
+                      <CheckCircle size={9} /> {p}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ flex: 1 }}>
+                  {plugin.cons.map(c => (
+                    <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#f87171', marginBottom: 2 }}>
+                      <X size={9} /> {c}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Config panel */}
+              {isExpanded && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line-2)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* StreamElements config */}
+                  {plugin.id === 'streamelements' && (
+                    <div>
+                      <label style={{ fontSize: 11, color: 'var(--dust)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Voice</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {SE_VOICES.map(v => (
+                          <button key={v} onClick={() => saveExtra('se_voice', v)} style={btnStyle(extras['se_voice'] === v ? 'aurora' : 'ghost', true)}>
+                            {v}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ElevenLabs config */}
+                  {plugin.id === 'elevenlabs' && (
+                    <>
+                      <div>
+                        <label style={{ fontSize: 11, color: 'var(--dust)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
+                          API Key <a href={plugin.keyUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--aurora)', fontSize: 10, marginLeft: 6 }}>Get free key ↗</a>
+                        </label>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input
+                            type="password"
+                            value={keys[plugin.id] || ''}
+                            onChange={e => saveKey(plugin.id, e.target.value)}
+                            placeholder={plugin.keyPlaceholder}
+                            style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: 'var(--dust)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Voice</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                          {EL_VOICES.map(v => (
+                            <button key={v.id} onClick={() => saveExtra('el_voice', v.id)} style={btnStyle(extras['el_voice'] === v.id ? 'aurora' : 'ghost', true)}>
+                              {v.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Generic API key plugins */}
+                  {plugin.needsKey && plugin.id !== 'elevenlabs' && (
+                    <>
+                      <div>
+                        <label style={{ fontSize: 11, color: 'var(--dust)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
+                          {plugin.keyLabel}
+                          {plugin.keyUrl && (
+                            <a href={plugin.keyUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--aurora)', fontSize: 10, marginLeft: 6, fontWeight: 400 }}>
+                              Get key ↗
+                            </a>
+                          )}
+                        </label>
+                        <input
+                          type="password"
+                          value={keys[plugin.id] || ''}
+                          onChange={e => saveKey(plugin.id, e.target.value)}
+                          placeholder={plugin.keyPlaceholder || 'Paste API key here'}
+                          style={{ ...inputStyle, fontSize: 12 }}
+                        />
+                      </div>
+                      {plugin.regionLabel && (
+                        <div>
+                          <label style={{ fontSize: 11, color: 'var(--dust)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>{plugin.regionLabel}</label>
+                          <input
+                            type="text"
+                            value={extras[plugin.id + '_region'] || ''}
+                            onChange={e => saveExtra(`${plugin.id}_region`, e.target.value)}
+                            placeholder={plugin.regionPlaceholder || 'e.g. eastus'}
+                            style={{ ...inputStyle, fontSize: 12 }}
+                          />
+                        </div>
+                      )}
+                      {plugin.secretLabel && (
+                        <div>
+                          <label style={{ fontSize: 11, color: 'var(--dust)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>{plugin.secretLabel}</label>
+                          <input
+                            type="password"
+                            value={extras[plugin.id + '_secret'] || ''}
+                            onChange={e => saveExtra(`${plugin.id}_secret`, e.target.value)}
+                            placeholder={plugin.secretPlaceholder || 'Paste secret here'}
+                            style={{ ...inputStyle, fontSize: 12 }}
+                          />
+                        </div>
+                      )}
+                      <p style={{ margin: 0, fontSize: 11, color: 'var(--dust)', fontStyle: 'italic' }}>
+                        ⚠ API keys are stored only in your browser (localStorage). Keys marked "coming soon" will route through your backend for secure use.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Web Speech API voice picker (always visible) */}
+      {activePlugin === 'webspeech' && (
+        <div style={{ ...cardStyle, border: '1px solid rgba(91,233,221,0.2)' }}>
+          <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: 'var(--bone)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Volume2 size={14} color="var(--aurora)" /> Web Speech Voice Selection
+          </h4>
+          <VoicePickerPanel tts={tts} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* Voice picker panel for Web Speech API */
+const VoicePickerPanel = ({ tts }) => {
+  const { voices, selectedVoice, setVoice } = tts;
+  const enVoices = voices.filter(v => /^en/.test(v.lang));
+  const [filter, setFilter] = useState('');
+
+  const filtered = enVoices.filter(v =>
+    !filter || v.name.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  return (
+    <div>
+      <input
+        value={filter}
+        onChange={e => setFilter(e.target.value)}
+        placeholder="Filter voices…"
+        style={{ ...inputStyle, marginBottom: 10 }}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
+        {filtered.length === 0 && (
+          <span style={{ fontSize: 12, color: 'var(--dust)' }}>
+            {voices.length === 0 ? 'No voices loaded — voices are available after a page interaction.' : 'No voices match filter.'}
+          </span>
+        )}
+        {filtered.map(v => {
+          const isSelected = v.name === selectedVoice;
+          const isNeural = /(natural|neural|online)/i.test(v.name);
+          return (
+            <button
+              key={v.name}
+              onClick={() => setVoice(v.name)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px',
+                borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+                border: `1px solid ${isSelected ? 'rgba(91,233,221,0.35)' : 'transparent'}`,
+                background: isSelected ? 'rgba(91,233,221,0.08)' : 'rgba(242,234,211,0.03)',
+                transition: 'all 0.15s',
+              }}
+            >
+              <div style={{
+                width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
+                border: `2px solid ${isSelected ? 'var(--aurora)' : 'rgba(107,117,147,0.4)'}`,
+                background: isSelected ? 'var(--aurora)' : 'transparent',
+              }} />
+              <div style={{ flex: 1 }}>
+                <span style={{ fontSize: 12, fontWeight: 500, color: isSelected ? 'var(--aurora)' : 'var(--bone-dim)' }}>{v.name}</span>
+                <span style={{ fontSize: 10, color: 'var(--dust)', marginLeft: 6 }}>{v.lang}</span>
+              </div>
+              {isNeural && (
+                <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 9999, background: 'rgba(91,233,221,0.1)', color: 'var(--aurora)', fontWeight: 700 }}>NEURAL</span>
+              )}
+              {v.localService === false && (
+                <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 9999, background: 'rgba(232,177,79,0.1)', color: 'var(--gold)', fontWeight: 700 }}>ONLINE</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+/* ============================================================
    MAIN EXPORT — AdminDashboard
    ============================================================ */
 export const AdminDashboard = ({ auth }) => {
@@ -1367,6 +1745,7 @@ export const AdminDashboard = ({ auth }) => {
     { id: 'comments',      label: 'Comments',        icon: MessageCircle, minLevel: 1 },
     { id: 'actions',       label: 'Actions',         icon: Zap,           minLevel: 1 },
     { id: 'cms',           label: 'CMS',             icon: FileText,      minLevel: 3 },
+    { id: 'tts',           label: 'TTS Plugins',     icon: Mic,           minLevel: 3 },
   ].filter(t => level >= t.minLevel);
 
   return (
@@ -1414,12 +1793,13 @@ export const AdminDashboard = ({ auth }) => {
 
       {/* Tab content */}
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 0' }}>
-        {activeTab === 'users'         && <UsersTab         auth={auth} level={level} />}
-        {activeTab === 'conversations' && <ConversationsTab auth={auth} level={level} />}
-        {activeTab === 'ideas'         && <IdeasTab         auth={auth} level={level} />}
-        {activeTab === 'comments'      && <CommentsTab      auth={auth} level={level} />}
-        {activeTab === 'actions'       && <ActionsTab       auth={auth} level={level} />}
-        {activeTab === 'cms'           && <CmsTab           auth={auth} level={level} />}
+        {activeTab === 'users'         && <UsersTab           auth={auth} level={level} />}
+        {activeTab === 'conversations' && <ConversationsTab  auth={auth} level={level} />}
+        {activeTab === 'ideas'         && <IdeasTab          auth={auth} level={level} />}
+        {activeTab === 'comments'      && <CommentsTab       auth={auth} level={level} />}
+        {activeTab === 'actions'       && <ActionsTab        auth={auth} level={level} />}
+        {activeTab === 'cms'           && <CmsTab            auth={auth} level={level} />}
+        {activeTab === 'tts'           && <TtsPluginManager  auth={auth} level={level} />}
       </div>
     </div>
   );

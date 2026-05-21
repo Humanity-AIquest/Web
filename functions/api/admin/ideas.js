@@ -25,7 +25,7 @@ export async function onRequestGet(context) {
     if (id) {
       const idea = await env.DB.prepare(
         `SELECT i.*, u.email, u.display_name
-         FROM ideas i JOIN users u ON i.user_id = u.id
+         FROM ideas i LEFT JOIN users u ON i.user_id = u.id
          WHERE i.id = ?`
       ).bind(id).first();
 
@@ -43,7 +43,7 @@ export async function onRequestGet(context) {
     // List ideas
     let query = `SELECT i.id, i.title, i.content, i.clause_refs, i.status, i.created_at, i.ledger_hash,
                         u.email, u.display_name
-                 FROM ideas i JOIN users u ON i.user_id = u.id WHERE 1=1`;
+                 FROM ideas i LEFT JOIN users u ON i.user_id = u.id WHERE 1=1`;
     const params = [];
 
     if (status) { query += " AND i.status = ?"; params.push(status); }

@@ -5,6 +5,27 @@
  */
 import { json, jsonError, optionsResponse, getUser, newId } from "./_shared.js";
 
+// ─── Auto-migrate ideas table ─────────────────────────────────────────────────
+async function ensureIdeasSchema(env) {
+  const cols = ['ledger_hash TEXT', 'prev_hash TEXT', 'clause_refs TEXT', 'conversation_id TEXT', 'tags TEXT'];
+  for (const col of cols) {
+    try { await env.DB.prepare(`ALTER TABLE ideas ADD COLUMN ${col}`).run(); } catch (e) { /* already exists */ }
+  }
+  // Ensure idea_status_log table exists
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS idea_status_log (
+      id TEXT PRIMARY KEY,
+      idea_id TEXT NOT NULL,
+      old_status TEXT,
+      new_status TEXT NOT NULL,
+      admin_id TEXT,
+      comment TEXT,
+      visible_to_user INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`).run();
+  } catch (e) { /* already exists */ }
+}
+
 // ─── SHA-256 hash for immutable ledger ────────────────────────────────────────
 async function computeLedgerHash(content, prevHash) {
   const payload = `${prevHash || "GENESIS"}|${content}|${new Date().toISOString()}`;
@@ -20,6 +41,8 @@ export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
+    await ensureIdeasSchema(env);
+
     const user = await getUser(request, env);
     if (!user) {
       return jsonError("You must be logged in to submit an idea. Your contribution matters — please create an account so we can attribute your input per Clause I.1.");
@@ -39,16 +62,22 @@ export async function onRequestPost(context) {
     }
 
     // Get previous hash for chain integrity
-    const lastIdea = await env.DB.prepare(
-      "SELECT ledger_hash FROM ideas ORDER BY created_at DESC LIMIT 1"
-    ).first();
-    const prevHash = lastIdea?.ledger_hash || null;
+    let prevHash = null;
+    try {
+      const lastIdea = await env.DB.prepare(
+        "SELECT ledger_hash FROM ideas ORDER BY created_at DESC LIMIT 1"
+      ).first();
+      prevHash = lastIdea?.ledger_hash || null;
+    } catch (e) { /* ledger_hash column may not exist yet */ }
 
     // Compute hash
-    const ledgerHash = await computeLedgerHash(
-      JSON.stringify({ title, content, user_id: user.id }),
-      prevHash
-    );
+    let ledgerHash = null;
+    try {
+      ledgerHash = await computeLedgerHash(
+        JSON.stringify({ title, content, user_id: user.id }),
+        prevHash
+      );
+    } catch (e) { /* hash failure is non-critical */ }
 
     const ideaId = newId();
 
@@ -63,10 +92,12 @@ export async function onRequestPost(context) {
     ).run();
 
     // Log initial status
-    await env.DB.prepare(
-      `INSERT INTO idea_status_log (id, idea_id, old_status, new_status, comment, visible_to_user)
-       VALUES (?, ?, NULL, 'submitted', 'Your idea has been received. Thank you for contributing to the HRC.', 1)`
-    ).bind(newId(), ideaId).run();
+    try {
+      await env.DB.prepare(
+        `INSERT INTO idea_status_log (id, idea_id, old_status, new_status, comment, visible_to_user)
+         VALUES (?, ?, NULL, 'submitted', 'Your idea has been received. Thank you for contributing to the HRC.', 1)`
+      ).bind(newId(), ideaId).run();
+    } catch (e) { /* log failure is non-critical */ }
 
     return json({
       success: true,
@@ -79,7 +110,7 @@ export async function onRequestPost(context) {
       }
     });
   } catch (err) {
-    return jsonError("Failed to submit idea. Please try again.");
+    return jsonError("Failed to submit idea: " + err.message);
   }
 }
 
@@ -88,29 +119,33 @@ export async function onRequestGet(context) {
   const { request, env } = context;
 
   try {
+    await ensureIdeasSchema(env);
+
     const user = await getUser(request, env);
     if (!user) {
       return jsonError("Please log in to view your ideas.");
     }
 
     const ideas = await env.DB.prepare(
-      `SELECT i.id, i.title, i.content, i.clause_refs, i.status, i.ledger_hash,
-              i.created_at
-       FROM ideas i
-       WHERE i.user_id = ?
-       ORDER BY i.created_at DESC
+      `SELECT id, title, content, clause_refs, status, ledger_hash, created_at
+       FROM ideas
+       WHERE user_id = ?
+       ORDER BY created_at DESC
        LIMIT 100`
     ).bind(user.id).all();
 
     // Get status history for each idea
     const ideasWithHistory = [];
     for (const idea of ideas.results || []) {
-      const history = await env.DB.prepare(
-        `SELECT new_status, comment, visible_to_user, created_at
-         FROM idea_status_log
-         WHERE idea_id = ? AND visible_to_user = 1
-         ORDER BY created_at ASC`
-      ).bind(idea.id).all();
+      let history = { results: [] };
+      try {
+        history = await env.DB.prepare(
+          `SELECT new_status, comment, visible_to_user, created_at
+           FROM idea_status_log
+           WHERE idea_id = ? AND visible_to_user = 1
+           ORDER BY created_at ASC`
+        ).bind(idea.id).all();
+      } catch (e) { /* table may not have been created yet */ }
 
       ideasWithHistory.push({
         ...idea,
@@ -120,7 +155,7 @@ export async function onRequestGet(context) {
 
     return json({ ideas: ideasWithHistory });
   } catch (err) {
-    return jsonError("Failed to load ideas.");
+    return jsonError("Failed to load ideas: " + err.message);
   }
 }
 

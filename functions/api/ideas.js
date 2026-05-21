@@ -1,226 +1,129 @@
 /**
- * HRC Ideas Recording Endpoint
- * Cloudflare Pages Function at: functions/api/ideas.js
- * 
- * Per Clause I.1: Human Input Data Ownership & Immutable Innovation Tracking
- * "Human input data, ideas, and suggestions are tracked back to the human owner...
- *  The OS shall utilize an immutable ledger to track the origin and evolution of all 
- *  innovation inputs, models, code, and assets generated or developed with AI assistance"
- * 
- * This endpoint records and attributes all ideas to their human originators.
+ * /api/ideas
+ * POST — Submit a new idea (registered users only)
+ * GET  — Get my ideas with status history
  */
+import { json, jsonError, optionsResponse, getUser, newId } from "./_shared.js";
 
-export async function onRequest(context) {
+// ─── SHA-256 hash for immutable ledger ────────────────────────────────────────
+async function computeLedgerHash(content, prevHash) {
+  const payload = `${prevHash || "GENESIS"}|${content}|${new Date().toISOString()}`;
+  const encoded = new TextEncoder().encode(payload);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// ─── POST: Submit Idea ────────────────────────────────────────────────────────
+export async function onRequestPost(context) {
   const { request, env } = context;
 
-  // Handle CORS
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
+  try {
+    const user = await getUser(request, env);
+    if (!user) {
+      return jsonError("You must be logged in to submit an idea. Your contribution matters — please create an account so we can attribute your input per Clause I.1.");
+    }
+
+    const body = await request.json();
+    const { title, content, clause_refs, conversation_id } = body;
+
+    if (!title || !content) {
+      return jsonError("Please provide a title and description for your idea.");
+    }
+    if (title.length > 200) {
+      return jsonError("Title must be 200 characters or less.");
+    }
+    if (content.length > 5000) {
+      return jsonError("Idea description must be 5000 characters or less.");
+    }
+
+    // Get previous hash for chain integrity
+    const lastIdea = await env.DB.prepare(
+      "SELECT ledger_hash FROM ideas ORDER BY created_at DESC LIMIT 1"
+    ).first();
+    const prevHash = lastIdea?.ledger_hash || null;
+
+    // Compute hash
+    const ledgerHash = await computeLedgerHash(
+      JSON.stringify({ title, content, user_id: user.id }),
+      prevHash
+    );
+
+    const ideaId = newId();
+
+    await env.DB.prepare(
+      `INSERT INTO ideas (id, user_id, conversation_id, title, content, clause_refs, status, ledger_hash, prev_hash)
+       VALUES (?, ?, ?, ?, ?, ?, 'submitted', ?, ?)`
+    ).bind(
+      ideaId, user.id, conversation_id || null,
+      title.trim(), content.trim(),
+      clause_refs || null,
+      ledgerHash, prevHash
+    ).run();
+
+    // Log initial status
+    await env.DB.prepare(
+      `INSERT INTO idea_status_log (id, idea_id, old_status, new_status, comment, visible_to_user)
+       VALUES (?, ?, NULL, 'submitted', 'Your idea has been received. Thank you for contributing to the HRC.', 1)`
+    ).bind(newId(), ideaId).run();
+
+    return json({
+      success: true,
+      idea: {
+        id: ideaId,
+        title: title.trim(),
+        status: "submitted",
+        ledger_hash: ledgerHash,
+        message: "Your idea has been recorded on the immutable ledger per Clause I.1. You can track its status in your account."
+      }
     });
+  } catch (err) {
+    return jsonError("Failed to submit idea. Please try again.");
   }
+}
 
-  // GET: Retrieve user's ideas
-  if (request.method === 'GET') {
-    try {
-      const url = new URL(request.url);
-      const userId = url.searchParams.get('user_id');
-      const conversationId = url.searchParams.get('conversation_id');
+// ─── GET: My Ideas ────────────────────────────────────────────────────────────
+export async function onRequestGet(context) {
+  const { request, env } = context;
 
-      if (!userId) {
-        return new Response(
-          JSON.stringify({ error: 'user_id is required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Retrieve all ideas for this user from KV
-      const ideas = [];
-      const prefix = `idea:${userId}`;
-
-      if (env.DATASTORE_KV?.list) {
-        const list = await env.DATASTORE_KV.list({ prefix });
-        for (const key of list.keys) {
-          const idea = await env.DATASTORE_KV.get(key.name, 'json');
-          ideas.push(idea);
-        }
-      }
-
-      return new Response(
-        JSON.stringify({
-          user_id: userId,
-          total_ideas: ideas.length,
-          ideas: ideas.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        }
-      );
-
-    } catch (error) {
-      console.error('Error retrieving ideas:', error);
-      return new Response(
-        JSON.stringify({ error: 'Failed to retrieve ideas' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+  try {
+    const user = await getUser(request, env);
+    if (!user) {
+      return jsonError("Please log in to view your ideas.");
     }
-  }
 
-  // POST: Record a new idea
-  if (request.method === 'POST') {
-    try {
-      const {
-        user_id,
-        conversation_id,
-        clause_id,
-        idea_text,
-        idea_type, // "amendment", "implementation", "critique", "feedback"
-        related_clauses, // Array of related clause IDs
-      } = await request.json();
+    const ideas = await env.DB.prepare(
+      `SELECT i.id, i.title, i.content, i.clause_refs, i.status, i.ledger_hash,
+              i.created_at
+       FROM ideas i
+       WHERE i.user_id = ?
+       ORDER BY i.created_at DESC
+       LIMIT 100`
+    ).bind(user.id).all();
 
-      // Validate required fields
-      if (!user_id || !idea_text) {
-        return new Response(
-          JSON.stringify({ error: 'user_id and idea_text are required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
+    // Get status history for each idea
+    const ideasWithHistory = [];
+    for (const idea of ideas.results || []) {
+      const history = await env.DB.prepare(
+        `SELECT new_status, comment, visible_to_user, created_at
+         FROM idea_status_log
+         WHERE idea_id = ? AND visible_to_user = 1
+         ORDER BY created_at ASC`
+      ).bind(idea.id).all();
 
-      // Create immutable record (Clause I.1 compliance)
-      const ideaRecord = {
-        // Identity & Attribution
-        id: `idea_${user_id}_${Date.now()}`,
-        owner: user_id, // IMMUTABLE - tracks back to human originator
-        created_at: new Date().toISOString(),
-        
-        // Context
-        conversation_id,
-        clause_id, // Which clause sparked this idea?
-        related_clauses: related_clauses || [],
-        
-        // Idea Content
-        idea_type: idea_type || 'suggestion',
-        idea_text,
-        
-        // Tracking (for amendment workflow)
-        status: 'recorded', // recorded → reviewed → proposed → voting → approved/rejected
-        amendment_id: null, // Will be populated if this becomes an official amendment
-        
-        // Provenance (Clause I.1: immutable ledger)
-        version: 1,
-        hash: generateHash(`${user_id}${idea_text}${Date.now()}`),
-        
-        // Metadata
-        metadata: {
-          source: 'hrc_agent_conversation',
-          ip_hash: hashIP(request.headers.get('cf-connecting-ip')),
-          user_agent_hash: hashUserAgent(request.headers.get('user-agent')),
-        }
-      };
-
-      // Store in Cloudflare KV (immutable ledger per Clause I.1)
-      const kvKey = `idea:${user_id}:${ideaRecord.id}`;
-      
-      await env.DATASTORE_KV.put(
-        kvKey,
-        JSON.stringify(ideaRecord),
-        {
-          expirationTtl: 86400 * 365 * 10, // 10 years (immutable record)
-          metadata: {
-            owner: user_id,
-            created: ideaRecord.created_at,
-            clause: clause_id,
-          }
-        }
-      );
-
-      // OPTIONAL: Also send to D1 database if available (for full amendment workflow)
-      if (env.DB) {
-        try {
-          await env.DB.prepare(
-            `INSERT INTO ideas (id, owner, conversation_id, clause_id, idea_type, idea_text, status, created_at, hash)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).bind(
-            ideaRecord.id,
-            user_id,
-            conversation_id,
-            clause_id,
-            idea_type,
-            idea_text,
-            'recorded',
-            ideaRecord.created_at,
-            ideaRecord.hash
-          ).run();
-        } catch (dbError) {
-          console.warn('Database insert failed (D1 not available):', dbError);
-          // KV storage succeeded, so this is okay
-        }
-      }
-
-      // Return confirmation with attribution
-      return new Response(
-        JSON.stringify({
-          success: true,
-          idea_id: ideaRecord.id,
-          owner: user_id,
-          message: `Your idea has been recorded and attributed to you per Clause I.1 (Human Input Data Ownership). This immutable record ensures your contribution is forever tracked.`,
-          next_steps: [
-            "This idea is now visible in your personal ledger",
-            "Share this idea with the community for feedback",
-            "Develop this into a formal amendment proposal",
-            "Other users can build upon your idea while maintaining your attribution"
-          ],
-          ledger_url: `/ideas?user_id=${user_id}`,
-        }),
-        {
-          status: 201,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        }
-      );
-
-    } catch (error) {
-      console.error('Error recording idea:', error);
-      return new Response(
-        JSON.stringify({ error: 'Failed to record idea' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      ideasWithHistory.push({
+        ...idea,
+        status_history: history.results || [],
+      });
     }
+
+    return json({ ideas: ideasWithHistory });
+  } catch (err) {
+    return jsonError("Failed to load ideas.");
   }
-
-  return new Response('Method not allowed', { status: 405 });
 }
 
-/**
- * Generate cryptographic hash for immutable ledger
- * (In production, use proper cryptography)
- */
-function generateHash(input) {
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return `hrc_${Math.abs(hash).toString(16)}`;
-}
-
-/**
- * Hash IP for privacy (don't store raw IPs per Clause I.2)
- */
-function hashIP(ip) {
-  if (!ip) return 'unknown';
-  return `ip_${generateHash(ip)}`;
-}
-
-/**
- * Hash user agent for privacy
- */
-function hashUserAgent(ua) {
-  if (!ua) return 'unknown';
-  return `ua_${generateHash(ua)}`;
+export async function onRequestOptions() {
+  return optionsResponse();
 }

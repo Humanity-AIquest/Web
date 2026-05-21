@@ -688,18 +688,20 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
                 </button>
               </>
             ) : (
-              <button onClick={() => onOpenAuth('signup')}
-                className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
-                style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>
-                <UserPlus size={14} />
-                <span>Sign Up</span>
-              </button>
-              <button onClick={() => onOpenAuth('login')}
-                className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
-                style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
-                <LogIn size={14} />
-                <span>Sign In</span>
-              </button>
+              <>
+                <button onClick={() => onOpenAuth('signup')}
+                  className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
+                  style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>
+                  <UserPlus size={14} />
+                  <span>Sign Up</span>
+                </button>
+                <button onClick={() => onOpenAuth('login')}
+                  className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
+                  style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+                  <LogIn size={14} />
+                  <span>Sign In</span>
+                </button>
+              </>
             )}
             <button onClick={() => setOpen(!open)} className="lg:hidden p-2">
               {open ? <X size={20} /> : <Menu size={20} />}

@@ -259,7 +259,7 @@ export async function onRequestPost(context) {
     const apiKey = env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return errorResponse(
-        "The HRC Agent is temporarily unavailable (configuration issue). Please contact the platform administrator."
+        "The HRC Agent is temporarily unavailable. Please notify the platform administrator."
       );
     }
 
@@ -280,10 +280,11 @@ export async function onRequestPost(context) {
      anthropicResponse = await fetch("https://gateway.ai.cloudflare.com/v1/2214ec50b147719452e0b01267351411/claudierapii2/anthropic/v1/messages", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-        },
+  "Content-Type": "application/json",
+  "x-api-key": apiKey,
+  "anthropic-version": "2023-06-01",
+  "cf-aig-authorization": `Bearer ${env.CF_AIG_TOKEN}`,
+},
         body: JSON.stringify(anthropicPayload),
       });
     } catch (fetchError) {

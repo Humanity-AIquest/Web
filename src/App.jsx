@@ -105,13 +105,15 @@ async function apiCall(path, method = 'GET', body = null, token = null) {
 }
 
 // ============ AUTH MODAL ============
-const AuthModal = ({ open, onClose, onAuth }) => {
-  const [mode, setMode] = useState('login');
+const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
+  const [mode, setMode] = useState(defaultMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => { if (open) setMode(defaultMode); }, [open, defaultMode]);
 
   if (!open) return null;
 
@@ -149,7 +151,7 @@ const AuthModal = ({ open, onClose, onAuth }) => {
 
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-display text-xl">
-            {mode === 'login' ? 'Welcome Back' : 'Join the Constitution'}
+            {mode === 'login' ? 'Welcome Back' : 'Create Your Account'}
           </h2>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-cosmos transition-colors">
             <X size={18} />
@@ -159,7 +161,7 @@ const AuthModal = ({ open, onClose, onAuth }) => {
         <p className="text-sm text-bone-dim mb-6">
           {mode === 'login'
             ? 'Sign in to track your ideas and participate in shaping the HRC.'
-            : 'Create an account to submit ideas, vote on amendments, and help build humanity\'s constitution for AI.'}
+            : 'Create a free account to submit ideas, track their progress, and help shape the future of AI governance.'}
         </p>
 
         <form onSubmit={submit} className="space-y-4">
@@ -686,7 +688,13 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
                 </button>
               </>
             ) : (
-              <button onClick={onOpenAuth}
+              <button onClick={() => onOpenAuth('signup')}
+                className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
+                style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>
+                <UserPlus size={14} />
+                <span>Sign Up</span>
+              </button>
+              <button onClick={() => onOpenAuth('login')}
                 className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
                 style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
                 <LogIn size={14} />
@@ -2082,6 +2090,7 @@ export default function HumanityAIQuest() {
   const [agentSeed, setAgentSeed] = useState(null);
   const [auth, setAuth] = useState(getStoredAuth);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2089,7 +2098,7 @@ export default function HumanityAIQuest() {
 
   const openAgent = () => setAgentOpen(true);
   const seedAgent = (text) => { setAgentSeed(text); setAgentOpen(true); };
-  const openAuthModal = () => setAuthModalOpen(true);
+  const openAuthModal = (mode = 'login') => { setAuthModalMode(mode); setAuthModalOpen(true); };
 
   const handleLogout = async () => {
     if (auth?.token) {
@@ -2134,6 +2143,7 @@ export default function HumanityAIQuest() {
         open={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         onAuth={(data) => setAuth(data)}
+        defaultMode={authModalMode}
       />
     </div>
   );

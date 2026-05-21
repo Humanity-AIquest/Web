@@ -2,10 +2,10 @@
  * Cloudflare Pages Function: /api/chat
  * HRC Agent Chat Endpoint — Humanity-AI OS
  *
- * Receives POST { model, max_tokens, system, messages } from frontend.
- * Overrides model and system prompt with canonical HRC Agent identity.
- * Returns Anthropic-native response shape: { content: [{ type: "text", text: "..." }] }
- * All errors return HTTP 200 with a graceful error text content block.
+ * Receives POST { message: "user text" } from deployed frontend.
+ * Returns { message: "agent reply text" } to match frontend parsing.
+ * Injects all 52 HRC clauses server-side as system prompt.
+ * All errors return HTTP 200 with a message field so frontend always renders.
  */
 
 // ─── CANONICAL MODEL ─────────────────────────────────────────────────────────
@@ -216,11 +216,10 @@ const CORS_HEADERS = {
 };
 
 // ─── GRACEFUL ERROR RESPONSE ──────────────────────────────────────────────────
-function errorResponse(message) {
+// Returns { message: "error text" } so frontend always has something to display
+function errorResponse(msg) {
   return new Response(
-    JSON.stringify({
-      content: [{ type: "text", text: message }],
-    }),
+    JSON.stringify({ message: msg }),
     {
       status: 200,
       headers: {
@@ -246,12 +245,20 @@ export async function onRequestPost(context) {
       );
     }
 
-    const { messages, max_tokens: requestedTokens } = body;
+    // ─── FLEXIBLE INPUT: accept EITHER format ─────────────────────────────
+    // Deployed frontend sends: { message: "user text" }
+    // Alternative format:      { messages: [{ role: "user", content: "..." }] }
+    let anthropicMessages;
 
-    // Validate messages array
-    if (!Array.isArray(messages) || messages.length === 0) {
+    if (body.message && typeof body.message === "string") {
+      // Frontend sends { message: "text" } — wrap it for Anthropic
+      anthropicMessages = [{ role: "user", content: body.message }];
+    } else if (Array.isArray(body.messages) && body.messages.length > 0) {
+      // Alternative: already in Anthropic format
+      anthropicMessages = body.messages;
+    } else {
       return errorResponse(
-        "No messages were provided. Please send your question and I will respond as the HRC Agent."
+        "No message was provided. Please send your question and I will respond as the HRC Agent."
       );
     }
 
@@ -259,32 +266,28 @@ export async function onRequestPost(context) {
     const apiKey = env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return errorResponse(
-        "The HRC Agent is temporarily unavailable. Please notify the platform administrator."
+        "The HRC Agent is temporarily unavailable (configuration issue). Please contact the platform administrator."
       );
     }
-
-    // Cap tokens: honour the request but never exceed 2000
-    const maxTokens = Math.min(requestedTokens || 1000, 2000);
 
     // Build Anthropic request — model and system are always overridden
     const anthropicPayload = {
       model: CANONICAL_MODEL,
-      max_tokens: maxTokens,
+      max_tokens: 2000,
       system: SYSTEM_PROMPT,
-      messages: messages, // passed through unchanged
+      messages: anthropicMessages,
     };
 
     // Call Anthropic Messages API
     let anthropicResponse;
     try {
-     anthropicResponse = await fetch("https://gateway.ai.cloudflare.com/v1/2214ec50b147719452e0b01267351411/claudierapii2/anthropic/v1/messages", {
+      anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-  "Content-Type": "application/json",
-  "x-api-key": apiKey,
-  "anthropic-version": "2023-06-01",
-  "cf-aig-authorization": `Bearer ${env.CF_AIG_TOKEN}`,
-},
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
         body: JSON.stringify(anthropicPayload),
       });
     } catch (fetchError) {
@@ -317,25 +320,23 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Validate expected shape: { content: [{ type, text }] }
-    if (
-      !anthropicData.content ||
-      !Array.isArray(anthropicData.content) ||
-      anthropicData.content.length === 0
-    ) {
-      return errorResponse(
-        "The HRC Agent received an unexpected response format. Please try again."
-      );
-    }
+    // Extract text from Anthropic response
+    const replyText = anthropicData.content
+      ?.filter(c => c.type === "text")
+      .map(c => c.text)
+      .join("\n") || "The HRC Agent received an empty response. Please try again.";
 
-    // Return the Anthropic-native response shape directly to the frontend
-    return new Response(JSON.stringify(anthropicData), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...CORS_HEADERS,
-      },
-    });
+    // ─── RETURN { message: "reply" } — matches deployed frontend ──────────
+    return new Response(
+      JSON.stringify({ message: replyText }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...CORS_HEADERS,
+        },
+      }
+    );
   } catch (unexpectedError) {
     return errorResponse(
       "The HRC Agent encountered an unexpected error. Please try again in a moment."

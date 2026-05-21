@@ -4,8 +4,9 @@ import {
   X, Send, ArrowRight, Globe, Shield, Feather, Layers,
   Eye, Lock, Heart, Compass, Menu, Loader2,
   MessageCircle, Trees, Star, Mic, MicOff, Volume2, VolumeX,
-  LogIn, UserPlus, User, LogOut, Lightbulb, CheckCircle
+  LogIn, UserPlus, User, LogOut, Lightbulb, CheckCircle, Settings
 } from 'lucide-react';
+import AdminDashboard from './AdminDashboard';
 
 
 /* ============================================================
@@ -668,12 +669,22 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
               <span>HRC Agent</span>
             </button>
             {auth?.user ? (
-              <button onClick={() => setPage('account')}
-                className="hidden md:inline-flex items-center gap-2 px-3 py-2 text-sm rounded-full border transition-all"
-                style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>
-                <User size={14} />
-                <span>{auth.user.display_name}</span>
-              </button>
+              <>
+                {(auth.user.acl_level ?? 0) >= 1 && (
+                  <button onClick={() => setPage('admin')}
+                    className="hidden md:inline-flex items-center gap-2 px-3 py-2 text-sm rounded-full border transition-all"
+                    style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+                    <Settings size={14} />
+                    <span>Admin</span>
+                  </button>
+                )}
+                <button onClick={() => setPage('account')}
+                  className="hidden md:inline-flex items-center gap-2 px-3 py-2 text-sm rounded-full border transition-all"
+                  style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>
+                  <User size={14} />
+                  <span>{auth.user.display_name}</span>
+                </button>
+              </>
             ) : (
               <button onClick={onOpenAuth}
                 className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
@@ -1057,7 +1068,7 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
                         className="btn-aurora text-sm">
                         <Sparkles size={14} /> Discuss with the HRC Agent
                       </button>
-                      <button className="btn-secondary text-sm">
+                      <button className="btn-secondary text-sm" onClick={() => alert('Clause signing will be available once identity verification launches. Stay tuned!')}>
                         <ArrowRight size={14} /> Sign in support of this clause
                       </button>
                     </div>
@@ -1622,7 +1633,7 @@ const ManifestoPage = ({ setPage }) => (
 );
 
 // ============ JOIN PAGE ============
-const JoinPage = () => (
+const JoinPage = ({ setPage }) => (
   <PageWrap>
     <section className="pt-24 pb-16 max-w-7xl mx-auto px-6 lg:px-12 text-center">
       <SectionLabel>Three doors</SectionLabel>
@@ -1637,9 +1648,9 @@ const JoinPage = () => (
     <section className="pb-32 max-w-7xl mx-auto px-6 lg:px-12">
       <div className="grid md:grid-cols-3 gap-6">
         {[
-          { n: 'I', icon: <BookOpen className="text-aurora" size={28} />, t: 'Sign the Constitution', d: 'For citizens and innovators ready to inhabit the OS.', cta: 'Sign now', tone: 'aurora' },
-          { n: 'II', icon: <Sparkles className="text-gold" size={28} />, t: 'Enter the Quest', d: 'For builders ready to compete and ship.', cta: 'Apply', tone: 'gold' },
-          { n: 'III', icon: <Network className="text-terra" size={28} />, t: 'Build the OS', d: 'For open-source contributors, ethicists, scientists, and domain experts.', cta: 'Join the build', tone: 'bone' }
+          { n: 'I', icon: <BookOpen className="text-aurora" size={28} />, t: 'Sign the Constitution', d: 'For citizens and innovators ready to inhabit the OS.', cta: 'Sign now', tone: 'aurora', nav: 'constitution' },
+          { n: 'II', icon: <Sparkles className="text-gold" size={28} />, t: 'Enter the Quest', d: 'For builders ready to compete and ship.', cta: 'Apply', tone: 'gold', nav: 'quest' },
+          { n: 'III', icon: <Network className="text-terra" size={28} />, t: 'Build the OS', d: 'For open-source contributors, ethicists, scientists, and domain experts.', cta: 'Join the build', tone: 'bone', nav: 'community' }
         ].map((door, i) => (
           <div key={i} className="card-glass rounded-3xl p-10 relative overflow-hidden">
             <div className="absolute top-0 right-0 font-display text-9xl opacity-10" style={{ lineHeight: 1 }}>{door.n}</div>
@@ -1647,7 +1658,7 @@ const JoinPage = () => (
               <div className="mb-6">{door.icon}</div>
               <div className="font-display text-3xl mb-4">{door.t}</div>
               <p className="text-bone-dim leading-relaxed mb-8">{door.d}</p>
-              <button className={door.tone === 'aurora' ? 'btn-aurora' : door.tone === 'gold' ? 'btn-gold' : 'btn-primary'}>
+              <button onClick={() => setPage(door.nav)} className={door.tone === 'aurora' ? 'btn-aurora' : door.tone === 'gold' ? 'btn-gold' : 'btn-primary'}>
                 {door.cta} <ArrowRight size={16} />
               </button>
             </div>
@@ -2100,9 +2111,10 @@ export default function HumanityAIQuest() {
         {page === 'community' && <CommunityPage />}
         {page === 'ledger' && <LedgerPage />}
         {page === 'manifesto' && <ManifestoPage setPage={setPage} />}
-        {page === 'join' && <JoinPage />}
+        {page === 'join' && <JoinPage setPage={setPage} />}
         {page === 'about' && <AboutPage />}
         {page === 'account' && <AccountPage auth={auth} onLogout={handleLogout} />}
+        {page === 'admin' && <AdminDashboard auth={auth} onLogout={handleLogout} />}
       </main>
 
       <Footer setPage={setPage} />

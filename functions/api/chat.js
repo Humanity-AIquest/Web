@@ -9,7 +9,7 @@
  */
 
 // ─── CANONICAL MODEL ─────────────────────────────────────────────────────────
-const CANONICAL_MODEL = "claude-sonnet-4-20250514";
+const CANONICAL_MODEL = "claude-sonnet-4-6";
 
 // ─── HRC CLAUSES (all 52, full text) ─────────────────────────────────────────
 const HRC_CLAUSES = `

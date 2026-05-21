@@ -768,6 +768,9 @@ const HomePage = ({ setPage, onOpenAgent }) => {
 
   return (
     <PageWrap>
+      <div className="w-full text-center py-2 text-xs tracking-wide" style={{ background: 'rgba(232,177,79,0.1)', color: 'var(--gold)', borderBottom: '1px solid rgba(232,177,79,0.15)' }}>
+        Beta Preview &mdash; This platform is in early development. Some features are not yet available.
+      </div>
       <section className="relative min-h-[88vh] flex items-center grain">
         <AgentNetwork density={42} height="100%" />
         <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 py-24 w-full">

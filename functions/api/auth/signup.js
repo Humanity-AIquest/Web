@@ -51,7 +51,7 @@ export async function onRequestPost(context) {
 
     return json({
       success: true,
-      user: { id: userId, email: email.toLowerCase().trim(), display_name: name, role: "user" },
+      user: { id: userId, email: email.toLowerCase().trim(), display_name: name, role: "user", acl_level: 0 },
       token: token,
     });
   } catch (err) {

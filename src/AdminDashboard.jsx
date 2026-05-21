@@ -412,50 +412,106 @@ const UsersTab = ({ auth, level }) => {
 /* ============================================================
    TAB 2 — CONVERSATIONS
    ============================================================ */
+const FLAG_CATEGORIES = [
+  { value: 'process_hrc',  label: 'Flag - Process for HRC',       color: 'aurora' },
+  { value: 'more_info',    label: 'Flag - More information needed', color: 'gold' },
+  { value: 'warn_user',    label: 'Flag - Warn user',              color: 'orange' },
+  { value: 'suspend_user', label: 'Flag - Suspend user',           color: 'red' },
+];
+
 const ConversationsTab = ({ auth, level }) => {
   const [convs, setConvs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const [expandedMsgs, setExpandedMsgs] = useState([]);
+  const [expandedNotes, setExpandedNotes] = useState([]);
+  const [msgsLoading, setMsgsLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all'); // all | flagged | anon | registered
+  const [filter, setFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState(null);
+  const [flagMenu, setFlagMenu] = useState(null);
+  const [noteInput, setNoteInput] = useState('');
+  const [noteType, setNoteType] = useState('comment');
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const data = await apiCall('/api/admin/conversations', 'GET', null, auth.token);
+      const data = await apiCall('/api/admin/conversations?filter=' + filter, 'GET', null, auth.token);
       setConvs(data.conversations ?? data ?? []);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
-  }, [auth.token]);
+  }, [auth.token, filter]);
 
   useEffect(() => { load(); }, [load]);
 
   const filtered = convs.filter(c => {
     const q = search.toLowerCase();
-    const matchQ = !q || (c.first_message || '').toLowerCase().includes(q);
-    const matchF = filter === 'all'
-      ? true
-      : filter === 'flagged' ? c.flagged
-      : filter === 'anon' ? !c.user_id
-      : !!c.user_id;
-    return matchQ && matchF;
+    return !q || (c.first_message || '').toLowerCase().includes(q);
   });
 
-  const toggleFlag = async (c) => {
-    setActionLoading(c.id);
+  // Fetch full messages when expanding a conversation
+  const toggleExpand = async (convId) => {
+    if (expanded === convId) { setExpanded(null); return; }
+    setExpanded(convId);
+    setMsgsLoading(true);
+    setExpandedMsgs([]);
+    setExpandedNotes([]);
     try {
-      await apiCall('/api/admin/conversations', 'POST', { conversation_id: c.id, action: c.flagged ? 'unflag' : 'flag' }, auth.token);
-      setConvs(prev => prev.map(x => x.id === c.id ? { ...x, flagged: !x.flagged } : x));
+      const data = await apiCall(`/api/admin/conversations?id=${convId}`, 'GET', null, auth.token);
+      setExpandedMsgs(data.messages || []);
+      setExpandedNotes(data.notes || []);
+    } catch (e) { setExpandedMsgs([]); }
+    finally { setMsgsLoading(false); }
+  };
+
+  const doFlag = async (c, category) => {
+    setActionLoading(c.id);
+    setFlagMenu(null);
+    try {
+      await apiCall('/api/admin/conversations', 'POST', { conversation_id: c.id, action: 'flag', flag_category: category }, auth.token);
+      setConvs(prev => prev.map(x => x.id === c.id ? { ...x, flagged: 1, flag_category: category } : x));
     } catch (e) { alert(`Error: ${e.message}`); }
     finally { setActionLoading(null); }
+  };
+
+  const doUnflag = async (c) => {
+    setActionLoading(c.id);
+    try {
+      await apiCall('/api/admin/conversations', 'POST', { conversation_id: c.id, action: 'unflag' }, auth.token);
+      setConvs(prev => prev.map(x => x.id === c.id ? { ...x, flagged: 0, flag_category: null } : x));
+    } catch (e) { alert(`Error: ${e.message}`); }
+    finally { setActionLoading(null); }
+  };
+
+  const doDelete = async (c) => {
+    if (!confirm('Permanently delete this conversation and all its messages?')) return;
+    setActionLoading(c.id);
+    try {
+      await apiCall('/api/admin/conversations', 'POST', { conversation_id: c.id, action: 'delete' }, auth.token);
+      setConvs(prev => prev.filter(x => x.id !== c.id));
+      if (expanded === c.id) setExpanded(null);
+    } catch (e) { alert(`Error: ${e.message}`); }
+    finally { setActionLoading(null); }
+  };
+
+  const addNote = async (convId) => {
+    if (!noteInput.trim()) return;
+    try {
+      await apiCall('/api/admin/conversations', 'POST', {
+        conversation_id: convId, action: 'add_note', note: noteInput.trim(), note_type: noteType
+      }, auth.token);
+      setNoteInput('');
+      // Refresh notes
+      const data = await apiCall(`/api/admin/conversations?id=${convId}`, 'GET', null, auth.token);
+      setExpandedNotes(data.notes || []);
+    } catch (e) { alert(`Error: ${e.message}`); }
   };
 
   const filterOpts = [
     { value: 'all',        label: 'All' },
     { value: 'flagged',    label: 'Flagged' },
-    { value: 'anon',       label: 'Anon only' },
+    { value: 'anonymous',  label: 'Anon only' },
     { value: 'registered', label: 'Registered' },
   ];
 
@@ -493,14 +549,15 @@ const ConversationsTab = ({ auth, level }) => {
                   display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
                   cursor: 'pointer', userSelect: 'none',
                 }}
-                onClick={() => setExpanded(expanded === c.id ? null : c.id)}
+                onClick={() => toggleExpand(c.id)}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                    {statusBadge(c.user_id ? 'user' : 'anon')}
-                    {c.flagged && <Badge label="Flagged" color="red" />}
+                    {statusBadge(c.user_type === 'registered' ? 'user' : 'anon')}
+                    {c.user_name && <span style={{ fontSize: 12, color: 'var(--bone-dim)' }}>{c.user_name}</span>}
+                    {c.flagged ? <Badge label={c.flag_category ? c.flag_category.replace('_', ' ') : 'Flagged'} color="red" /> : null}
                     <span style={{ fontSize: 12, color: 'var(--dust)' }}>{c.message_count ?? 0} msgs</span>
-                    <span style={{ fontSize: 12, color: 'var(--dust)' }}>{fmtDate(c.created_at)}</span>
+                    <span style={{ fontSize: 12, color: 'var(--dust)' }}>{fmtDate(c.started_at)}</span>
                   </div>
                   <p style={{
                     margin: 0, fontSize: 13, color: 'var(--bone-dim)',
@@ -509,26 +566,65 @@ const ConversationsTab = ({ auth, level }) => {
                     {c.first_message || '(no preview)'}
                   </p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button
-                    onClick={e => { e.stopPropagation(); toggleFlag(c); }}
-                    style={btnStyle(c.flagged ? 'danger' : 'ghost', true)}
-                    title={c.flagged ? 'Unflag' : 'Flag'}
-                  >
-                    {actionLoading === c.id ? <Spinner /> : <Flag size={12} />}
-                    {c.flagged ? 'Unflag' : 'Flag'}
-                  </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
+                  {/* Flag dropdown */}
+                  {!c.flagged ? (
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={e => { e.stopPropagation(); setFlagMenu(flagMenu === c.id ? null : c.id); }}
+                        style={btnStyle('ghost', true)} title="Flag options"
+                      >
+                        {actionLoading === c.id ? <Spinner /> : <Flag size={12} />} Flag
+                        <ChevronDown size={10} />
+                      </button>
+                      {flagMenu === c.id && (
+                        <div onClick={e => e.stopPropagation()} style={{
+                          position: 'absolute', right: 0, top: '100%', marginTop: 4, zIndex: 100,
+                          background: 'var(--void-2)', border: '1px solid var(--line-2)', borderRadius: 8,
+                          minWidth: 240, padding: 4, boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                        }}>
+                          {FLAG_CATEGORIES.map(fc => (
+                            <button key={fc.value} onClick={() => doFlag(c, fc.value)}
+                              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', color: 'var(--bone-dim)', fontSize: 13, cursor: 'pointer', borderRadius: 6 }}
+                              onMouseOver={e => e.target.style.background = 'rgba(91,233,221,0.08)'}
+                              onMouseOut={e => e.target.style.background = 'transparent'}
+                            >
+                              {fc.label}
+                            </button>
+                          ))}
+                          {level >= 4 && (
+                            <button onClick={() => doDelete(c)}
+                              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', color: '#f87171', fontSize: 13, cursor: 'pointer', borderRadius: 6, borderTop: '1px solid var(--line-2)', marginTop: 4, paddingTop: 10 }}
+                              onMouseOver={e => e.target.style.background = 'rgba(248,113,113,0.08)'}
+                              onMouseOut={e => e.target.style.background = 'transparent'}
+                            >
+                              Delete (irrelevant)
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={e => { e.stopPropagation(); doUnflag(c); }}
+                      style={btnStyle('danger', true)} title="Unflag"
+                    >
+                      {actionLoading === c.id ? <Spinner /> : <Flag size={12} />} Unflag
+                    </button>
+                  )}
                   {expanded === c.id ? <ChevronDown size={16} color="var(--dust)" /> : <ChevronRight size={16} color="var(--dust)" />}
                 </div>
               </div>
 
-              {/* expanded messages */}
+              {/* expanded messages + admin notes */}
               {expanded === c.id && (
-                <div style={{ borderTop: '1px solid var(--line)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {(c.messages || []).length === 0 ? (
-                    <span style={{ fontSize: 13, color: 'var(--dust)' }}>No message detail available.</span>
+                <div style={{ borderTop: '1px solid var(--line)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {msgsLoading ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}><Spinner size={18} /></div>
+                  ) : expandedMsgs.length === 0 ? (
+                    <span style={{ fontSize: 13, color: 'var(--dust)' }}>No messages in this conversation.</span>
                   ) : (
-                    (c.messages || []).map((m, i) => (
+                    expandedMsgs.map((m, i) => (
                       <div key={i} style={{
                         padding: '8px 12px', borderRadius: 8,
                         background: m.role === 'user' ? 'rgba(91,233,221,0.06)' : 'rgba(232,177,79,0.06)',
@@ -544,6 +640,52 @@ const ConversationsTab = ({ auth, level }) => {
                       </div>
                     ))
                   )}
+
+                  {/* Admin Notes Section */}
+                  {expandedNotes.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: 1 }}>Admin Notes</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                        {expandedNotes.map((n, i) => (
+                          <div key={i} style={{
+                            padding: '8px 12px', borderRadius: 8,
+                            background: n.note_type === 'next_action' ? 'rgba(251,191,36,0.08)' : 'rgba(148,163,184,0.08)',
+                            borderLeft: `3px solid ${n.note_type === 'next_action' ? 'var(--gold)' : 'var(--dust)'}`,
+                          }}>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                              <Badge label={n.note_type === 'next_action' ? 'Next Action' : 'Comment'} color={n.note_type === 'next_action' ? 'gold' : 'dust'} />
+                              <span style={{ fontSize: 11, color: 'var(--dust)' }}>{n.admin_name || 'Admin'} &middot; {fmtDate(n.created_at)}</span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)' }}>{n.note}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add Note Form */}
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                        <button onClick={() => setNoteType('comment')}
+                          style={btnStyle(noteType === 'comment' ? 'aurora' : 'ghost', true)}>
+                          Comment
+                        </button>
+                        <button onClick={() => setNoteType('next_action')}
+                          style={btnStyle(noteType === 'next_action' ? 'gold' : 'ghost', true)}>
+                          Next Action
+                        </button>
+                      </div>
+                      <input value={noteInput} onChange={e => setNoteInput(e.target.value)}
+                        placeholder={noteType === 'next_action' ? 'Add a next action for HRC improvement...' : 'Add an admin comment...'}
+                        style={inputStyle}
+                        onKeyDown={e => { if (e.key === 'Enter') addNote(c.id); }}
+                      />
+                    </div>
+                    <button onClick={() => addNote(c.id)} style={btnStyle('aurora', true)} disabled={!noteInput.trim()}>
+                      Add
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

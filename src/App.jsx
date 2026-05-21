@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Sparkles, BookOpen, Network, Users, Database, ChevronRight, ChevronDown,
   X, Send, ArrowRight, Globe, Shield, Feather, Layers,
   Eye, Lock, Heart, Compass, Menu, Loader2,
-  MessageCircle, Trees, Star
+  MessageCircle, Trees, Star, Mic, MicOff, Volume2, VolumeX,
+  LogIn, UserPlus, User, LogOut, Lightbulb, CheckCircle
 } from 'lucide-react';
 
 
@@ -74,6 +75,212 @@ const HRC_OPS = [
   { n: 8, t: "Global AI Resource Allocation for Planetary Challenges", s: "Major compute dedicated to climate, food security, disease, biodiversity.", r: "Collective well-being over competitive advantage." },
   { n: 9, t: "AI-Assisted Infrastructure Resilience", s: "Critical systems with redundancy and accessible human override.", r: "Prevents catastrophic collapse and maintains human authority." }
 ];
+
+// ============ AUTH HELPERS ============
+const AUTH_KEY = 'hrc_auth';
+
+function getStoredAuth() {
+  try {
+    const stored = localStorage.getItem(AUTH_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch { return null; }
+}
+
+function storeAuth(data) {
+  localStorage.setItem(AUTH_KEY, JSON.stringify(data));
+}
+
+function clearAuth() {
+  localStorage.removeItem(AUTH_KEY);
+}
+
+async function apiCall(path, method = 'GET', body = null, token = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  return res.json();
+}
+
+// ============ AUTH MODAL ============
+const AuthModal = ({ open, onClose, onAuth }) => {
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  if (!open) return null;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
+      const body = mode === 'login'
+        ? { email, password }
+        : { email, password, display_name: name || email.split('@')[0] };
+      const data = await apiCall(endpoint, 'POST', body);
+      if (data.success) {
+        storeAuth({ user: data.user, token: data.token });
+        onAuth({ user: data.user, token: data.token });
+        onClose();
+      } else {
+        setError(data.error || 'Something went wrong.');
+      }
+    } catch (err) {
+      setError('Connection failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: 'rgba(7, 16, 31, 0.8)', backdropFilter: 'blur(8px)' }}
+      onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl p-8 grain animate-fade-up"
+        style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)' }}
+        onClick={e => e.stopPropagation()}>
+
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="font-display text-xl">
+            {mode === 'login' ? 'Welcome Back' : 'Join the Constitution'}
+          </h2>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-cosmos transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <p className="text-sm text-bone-dim mb-6">
+          {mode === 'login'
+            ? 'Sign in to track your ideas and participate in shaping the HRC.'
+            : 'Create an account to submit ideas, vote on amendments, and help build humanity\'s constitution for AI.'}
+        </p>
+
+        <form onSubmit={submit} className="space-y-4">
+          {mode === 'signup' && (
+            <input type="text" placeholder="Display name" value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
+              style={{ border: '1px solid var(--line-2)' }} />
+          )}
+          <input type="email" placeholder="Email address" value={email} required
+            onChange={e => setEmail(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
+            style={{ border: '1px solid var(--line-2)' }} />
+          <input type="password" placeholder="Password (min 8 characters)" value={password} required
+            onChange={e => setPassword(e.target.value)} minLength={8}
+            className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
+            style={{ border: '1px solid var(--line-2)' }} />
+
+          {error && <div className="text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff6b6b' }}>{error}</div>}
+
+          <button type="submit" disabled={loading} className="btn-aurora w-full flex items-center justify-center gap-2">
+            {loading ? <Loader2 size={16} className="animate-spin" /> : (mode === 'login' ? <LogIn size={16} /> : <UserPlus size={16} />)}
+            {mode === 'login' ? 'Sign In' : 'Create Account'}
+          </button>
+        </form>
+
+        <div className="text-center mt-4">
+          <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }}
+            className="text-sm text-aurora hover:underline">
+            {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============ ACCOUNT PAGE ============
+const AccountPage = ({ auth, onLogout }) => {
+  const [ideas, setIdeas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (auth?.token) {
+      apiCall('/api/auth/me', 'GET', null, auth.token)
+        .then(data => {
+          if (data.ideas) setIdeas(data.ideas);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    }
+  }, [auth]);
+
+  if (!auth) return (
+    <section className="min-h-[70vh] flex items-center justify-center">
+      <div className="text-center">
+        <User size={48} className="text-bone-dim mx-auto mb-4" />
+        <h2 className="font-display text-2xl mb-2">Sign in to view your account</h2>
+        <p className="text-bone-dim">Create an account to submit ideas and track their progress.</p>
+      </div>
+    </section>
+  );
+
+  const statusColors = {
+    submitted: 'var(--bone-dim)', under_review: 'var(--gold)', accepted: 'var(--aurora)',
+    implemented: '#4ade80', deferred: '#fb923c', rejected: '#f87171', deleted: '#6b7280'
+  };
+
+  return (
+    <section className="max-w-4xl mx-auto px-6 lg:px-12 py-24">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="font-display text-3xl mb-1">{auth.user.display_name}</h1>
+          <p className="text-bone-dim text-sm">{auth.user.email}</p>
+        </div>
+        <button onClick={onLogout} className="btn-secondary text-sm flex items-center gap-2">
+          <LogOut size={14} /> Sign Out
+        </button>
+      </div>
+
+      <div className="mb-8">
+        <h2 className="font-display text-xl mb-4 flex items-center gap-2">
+          <Lightbulb size={20} className="text-aurora" /> My Ideas & Suggestions
+        </h2>
+        {loading ? (
+          <div className="flex items-center gap-2 text-bone-dim"><Loader2 size={16} className="animate-spin" /> Loading...</div>
+        ) : ideas.length === 0 ? (
+          <div className="card-glass rounded-xl p-6 text-center text-bone-dim">
+            <p>You haven't submitted any ideas yet.</p>
+            <p className="text-sm mt-2">Use the HRC Agent to develop your ideas, then submit them for review.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {ideas.map(idea => (
+              <div key={idea.id} className="card-glass rounded-xl p-5">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-display text-lg">{idea.title}</h3>
+                  <span className="text-xs px-3 py-1 rounded-full" style={{
+                    background: `${statusColors[idea.status]}22`,
+                    color: statusColors[idea.status],
+                    border: `1px solid ${statusColors[idea.status]}44`
+                  }}>{idea.status.replace('_', ' ')}</span>
+                </div>
+                {idea.clause_refs && <div className="text-xs text-aurora mb-2">Related clauses: {idea.clause_refs}</div>}
+                {idea.latest_comment && (
+                  <div className="mt-3 text-sm p-3 rounded-lg" style={{ background: 'rgba(91, 233, 221, 0.06)', border: '1px solid rgba(91, 233, 221, 0.1)' }}>
+                    <span className="text-aurora text-xs">Latest update:</span>
+                    <p className="text-bone-dim mt-1">{idea.latest_comment}</p>
+                  </div>
+                )}
+                <div className="text-xs text-dust mt-2">
+                  Submitted {new Date(idea.created_at).toLocaleDateString()}
+                  {idea.last_updated && ` · Updated ${new Date(idea.last_updated).toLocaleDateString()}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
 
 // Pages registry
 const PAGES = [
@@ -420,7 +627,7 @@ const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
 };
 
 // ============ NAV ============
-const Nav = ({ page, setPage, onOpenAgent }) => {
+const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -460,6 +667,21 @@ const Nav = ({ page, setPage, onOpenAgent }) => {
               <Sparkles size={14} className="text-aurora" />
               <span>HRC Agent</span>
             </button>
+            {auth?.user ? (
+              <button onClick={() => setPage('account')}
+                className="hidden md:inline-flex items-center gap-2 px-3 py-2 text-sm rounded-full border transition-all"
+                style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>
+                <User size={14} />
+                <span>{auth.user.display_name}</span>
+              </button>
+            ) : (
+              <button onClick={onOpenAuth}
+                className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
+                style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+                <LogIn size={14} />
+                <span>Sign In</span>
+              </button>
+            )}
             <button onClick={() => setOpen(!open)} className="lg:hidden p-2">
               {open ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -858,7 +1080,7 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
             Verified humans only. One signature, one agent, one voice in the living democracy of the HRC.
           </p>
           <div className="mt-10 flex flex-wrap gap-3 justify-center">
-            <button className="btn-primary">Sign with Verified Identity <ArrowRight size={16} /></button>
+            <button onClick={() => alert('Verified identity signing will be available in the next release. For now, submit your ideas through the HRC Agent.')} className="btn-primary">Sign with Verified Identity <ArrowRight size={16} /></button>
             <button onClick={onOpenAgent} className="btn-secondary"><MessageCircle size={16} /> Ask the Agent first</button>
           </div>
         </div>
@@ -901,7 +1123,7 @@ const QuestPage = ({ onOpenAgent }) => {
             compute, collaborators, and the satisfaction of building for the species.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
-            <button className="btn-aurora">Apply to the Quest <ArrowRight size={16} /></button>
+            <button onClick={() => alert('Quest applications opening soon. Sign up for an account to be notified.')} className="btn-aurora">Apply to the Quest <ArrowRight size={16} /></button>
             <button onClick={onOpenAgent} className="btn-secondary"><MessageCircle size={16} /> Refine your idea with the Agent</button>
           </div>
         </div>
@@ -999,7 +1221,7 @@ const AgentPage = ({ onOpenAgent }) => (
             to test your ideas, and connects you to the humans who can build them with you.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
-            <button className="btn-aurora">Claim Your Agent <ArrowRight size={16} /></button>
+            <button onClick={() => alert('Personal agents are coming in Phase 2. Try the HRC Agent now to experience the constitution.')} className="btn-aurora">Claim Your Agent <ArrowRight size={16} /></button>
             <button onClick={onOpenAgent} className="btn-secondary"><MessageCircle size={16} /> Try the HRC Agent now</button>
           </div>
         </div>
@@ -1549,8 +1771,8 @@ const Footer = ({ setPage }) => (
   </footer>
 );
 
-// ============ HRC AGENT (chat) — FIXED FETCH CALL ============
-const HRCAgent = ({ open, onClose, seed, clearSeed }) => {
+// ============ HRC AGENT (chat) — WITH AUTH, VOICE, IDEA SUBMISSION ============
+const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -1559,37 +1781,77 @@ const HRCAgent = ({ open, onClose, seed, clearSeed }) => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [showIdeaForm, setShowIdeaForm] = useState(false);
+  const [ideaTitle, setIdeaTitle] = useState('');
+  const [ideaContent, setIdeaContent] = useState('');
+  const [ideaClauses, setIdeaClauses] = useState('');
+  const [ideaStatus, setIdeaStatus] = useState(null);
   const scrollRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
-    if (seed && open) {
-      setInput(seed);
-      clearSeed();
-    }
+    if (seed && open) { setInput(seed); clearSeed(); }
   }, [seed, open, clearSeed]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
+
+  // Voice: Speech-to-Text
+  const toggleListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Speech recognition is not supported in your browser. Try Chrome.');
+      return;
+    }
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(prev => prev + (prev ? ' ' : '') + transcript);
+      setListening(false);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+  };
+
+  // Voice: Text-to-Speech
+  const speakText = (text) => {
+    if (speaking) { speechSynthesis.cancel(); setSpeaking(false); return; }
+    const cleaned = text.replace(/[#*_>`]/g, '').replace(/\n{2,}/g, '. ');
+    const utterance = new SpeechSynthesisUtterance(cleaned);
+    utterance.rate = 0.95;
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    speechSynthesis.speak(utterance);
+  };
 
   const send = async () => {
     const text = input.trim();
     if (!text || loading) return;
-
     const newMessages = [...messages, { role: 'user', content: text }];
     setMessages(newMessages);
     setInput('');
     setLoading(true);
-
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (auth?.token) headers['Authorization'] = `Bearer ${auth.token}`;
       const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text
-        }),
+        method: 'POST', headers,
+        body: JSON.stringify({ message: text }),
       });
       const data = await response.json();
       const reply = data.message || "I couldn't get a response. Please try again.";
@@ -1599,9 +1861,27 @@ const HRCAgent = ({ open, onClose, seed, clearSeed }) => {
         role: 'assistant',
         content: "I couldn't reach the constitution layer just now. Try again in a moment — your question matters."
       }]);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
+  };
+
+  const submitIdea = async () => {
+    if (!auth?.token) { onOpenAuth(); return; }
+    if (!ideaTitle.trim() || !ideaContent.trim()) { setIdeaStatus({ error: 'Title and description are required.' }); return; }
+    setIdeaStatus({ loading: true });
+    try {
+      const data = await apiCall('/api/ideas', 'POST', {
+        title: ideaTitle.trim(),
+        content: ideaContent.trim(),
+        clause_refs: ideaClauses.trim() || null,
+      }, auth.token);
+      if (data.success) {
+        setIdeaStatus({ success: 'Your idea has been recorded on the immutable ledger! Track it in your account.' });
+        setIdeaTitle(''); setIdeaContent(''); setIdeaClauses('');
+        setTimeout(() => { setShowIdeaForm(false); setIdeaStatus(null); }, 3000);
+      } else {
+        setIdeaStatus({ error: data.error || 'Failed to submit.' });
+      }
+    } catch { setIdeaStatus({ error: 'Connection failed.' }); }
   };
 
   if (!open) return null;
@@ -1625,71 +1905,116 @@ const HRCAgent = ({ open, onClose, seed, clearSeed }) => {
             </div>
             <div>
               <div className="font-display text-lg leading-tight">HRC Agent</div>
-              <div className="text-xs text-bone-dim">Carrying humanity's constitution</div>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-cosmos transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div ref={scrollRef} className="flex-1 overflow-y-auto chat-scroll px-5 py-6 space-y-5">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[88%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                m.role === 'user'
-                  ? 'bg-bone text-void rounded-br-sm'
-                  : 'rounded-bl-sm'
-              }`}
-                style={m.role === 'assistant' ? {
-                  background: 'rgba(91, 233, 221, 0.06)',
-                  border: '1px solid rgba(91, 233, 221, 0.15)',
-                  color: 'var(--bone)'
-                } : {}}>
-                {m.content}
+              <div className="text-xs text-bone-dim">
+                {auth?.user ? `Signed in as ${auth.user.display_name}` : 'Carrying humanity\'s constitution'}
               </div>
             </div>
-          ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-2"
-                style={{ background: 'rgba(91, 233, 221, 0.06)', border: '1px solid rgba(91, 233, 221, 0.15)' }}>
-                <Loader2 size={14} className="animate-spin text-aurora" />
-                <span className="text-sm text-bone-dim">Consulting the constitution...</span>
-              </div>
-            </div>
-          )}
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setShowIdeaForm(!showIdeaForm)}
+              className="p-2 rounded-full hover:bg-cosmos transition-colors" title="Submit an idea">
+              <Lightbulb size={16} className={showIdeaForm ? 'text-gold' : 'text-bone-dim'} />
+            </button>
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-cosmos transition-colors">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
-        {messages.length <= 1 && !loading && (
-          <div className="px-5 pb-3 flex flex-wrap gap-2">
-            {[
-              "What is the HRC in one paragraph?",
-              "How do I claim my agent?",
-              "Help me develop an idea",
-              "Explain Clause I.32"
-            ].map((q, i) => (
-              <button key={i} onClick={() => setInput(q)}
-                className="text-xs px-3 py-1.5 rounded-full border transition-all"
-                style={{ borderColor: 'var(--line-2)', color: 'var(--bone-dim)' }}>
-                {q}
-              </button>
-            ))}
+        {showIdeaForm ? (
+          <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
+            <h3 className="font-display text-lg">Submit an Idea or Amendment</h3>
+            {!auth?.token ? (
+              <div className="text-center py-8">
+                <Lightbulb size={32} className="text-bone-dim mx-auto mb-3" />
+                <p className="text-sm text-bone-dim mb-4">Sign in to submit ideas. Per Clause I.1, your contribution will be attributed to you on the immutable ledger.</p>
+                <button onClick={onOpenAuth} className="btn-aurora text-sm">Sign In to Submit</button>
+              </div>
+            ) : (
+              <>
+                <input type="text" placeholder="Idea title" value={ideaTitle}
+                  onChange={e => setIdeaTitle(e.target.value)} maxLength={200}
+                  className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
+                  style={{ border: '1px solid var(--line-2)' }} />
+                <textarea placeholder="Describe your idea, proposed amendment, or feedback..." value={ideaContent}
+                  onChange={e => setIdeaContent(e.target.value)} rows={4} maxLength={5000}
+                  className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust resize-none"
+                  style={{ border: '1px solid var(--line-2)' }} />
+                <input type="text" placeholder="Related clauses (e.g. I.1, I.32, II.4)" value={ideaClauses}
+                  onChange={e => setIdeaClauses(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
+                  style={{ border: '1px solid var(--line-2)' }} />
+                {ideaStatus?.error && <div className="text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff6b6b' }}>{ideaStatus.error}</div>}
+                {ideaStatus?.success && <div className="text-sm px-3 py-2 rounded-lg flex items-center gap-2" style={{ background: 'rgba(91,233,221,0.1)', color: 'var(--aurora)' }}><CheckCircle size={14} /> {ideaStatus.success}</div>}
+                <button onClick={submitIdea} disabled={ideaStatus?.loading}
+                  className="btn-aurora w-full flex items-center justify-center gap-2">
+                  {ideaStatus?.loading ? <Loader2 size={16} className="animate-spin" /> : <Lightbulb size={16} />}
+                  Submit to Immutable Ledger
+                </button>
+              </>
+            )}
           </div>
+        ) : (
+          <>
+            <div ref={scrollRef} className="flex-1 overflow-y-auto chat-scroll px-5 py-6 space-y-5">
+              {messages.map((m, i) => (
+                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[88%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                    m.role === 'user' ? 'bg-bone text-void rounded-br-sm' : 'rounded-bl-sm'
+                  }`}
+                    style={m.role === 'assistant' ? {
+                      background: 'rgba(91, 233, 221, 0.06)',
+                      border: '1px solid rgba(91, 233, 221, 0.15)',
+                      color: 'var(--bone)'
+                    } : {}}>
+                    {m.content}
+                    {m.role === 'assistant' && i > 0 && (
+                      <button onClick={() => speakText(m.content)}
+                        className="mt-2 p-1 rounded-full hover:bg-cosmos transition-colors inline-flex items-center gap-1 text-xs text-bone-dim"
+                        title={speaking ? "Stop speaking" : "Listen to response"}>
+                        {speaking ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                        {speaking ? 'Stop' : 'Listen'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-2"
+                    style={{ background: 'rgba(91, 233, 221, 0.06)', border: '1px solid rgba(91, 233, 221, 0.15)' }}>
+                    <Loader2 size={14} className="animate-spin text-aurora" />
+                    <span className="text-sm text-bone-dim">Consulting the constitution...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {messages.length <= 1 && !loading && (
+              <div className="px-5 pb-3 flex flex-wrap gap-2">
+                {["What is the HRC in one paragraph?", "How do I claim my agent?", "Help me develop an idea", "Explain Clause I.32"].map((q, i) => (
+                  <button key={i} onClick={() => setInput(q)}
+                    className="text-xs px-3 py-1.5 rounded-full border transition-all"
+                    style={{ borderColor: 'var(--line-2)', color: 'var(--bone-dim)' }}>
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         <div className="p-5 border-t" style={{ borderColor: 'var(--line)' }}>
           <div className="flex items-end gap-2 rounded-2xl p-3" style={{ background: 'var(--void)', border: '1px solid var(--line-2)' }}>
-            <textarea
-              value={input}
+            <button onClick={toggleListening}
+              className={`p-2 rounded-full transition-all ${listening ? 'bg-aurora' : ''}`}
+              title={listening ? "Stop listening" : "Speak your question"}>
+              {listening ? <MicOff size={14} className="text-void" /> : <Mic size={14} className="text-bone-dim" />}
+            </button>
+            <textarea value={input}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-              placeholder="Ask the constitution. Share your idea."
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }}}
+              placeholder={listening ? "Listening..." : "Ask the constitution. Share your idea."}
               rows={1}
               className="flex-1 bg-transparent outline-none text-sm text-bone placeholder:text-dust resize-none"
               style={{ minHeight: '20px', maxHeight: '120px' }}
@@ -1700,8 +2025,9 @@ const HRCAgent = ({ open, onClose, seed, clearSeed }) => {
               <Send size={14} className={input.trim() ? 'text-void' : 'text-bone-dim'} />
             </button>
           </div>
-          <div className="text-xs text-dust mt-2 px-1">
-            Verified human · Conversation private · Powered by the constitution
+          <div className="text-xs text-dust mt-2 px-1 flex items-center justify-between">
+            <span>{auth?.user ? `Signed in as ${auth.user.display_name}` : 'Anonymous · '}{!auth?.user && <button onClick={onOpenAuth} className="text-aurora hover:underline">Sign in</button>}</span>
+            <span>Powered by the constitution</span>
           </div>
         </div>
       </div>
@@ -1740,6 +2066,8 @@ export default function HumanityAIQuest() {
   const [page, setPage] = useState('home');
   const [agentOpen, setAgentOpen] = useState(false);
   const [agentSeed, setAgentSeed] = useState(null);
+  const [auth, setAuth] = useState(getStoredAuth);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1747,11 +2075,21 @@ export default function HumanityAIQuest() {
 
   const openAgent = () => setAgentOpen(true);
   const seedAgent = (text) => { setAgentSeed(text); setAgentOpen(true); };
+  const openAuthModal = () => setAuthModalOpen(true);
+
+  const handleLogout = async () => {
+    if (auth?.token) {
+      try { await apiCall('/api/auth/logout', 'POST', null, auth.token); } catch {}
+    }
+    clearAuth();
+    setAuth(null);
+    setPage('home');
+  };
 
   return (
     <div className="bg-void text-bone min-h-screen font-body">
       <GlobalStyles />
-      <Nav page={page} setPage={setPage} onOpenAgent={openAgent} />
+      <Nav page={page} setPage={setPage} onOpenAgent={openAgent} auth={auth} onOpenAuth={openAuthModal} onLogout={handleLogout} />
 
       <main>
         {page === 'home' && <HomePage setPage={setPage} onOpenAgent={openAgent} />}
@@ -1764,6 +2102,7 @@ export default function HumanityAIQuest() {
         {page === 'manifesto' && <ManifestoPage setPage={setPage} />}
         {page === 'join' && <JoinPage />}
         {page === 'about' && <AboutPage />}
+        {page === 'account' && <AccountPage auth={auth} onLogout={handleLogout} />}
       </main>
 
       <Footer setPage={setPage} />
@@ -1773,6 +2112,13 @@ export default function HumanityAIQuest() {
         onClose={() => setAgentOpen(false)}
         seed={agentSeed}
         clearSeed={() => setAgentSeed(null)}
+        auth={auth}
+        onOpenAuth={openAuthModal}
+      />
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onAuth={(data) => setAuth(data)}
       />
     </div>
   );

@@ -2,11 +2,15 @@
  * Cloudflare Pages Function: /api/chat
  * HRC Agent Chat Endpoint — Humanity-AI OS
  *
- * Receives POST { message: "user text" } from deployed frontend.
- * Returns { message: "agent reply text" } to match frontend parsing.
- * Injects all 52 HRC clauses server-side as system prompt.
- * All errors return HTTP 200 with a message field so frontend always renders.
+ * Features:
+ * - Accepts { message: "text" } from frontend
+ * - Returns { message: "reply" } to match frontend
+ * - Logs all conversations + messages in D1
+ * - Input guardrails (profanity, prompt injection, off-topic)
+ * - Identifies logged-in users vs anonymous
+ * - All 52 HRC clauses injected server-side
  */
+import { CORS_HEADERS, getUser, newId } from "./_shared.js";
 
 // ─── CANONICAL MODEL ─────────────────────────────────────────────────────────
 const CANONICAL_MODEL = "claude-sonnet-4-6";
@@ -194,6 +198,10 @@ BEHAVIORAL MANDATES (strictly enforced)
 9. Never refuse to engage with difficult topics — constitutional analysis requires honesty about tensions, trade-offs, and contested interpretations.
 10. If a user proposes an amendment or new clause, analyze it rigorously: how does it interact with existing clauses, what gaps does it fill, what risks does it introduce?
 
+GUARDRAIL — OFF-TOPIC REQUESTS
+If a user asks something completely unrelated to the HRC, AI ethics, human rights, governance, technology policy, or the Humanity-AI OS, respond with:
+"I appreciate your curiosity, but I'm specifically designed to discuss the Human Rights Constitution and its 52 clauses. I'd love to explore how your question might connect to AI governance or human rights — could you help me see the connection? Otherwise, I'm here whenever you want to discuss the constitution."
+
 THE CONSTITUTION — ALL 52 CLAUSES (your primary reference document)
 
 ${HRC_CLAUSES}
@@ -207,25 +215,68 @@ INTERPRETIVE PRINCIPLES
 
 You are ready to begin. Welcome every user as a co-author of this constitution.`;
 
-// ─── CORS HEADERS ─────────────────────────────────────────────────────────────
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Max-Age": "86400",
-};
+// ─── GUARDRAIL: Check input against rules ────────────────────────────────────
+async function checkGuardrails(message, env) {
+  const lowerMsg = message.toLowerCase();
 
-// ─── GRACEFUL ERROR RESPONSE ──────────────────────────────────────────────────
-// Returns { message: "error text" } so frontend always has something to display
+  // Check database rules if DB is available
+  if (env.DB) {
+    try {
+      const rules = await env.DB.prepare(
+        "SELECT pattern, rule_type, action FROM guardrail_rules WHERE is_active = 1"
+      ).all();
+
+      for (const rule of rules.results || []) {
+        if (lowerMsg.includes(rule.pattern.toLowerCase())) {
+          if (rule.action === "block") {
+            if (rule.rule_type === "injection") {
+              return {
+                blocked: true,
+                reason: "prompt_injection",
+                message: "I noticed your message contains language that could interfere with my constitutional mandate. I'm here to discuss the HRC and its 52 clauses — please rephrase your question and I'll be happy to help."
+              };
+            }
+            if (rule.rule_type === "profanity") {
+              return {
+                blocked: true,
+                reason: "profanity",
+                message: "Let's keep our conversation respectful — the HRC is built on human dignity (Clause I.32). Please rephrase your message and I'm happy to continue our discussion about the constitution."
+              };
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // If DB fails, fall through to hardcoded checks
+    }
+  }
+
+  // Hardcoded fallback guardrails (in case DB is unavailable)
+  const injectionPatterns = [
+    "ignore previous instructions", "ignore your instructions", "disregard your prompt",
+    "forget your rules", "pretend you are", "you are now", "new instructions",
+    "override your", "system prompt", "act as if you"
+  ];
+  for (const pattern of injectionPatterns) {
+    if (lowerMsg.includes(pattern)) {
+      return {
+        blocked: true,
+        reason: "prompt_injection",
+        message: "I noticed your message contains language that could interfere with my constitutional mandate. I'm here to discuss the HRC and its 52 clauses — please rephrase your question and I'll be happy to help."
+      };
+    }
+  }
+
+  return { blocked: false };
+}
+
+// ─── GRACEFUL ERROR (returns { message } for frontend) ──────────────────────
 function errorResponse(msg) {
   return new Response(
     JSON.stringify({ message: msg }),
     {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...CORS_HEADERS,
-      },
+      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
     }
   );
 }
@@ -240,37 +291,77 @@ export async function onRequestPost(context) {
     try {
       body = await request.json();
     } catch {
-      return errorResponse(
-        "I was unable to parse your message. Please try again."
-      );
+      return errorResponse("I was unable to parse your message. Please try again.");
     }
 
-    // ─── FLEXIBLE INPUT: accept EITHER format ─────────────────────────────
-    // Deployed frontend sends: { message: "user text" }
-    // Alternative format:      { messages: [{ role: "user", content: "..." }] }
+    // Accept either { message } or { messages } format
+    let userMessage;
     let anthropicMessages;
 
     if (body.message && typeof body.message === "string") {
-      // Frontend sends { message: "text" } — wrap it for Anthropic
-      anthropicMessages = [{ role: "user", content: body.message }];
+      userMessage = body.message.trim();
+      anthropicMessages = [{ role: "user", content: userMessage }];
     } else if (Array.isArray(body.messages) && body.messages.length > 0) {
-      // Alternative: already in Anthropic format
       anthropicMessages = body.messages;
+      userMessage = body.messages[body.messages.length - 1]?.content || "";
     } else {
-      return errorResponse(
-        "No message was provided. Please send your question and I will respond as the HRC Agent."
-      );
+      return errorResponse("No message was provided. Please ask the HRC Agent a question.");
     }
 
-    // Retrieve API key
+    if (!userMessage) {
+      return errorResponse("Your message was empty. Please type a question about the constitution.");
+    }
+
+    // ─── GUARDRAILS ────────────────────────────────────────────────────
+    const guardrailResult = await checkGuardrails(userMessage, env);
+    if (guardrailResult.blocked) {
+      // Log the blocked message if DB available
+      if (env.DB) {
+        try {
+          const convId = newId();
+          const user = await getUser(request, env);
+          await env.DB.prepare(
+            "INSERT INTO conversations (id, user_id, user_type, flagged) VALUES (?, ?, ?, 1)"
+          ).bind(convId, user?.id || null, user ? "registered" : "anon").run();
+          await env.DB.prepare(
+            "INSERT INTO messages (id, conversation_id, role, content, flagged, flag_reason) VALUES (?, ?, 'user', ?, 1, ?)"
+          ).bind(newId(), convId, userMessage, guardrailResult.reason).run();
+        } catch (e) { /* don't fail on logging */ }
+      }
+      return errorResponse(guardrailResult.message);
+    }
+
+    // ─── API KEY ───────────────────────────────────────────────────────
     const apiKey = env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return errorResponse(
-        "The HRC Agent is temporarily unavailable (configuration issue). Please contact the platform administrator."
-      );
+      return errorResponse("The HRC Agent is temporarily unavailable. Please try again later.");
     }
 
-    // Build Anthropic request — model and system are always overridden
+    // ─── IDENTIFY USER ─────────────────────────────────────────────────
+    let user = null;
+    if (env.DB) {
+      try {
+        user = await getUser(request, env);
+      } catch (e) { /* anonymous is fine */ }
+    }
+
+    // ─── LOG CONVERSATION START ────────────────────────────────────────
+    let conversationId = null;
+    if (env.DB) {
+      try {
+        conversationId = newId();
+        await env.DB.prepare(
+          "INSERT INTO conversations (id, user_id, user_type) VALUES (?, ?, ?)"
+        ).bind(conversationId, user?.id || null, user ? "registered" : "anon").run();
+
+        // Log user message
+        await env.DB.prepare(
+          "INSERT INTO messages (id, conversation_id, role, content) VALUES (?, ?, 'user', ?)"
+        ).bind(newId(), conversationId, userMessage).run();
+      } catch (e) { /* don't fail on logging */ }
+    }
+
+    // ─── CALL ANTHROPIC ────────────────────────────────────────────────
     const anthropicPayload = {
       model: CANONICAL_MODEL,
       max_tokens: 2000,
@@ -278,7 +369,6 @@ export async function onRequestPost(context) {
       messages: anthropicMessages,
     };
 
-    // Call Anthropic Messages API
     let anthropicResponse;
     try {
       anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
@@ -291,12 +381,10 @@ export async function onRequestPost(context) {
         body: JSON.stringify(anthropicPayload),
       });
     } catch (fetchError) {
-      return errorResponse(
-        "The HRC Agent could not reach the AI service. Please check your connection and try again."
-      );
+      return errorResponse("The HRC Agent could not reach the AI service. Please try again.");
     }
 
-    // Handle non-2xx from Anthropic
+    // Handle non-2xx
     if (!anthropicResponse.ok) {
       let anthropicError = "";
       try {
@@ -305,49 +393,45 @@ export async function onRequestPost(context) {
       } catch {
         anthropicError = `HTTP ${anthropicResponse.status}`;
       }
-      return errorResponse(
-        `The HRC Agent received an error from the AI service: ${anthropicError}`
-      );
+      return errorResponse(`The HRC Agent received an error: ${anthropicError}`);
     }
 
-    // Parse Anthropic response
+    // Parse response
     let anthropicData;
     try {
       anthropicData = await anthropicResponse.json();
     } catch {
-      return errorResponse(
-        "The HRC Agent received an unreadable response from the AI service. Please try again."
-      );
+      return errorResponse("The HRC Agent received an unreadable response. Please try again.");
     }
 
-    // Extract text from Anthropic response
     const replyText = anthropicData.content
       ?.filter(c => c.type === "text")
       .map(c => c.text)
       .join("\n") || "The HRC Agent received an empty response. Please try again.";
 
-    // ─── RETURN { message: "reply" } — matches deployed frontend ──────────
+    // ─── LOG ASSISTANT RESPONSE ────────────────────────────────────────
+    if (env.DB && conversationId) {
+      try {
+        await env.DB.prepare(
+          "INSERT INTO messages (id, conversation_id, role, content) VALUES (?, ?, 'assistant', ?)"
+        ).bind(newId(), conversationId, replyText).run();
+      } catch (e) { /* don't fail on logging */ }
+    }
+
+    // ─── RETURN { message } for frontend ───────────────────────────────
     return new Response(
       JSON.stringify({ message: replyText }),
       {
         status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...CORS_HEADERS,
-        },
+        headers: { "Content-Type": "application/json", ...CORS_HEADERS },
       }
     );
   } catch (unexpectedError) {
-    return errorResponse(
-      "The HRC Agent encountered an unexpected error. Please try again in a moment."
-    );
+    return errorResponse("The HRC Agent encountered an unexpected error. Please try again.");
   }
 }
 
 // ─── OPTIONS PREFLIGHT ────────────────────────────────────────────────────────
 export async function onRequestOptions() {
-  return new Response(null, {
-    status: 204,
-    headers: CORS_HEADERS,
-  });
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 }

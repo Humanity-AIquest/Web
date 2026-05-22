@@ -236,13 +236,13 @@ export async function testSpeakPlugin(pluginId, text, { rate = 2, volume = 1, vo
 
     case 'elevenlabs': {
       const key = getLS('elevenlabs_key', '');
-      const voiceId = getLS('elVoice', 'EXAVITQu4vr4xnSDxMaL');
+      const voiceId = getLS('elVoice', '21m00Tcm4TlvDq8ikWAM');
       if (!key) { onError(new Error('No ElevenLabs API key set')); return; }
       try {
-        const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
           method: 'POST',
           headers: { 'xi-api-key': key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
-          body: JSON.stringify({ text: clean.slice(0, 500), model_id: 'eleven_monolingual_v1', voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
+          body: JSON.stringify({ text: clean.slice(0, 2000), model_id: 'eleven_turbo_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true } }),
         });
         if (!res.ok) throw new Error(`ElevenLabs HTTP ${res.status}`);
         const blob = await res.blob();
@@ -414,19 +414,25 @@ export function useTTS() {
     audio.play().catch(() => { stopTimer(false); speakWebSpeech(id, text); });
   }, [startTimer, stopTimer, speakWebSpeech]);
 
-  // ── ElevenLabs ──
+  // ── ElevenLabs — streaming endpoint, turbo model, silent fallback ──
   const speakElevenLabs = useCallback(async (id, text) => {
     const key     = getLS('elevenlabs_key', '');
-    const voiceId = getLS('elVoice', 'EXAVITQu4vr4xnSDxMaL');
+    const voiceId = getLS('elVoice', '21m00Tcm4TlvDq8ikWAM'); // Rachel — warm, conversational
     const vol     = getLS('volume', 1);
-    if (!key) { alert('ElevenLabs API key not set. Configure it in Admin → TTS Plugins.'); return; }
-    startTimer(estDur(text, 1.0));
+    // No key → silent fallback to WebSpeech (no disruptive alert)
+    if (!key) { speakWebSpeech(id, text); return; }
+    startTimer(estDur(text, 0.95));
     setSpeakingId(id); idRef.current = id;
     try {
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      // /stream endpoint begins returning audio before generation is complete → faster first audio
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
         method: 'POST',
         headers: { 'xi-api-key': key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
-        body: JSON.stringify({ text: text.slice(0, 2500), model_id: 'eleven_monolingual_v1', voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
+        body: JSON.stringify({
+          text: text.slice(0, 4500),
+          model_id: 'eleven_turbo_v2_5',
+          voice_settings: { stability: 0.4, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true },
+        }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
@@ -434,14 +440,15 @@ export function useTTS() {
       const audio = new Audio(src);
       audio.volume = vol;
       audio.onended = () => { URL.revokeObjectURL(src); audioRef.current = null; stopTimer(true); setSpeakingId(null); idRef.current = null; };
-      audio.onerror = () => { URL.revokeObjectURL(src); audioRef.current = null; stopTimer(false); setSpeakingId(null); idRef.current = null; };
+      audio.onerror = () => { URL.revokeObjectURL(src); audioRef.current = null; stopTimer(false); speakWebSpeech(id, text); };
       audioRef.current = audio;
       await audio.play();
     } catch(err) {
+      // Silent fallback — never interrupt the user with an alert
       stopTimer(false); setSpeakingId(null); idRef.current = null;
-      alert(`ElevenLabs error: ${err.message}`);
+      speakWebSpeech(id, text);
     }
-  }, [startTimer, stopTimer]);
+  }, [startTimer, stopTimer, speakWebSpeech]);
 
   // ── ResponsiveVoice ──
   const speakResponsiveVoice = useCallback(async (id, text) => {

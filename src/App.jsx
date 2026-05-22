@@ -7,7 +7,7 @@ import {
   LogIn, UserPlus, User, LogOut, Lightbulb, CheckCircle, Settings
 } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
-import { useTTS, ListenButton } from './useTTS';
+import { useTTS, ListenButton, getLS, setLS } from './useTTS';
 
 
 /* ============================================================
@@ -1815,6 +1815,18 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const tts = useTTS();
+
+  // Auto-voice: speaks each new agent reply automatically
+  const [autoVoice, setAutoVoiceState] = useState(() => getLS('autoVoice', true));
+  const autoVoiceRef = useRef(autoVoice);
+  useEffect(() => { autoVoiceRef.current = autoVoice; }, [autoVoice]);
+  const toggleAutoVoice = () => {
+    const next = !autoVoice;
+    setAutoVoiceState(next);
+    setLS('autoVoice', next);
+    if (!next) tts.stop();
+  };
+
   const [showIdeaForm, setShowIdeaForm] = useState(false);
   const [ideaTitle, setIdeaTitle] = useState('');
   const [ideaContent, setIdeaContent] = useState('');
@@ -1877,7 +1889,12 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
       });
       const data = await response.json();
       const reply = data.message || "I couldn't get a response. Please try again.";
+      const replyIdx = newMessages.length; // index in the final messages array
       setMessages([...newMessages, { role: 'assistant', content: reply }]);
+      // Auto-speak the reply if voice mode is on
+      if (autoVoiceRef.current) {
+        setTimeout(() => tts.speak(`msg-${replyIdx}`, reply), 80);
+      }
     } catch (err) {
       setMessages([...newMessages, {
         role: 'assistant',
@@ -1933,6 +1950,15 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {/* Auto-voice toggle */}
+            <button onClick={toggleAutoVoice}
+              className="p-2 rounded-full hover:bg-cosmos transition-all"
+              title={autoVoice ? 'Voice auto-play on — click to mute responses' : 'Voice off — click to auto-speak responses'}
+              style={{ background: autoVoice ? 'rgba(91,233,221,0.10)' : 'transparent' }}>
+              {autoVoice
+                ? <Volume2 size={16} className="text-aurora" />
+                : <VolumeX size={16} className="text-bone-dim" />}
+            </button>
             <button onClick={() => setShowIdeaForm(!showIdeaForm)}
               className="p-2 rounded-full hover:bg-cosmos transition-colors" title="Submit an idea">
               <Lightbulb size={16} className={showIdeaForm ? 'text-gold' : 'text-bone-dim'} />
@@ -2046,7 +2072,11 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
           </div>
           <div className="text-xs text-dust mt-2 px-1 flex items-center justify-between">
             <span>{auth?.user ? `Signed in as ${auth.user.display_name}` : 'Anonymous · '}{!auth?.user && <button onClick={onOpenAuth} className="text-aurora hover:underline">Sign in</button>}</span>
-            <span>Powered by the constitution</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {autoVoice
+                ? <><Volume2 size={9} />{getLS('plugin', 'webspeech') === 'elevenlabs' ? 'ElevenLabs voice' : 'Browser voice'}</>
+                : 'Voice off'}
+            </span>
           </div>
         </div>
       </div>

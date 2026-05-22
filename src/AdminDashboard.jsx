@@ -8,7 +8,7 @@ import {
   ArrowUpDown, Settings2, Bookmark, Mic, Volume2, ExternalLink, Key,
   Star, StarOff, Play, Square, Globe
 } from 'lucide-react';
-import { useTTS, ListenButton, TTS_PLUGINS } from './useTTS';
+import { useTTS, ListenButton, TTS_PLUGINS, testSpeakPlugin, stopTestSpeech } from './useTTS';
 
 /* ============================================================
    ADMIN DASHBOARD — Humanity-AI.Quest
@@ -1144,65 +1144,124 @@ const ActionsTab = ({ auth, level }) => (
 );
 
 /* ============================================================
-   TAB 6 — CMS
+   TAB 6 — CMS  (live-preview with inline edit overlays)
    ============================================================ */
 const CMS_DEFAULTS = [
-  { page_key: 'home', section_key: 'hero_title',       label: 'Home — Hero Title',       content: 'The Constitution for the Age of AI' },
-  { page_key: 'home', section_key: 'hero_subtitle',    label: 'Home — Hero Subtitle',    content: 'A living document. A global movement. A new form of governance.' },
-  { page_key: 'home', section_key: 'beta_notice',      label: 'Home — Beta Notice',      content: 'Beta Preview — This platform is under active development.' },
-  { page_key: 'join', section_key: 'page_title',       label: 'Join — Page Title',       content: 'Choose Your Path' },
-  { page_key: 'quest', section_key: 'intro',           label: 'Quest — Intro',           content: 'Complete challenges to earn your place in the founding council.' },
-  { page_key: 'community', section_key: 'intro',       label: 'Community — Intro',       content: 'Connect with fellow constitutional architects from around the world.' },
+  { page_key: 'home', section_key: 'hero_title',        content: 'The Constitution for the Age of AI' },
+  { page_key: 'home', section_key: 'hero_subtitle',     content: 'A living document. A global movement. A new form of governance.' },
+  { page_key: 'home', section_key: 'beta_notice',       content: 'Beta Preview — This platform is under active development.' },
+  { page_key: 'home', section_key: 'hero_cta_primary',  content: 'Explore the Constitution' },
+  { page_key: 'home', section_key: 'hero_cta_secondary',content: 'Talk to the Agent' },
+  { page_key: 'home', section_key: 'section1_heading',  content: 'An OS for Human Civilization' },
+  { page_key: 'home', section_key: 'section1_body',     content: 'Humanity-AI is a constitutional operating system — not a company. It belongs to every human who signs the covenant. The HRC gives you rights that no corporation can override.' },
+  { page_key: 'home', section_key: 'section2_heading',  content: 'Your Ideas Shape the Law' },
+  { page_key: 'home', section_key: 'section2_body',     content: 'Every suggestion you make is tracked to your identity on an immutable ledger. Your intellectual contribution is yours — forever. AI owns nothing you create.' },
+  { page_key: 'home', section_key: 'section3_heading',  content: 'The Quest is Live' },
+  { page_key: 'home', section_key: 'section3_body',     content: 'A global Shark Tank where the new skill is prompting + ideas, and every entry is attributed to its human creator on humanity\'s ledger.' },
+  { page_key: 'join', section_key: 'page_title',        content: 'Choose Your Path' },
+  { page_key: 'join', section_key: 'page_subtitle',     content: 'Join as an individual, a developer, or an organisation. Every path leads to the same covenant.' },
+  { page_key: 'quest', section_key: 'intro',            content: 'Complete challenges to earn your place in the founding council.' },
+  { page_key: 'about', section_key: 'intro',            content: 'Humanity-AI is built by humans for humans. No VC funding. No equity. No extraction.' },
 ];
+
+/* Inline editable section used inside the live preview */
+const CmsSection = ({ sectionKey, pageKey, sections, editingKey, editingVal, setEditingKey, setEditingVal, onSave, saving, level, renderAs = 'p', className = '', style = {} }) => {
+  const sec = sections.find(s => s.page_key === pageKey && s.section_key === sectionKey);
+  const content = sec?.content || CMS_DEFAULTS.find(d => d.page_key === pageKey && d.section_key === sectionKey)?.content || '';
+  const key = `${pageKey}__${sectionKey}`;
+  const isEditing = editingKey === key;
+  const [hovered, setHovered] = useState(false);
+
+  if (isEditing) {
+    return (
+      <div style={{ position: 'relative', ...style }}>
+        <textarea
+          value={editingVal}
+          onChange={e => setEditingVal(e.target.value)}
+          autoFocus
+          rows={3}
+          style={{ ...inputStyle, width: '100%', resize: 'vertical', fontSize: 'inherit', fontWeight: 'inherit', lineHeight: 'inherit', fontFamily: 'inherit' }}
+        />
+        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+          <button onClick={() => onSave(pageKey, sectionKey, editingVal)} disabled={saving === key} style={btnStyle('primary', true)}>
+            {saving === key ? <Spinner /> : <Save size={11} />} Save to Live Site
+          </button>
+          <button onClick={() => setEditingKey(null)} style={btnStyle('ghost', true)}><X size={11} /> Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  const Tag = renderAs;
+  return (
+    <div
+      style={{ position: 'relative', ...style }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {hovered && level >= 3 && (
+        <button
+          onClick={() => { setEditingKey(key); setEditingVal(content); }}
+          style={{
+            position: 'absolute', top: -1, right: 0, zIndex: 20,
+            fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 4,
+            background: 'var(--aurora)', color: 'var(--void)', border: 'none', cursor: 'pointer',
+            letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+          }}
+        >
+          ✏ edit
+        </button>
+      )}
+      <Tag
+        className={className}
+        style={{
+          cursor: level >= 3 ? 'text' : 'default',
+          outline: hovered && level >= 3 ? '1.5px dashed rgba(91,233,221,0.4)' : 'none',
+          borderRadius: 4, transition: 'outline 0.15s',
+          ...style,
+        }}
+        onClick={() => { if (level >= 3) { setEditingKey(key); setEditingVal(content); } }}
+      >
+        {content || <em style={{ color: 'var(--dust)', fontSize: '0.85em' }}>({sectionKey})</em>}
+      </Tag>
+    </div>
+  );
+};
 
 const CmsTab = ({ auth, level }) => {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editing, setEditing] = useState({});
-  const [saving, setSaving] = useState(null);
   const [seeding, setSeeding] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [search, setSearch] = useState('');
+  const [selectedPage, setSelectedPage] = useState('home');
+  const [editingKey, setEditingKey] = useState(null);
+  const [editingVal, setEditingVal] = useState('');
+  const [saving, setSaving] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
       const data = await apiCall('/api/admin/content', 'GET', null, auth.token);
-      setSections(data.sections ?? data ?? []);
+      // Backend returns { sections: [...], content: [...] }
+      setSections(Array.isArray(data.sections) ? data.sections : Array.isArray(data.content) ? data.content : []);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   }, [auth.token]);
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = sections.filter(s => {
-    const q = search.toLowerCase();
-    return !q || (s.section_key || '').toLowerCase().includes(q) || (s.page_key || '').toLowerCase().includes(q) || (s.title || '').toLowerCase().includes(q);
-  });
-
-  const startEdit = (key) => {
-    if (!editMode && level < 5) return;
-    setEditing(prev => {
-      const s = sections.find(x => (x.id || `${x.page_key}_${x.section_key}`) === key);
-      return { ...prev, [key]: s?.content || s?.body || '' };
-    });
-  };
-
-  const save = async (s) => {
-    const key = s.id || `${s.page_key}_${s.section_key}`;
+  const saveSection = async (pageKey, sectionKey, content) => {
+    const key = `${pageKey}__${sectionKey}`;
     setSaving(key);
     try {
-      await apiCall('/api/admin/content', 'POST', {
-        page_key: s.page_key, section_key: s.section_key,
-        content: editing[key], content_type: s.content_type || 'text'
-      }, auth.token);
-      setSections(prev => prev.map(x => {
-        const xKey = x.id || `${x.page_key}_${x.section_key}`;
-        return xKey === key ? { ...x, content: editing[key], body: editing[key], updated_at: new Date().toISOString() } : x;
-      }));
-      setEditing(prev => { const n = { ...prev }; delete n[key]; return n; });
-    } catch (e) { alert(`Error: ${e.message}`); }
+      await apiCall('/api/admin/content', 'PUT', { page_key: pageKey, section_key: sectionKey, content, content_type: 'text' }, auth.token);
+      setSections(prev => {
+        const idx = prev.findIndex(s => s.page_key === pageKey && s.section_key === sectionKey);
+        const updated = { page_key: pageKey, section_key: sectionKey, content, updated_at: new Date().toISOString() };
+        return idx >= 0 ? prev.map((s, i) => i === idx ? { ...s, ...updated } : s) : [...prev, updated];
+      });
+      setEditingKey(null);
+    } catch (e) { alert(`Save failed: ${e.message}`); }
     finally { setSaving(null); }
   };
 
@@ -1210,136 +1269,150 @@ const CmsTab = ({ auth, level }) => {
     setSeeding(true);
     try {
       for (const def of CMS_DEFAULTS) {
-        await apiCall('/api/admin/content', 'POST', {
-          page_key: def.page_key, section_key: def.section_key,
-          content: def.content, content_type: 'text'
-        }, auth.token).catch(() => {}); // ignore if already exists
+        await apiCall('/api/admin/content', 'PUT', { page_key: def.page_key, section_key: def.section_key, content: def.content, content_type: 'text' }, auth.token).catch(() => {});
       }
       await load();
-    } catch (e) { alert(`Error: ${e.message}`); }
+    } catch (e) { alert(`Seed failed: ${e.message}`); }
     finally { setSeeding(false); }
   };
 
-  const isEmpty = !loading && !error && filtered.length === 0;
+  const editProps = { sections, editingKey, editingVal, setEditingKey, setEditingVal, onSave: saveSection, saving, level };
+
+  const pages = ['home', 'join', 'quest', 'about'];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--dust)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search content sections…" style={{ ...inputStyle, paddingLeft: 32 }} />
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 2, background: 'rgba(7,16,31,0.5)', borderRadius: 8, padding: 3, border: '1px solid var(--line)' }}>
+          {pages.map(p => (
+            <button key={p} onClick={() => setSelectedPage(p)} style={{
+              padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: selectedPage === p ? 600 : 400,
+              background: selectedPage === p ? 'rgba(91,233,221,0.15)' : 'transparent',
+              color: selectedPage === p ? 'var(--aurora)' : 'var(--dust)',
+              textTransform: 'capitalize',
+            }}>
+              {p}
+            </button>
+          ))}
         </div>
         <button onClick={load} style={btnStyle('ghost', true)}><RefreshCw size={13} /></button>
-        {level >= 5 && (
-          <button
-            onClick={() => setEditMode(m => !m)}
-            style={btnStyle(editMode ? 'gold' : 'ghost', true)}
-          >
-            <Settings2 size={13} />
-            {editMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
+        {level >= 3 && sections.length === 0 && !loading && (
+          <button onClick={seedDefaults} disabled={seeding} style={btnStyle('aurora', true)}>
+            {seeding ? <Spinner /> : <Plus size={12} />} Initialize CMS
           </button>
         )}
+        {level >= 3 && sections.length > 0 && (
+          <button onClick={seedDefaults} disabled={seeding} style={btnStyle('ghost', true)} title="Re-seed any missing sections">
+            {seeding ? <Spinner /> : <RefreshCw size={12} />} Re-seed missing
+          </button>
+        )}
+        <span style={{ fontSize: 11, color: 'var(--dust)', marginLeft: 'auto' }}>
+          {level >= 3 ? '✏ Hover any text to edit' : 'L3+ required to edit'}
+        </span>
       </div>
 
-      {/* Edit mode banner */}
-      {editMode && (
-        <div style={{ background: 'rgba(232,177,79,0.1)', border: '1px solid rgba(232,177,79,0.3)', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Edit2 size={14} color="var(--gold)" />
-          <span style={{ fontSize: 13, color: 'var(--gold)', fontWeight: 500 }}>
-            Edit Mode — Click any section below to edit text content. Changes save directly to the live site.
-          </span>
-        </div>
-      )}
-
       {error && <ErrorBanner message={error} onRetry={load} />}
-
       {loading && <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={24} /></div>}
 
-      {isEmpty && (
-        <div style={{ ...cardStyle, textAlign: 'center', padding: '40px 24px' }}>
-          <FileText size={36} style={{ color: 'var(--dust)', opacity: 0.4, marginBottom: 12 }} />
-          <h3 style={{ margin: '0 0 8px', fontSize: 16, color: 'var(--bone)' }}>No CMS Sections Yet</h3>
-          <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--bone-dim)', lineHeight: 1.6 }}>
-            The CMS lets you edit text content that appears on the live site.<br />
-            Seed default sections to get started, then use <strong>Edit Mode</strong> to modify them.
-          </p>
-          {level >= 3 && (
-            <button onClick={seedDefaults} disabled={seeding} style={btnStyle('aurora')}>
-              {seeding ? <Spinner /> : <Plus size={14} />}
-              Initialize Default Sections
-            </button>
-          )}
-          {level < 3 && (
-            <p style={{ fontSize: 12, color: 'var(--dust)' }}>Ask a Super Admin (L3+) to initialize CMS sections.</p>
-          )}
-        </div>
-      )}
+      {!loading && (
+        <>
+          {/* ─── Simulated browser chrome ───────────────────────── */}
+          <div style={{ border: '1px solid var(--line-2)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+            {/* Browser bar */}
+            <div style={{ background: 'rgba(7,16,31,0.9)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {['#f87171','#fbbf24','#34d399'].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
+              </div>
+              <div style={{ flex: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 6, padding: '4px 12px', fontSize: 12, color: 'var(--dust)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Globe size={11} />
+                humanity-ai.quest{selectedPage !== 'home' ? `/${selectedPage}` : ''}
+              </div>
+              <Badge label="Live Preview" color="aurora" />
+            </div>
 
-      {!loading && filtered.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filtered.map(s => {
-            const key = s.id || `${s.page_key}_${s.section_key}`;
-            const isEditing = editing[key] !== undefined;
-            const content = isEditing ? editing[key] : (s.content || s.body || '');
+            {/* ── HOME preview ── */}
+            {selectedPage === 'home' && (
+              <div style={{ background: 'var(--void)', maxHeight: 620, overflowY: 'auto' }}>
+                {/* Beta notice bar */}
+                <div style={{ background: 'rgba(91,233,221,0.08)', borderBottom: '1px solid rgba(91,233,221,0.12)', padding: '8px 24px', textAlign: 'center' }}>
+                  <CmsSection pageKey="home" sectionKey="beta_notice" renderAs="p" style={{ margin: 0, fontSize: 12, color: 'var(--aurora)', fontWeight: 500 }} {...editProps} />
+                </div>
 
-            return (
-              <div key={key} style={cardStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: isEditing ? 12 : 0 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--bone)' }}>{s.title || s.section_key || key}</span>
-                      <code style={{ fontSize: 11, background: 'var(--cosmos)', padding: '1px 6px', borderRadius: 4, color: 'var(--aurora)' }}>
-                        {s.page_key}/{s.section_key}
-                      </code>
+                {/* Hero */}
+                <div style={{ padding: '80px 40px 60px', textAlign: 'center', maxWidth: 900, margin: '0 auto' }}>
+                  <CmsSection pageKey="home" sectionKey="hero_title" renderAs="h1" style={{ fontSize: '2.8rem', fontWeight: 800, lineHeight: 1.1, color: 'var(--bone)', margin: '0 0 24px', letterSpacing: '-0.02em' }} {...editProps} />
+                  <CmsSection pageKey="home" sectionKey="hero_subtitle" renderAs="p" style={{ fontSize: '1.2rem', color: 'var(--bone-dim)', lineHeight: 1.6, margin: '0 0 40px', maxWidth: 620, marginLeft: 'auto', marginRight: 'auto' }} {...editProps} />
+                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ padding: '12px 28px', borderRadius: 9999, background: 'rgba(91,233,221,0.15)', border: '1px solid rgba(91,233,221,0.35)', color: 'var(--aurora)', fontSize: 14, fontWeight: 600 }}>
+                      <CmsSection pageKey="home" sectionKey="hero_cta_primary" renderAs="span" style={{}} {...editProps} /> →
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--dust)', marginTop: 2 }}>Updated: {fmtDate(s.updated_at)}</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                    {(editMode || level >= 3) && !isEditing && (
-                      <button onClick={() => startEdit(key)} style={btnStyle('aurora', true)}>
-                        <Edit2 size={12} /> Edit
-                      </button>
-                    )}
-                    {isEditing && (
-                      <>
-                        <button onClick={() => save(s)} disabled={saving === key} style={btnStyle('primary', true)}>
-                          {saving === key ? <Spinner /> : <Save size={12} />} Save
-                        </button>
-                        <button onClick={() => setEditing(prev => { const n = { ...prev }; delete n[key]; return n; })} style={btnStyle('ghost', true)}>
-                          <X size={12} />
-                        </button>
-                      </>
-                    )}
+                    <div style={{ padding: '12px 28px', borderRadius: 9999, background: 'rgba(242,234,211,0.06)', border: '1px solid var(--line)', color: 'var(--bone-dim)', fontSize: 14, fontWeight: 500 }}>
+                      <CmsSection pageKey="home" sectionKey="hero_cta_secondary" renderAs="span" style={{}} {...editProps} />
+                    </div>
                   </div>
                 </div>
 
-                {isEditing ? (
-                  <textarea
-                    value={editing[key]}
-                    onChange={e => setEditing(prev => ({ ...prev, [key]: e.target.value }))}
-                    rows={4}
-                    autoFocus
-                    style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, minHeight: 80, marginTop: 8 }}
-                  />
-                ) : (
-                  <p
-                    onClick={() => editMode && startEdit(key)}
-                    style={{
-                      margin: '6px 0 0', fontSize: 13, color: 'var(--bone-dim)', lineHeight: 1.5,
-                      cursor: editMode ? 'text' : 'default',
-                      padding: editMode ? '4px 6px' : 0,
-                      borderRadius: editMode ? 4 : 0,
-                      border: editMode ? '1px dashed rgba(232,177,79,0.3)' : 'none',
-                      background: editMode ? 'rgba(232,177,79,0.04)' : 'transparent',
-                    }}>
-                    {content || <em style={{ color: 'var(--dust)' }}>(empty)</em>}
-                  </p>
-                )}
+                {/* Section grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16, padding: '0 24px 60px', maxWidth: 960, margin: '0 auto' }}>
+                  {[
+                    { h: 'section1_heading', b: 'section1_body' },
+                    { h: 'section2_heading', b: 'section2_body' },
+                    { h: 'section3_heading', b: 'section3_body' },
+                  ].map(({ h, b }) => (
+                    <div key={h} style={{ background: 'rgba(19,31,50,0.6)', border: '1px solid var(--line)', borderRadius: 14, padding: '24px 20px' }}>
+                      <CmsSection pageKey="home" sectionKey={h} renderAs="h3" style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 700, color: 'var(--bone)' }} {...editProps} />
+                      <CmsSection pageKey="home" sectionKey={b} renderAs="p" style={{ margin: 0, fontSize: '0.85rem', color: 'var(--bone-dim)', lineHeight: 1.6 }} {...editProps} />
+                    </div>
+                  ))}
+                </div>
               </div>
-            );
-          })}
-        </div>
+            )}
+
+            {/* ── JOIN preview ── */}
+            {selectedPage === 'join' && (
+              <div style={{ background: 'var(--void)', padding: '80px 40px', textAlign: 'center', maxWidth: 700, margin: '0 auto' }}>
+                <CmsSection pageKey="join" sectionKey="page_title" renderAs="h1" style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--bone)', margin: '0 0 20px' }} {...editProps} />
+                <CmsSection pageKey="join" sectionKey="page_subtitle" renderAs="p" style={{ fontSize: '1.1rem', color: 'var(--bone-dim)', lineHeight: 1.6, margin: 0 }} {...editProps} />
+              </div>
+            )}
+
+            {/* ── QUEST preview ── */}
+            {selectedPage === 'quest' && (
+              <div style={{ background: 'var(--void)', padding: '80px 40px', textAlign: 'center', maxWidth: 700, margin: '0 auto' }}>
+                <h1 style={{ margin: '0 0 24px', fontSize: '2.5rem', fontWeight: 800, color: 'var(--bone)' }}>The Quest</h1>
+                <CmsSection pageKey="quest" sectionKey="intro" renderAs="p" style={{ fontSize: '1.1rem', color: 'var(--bone-dim)', lineHeight: 1.6, margin: 0 }} {...editProps} />
+              </div>
+            )}
+
+            {/* ── ABOUT preview ── */}
+            {selectedPage === 'about' && (
+              <div style={{ background: 'var(--void)', padding: '80px 40px', textAlign: 'center', maxWidth: 700, margin: '0 auto' }}>
+                <h1 style={{ margin: '0 0 24px', fontSize: '2.5rem', fontWeight: 800, color: 'var(--bone)' }}>About</h1>
+                <CmsSection pageKey="about" sectionKey="intro" renderAs="p" style={{ fontSize: '1.1rem', color: 'var(--bone-dim)', lineHeight: 1.6, margin: 0 }} {...editProps} />
+              </div>
+            )}
+          </div>
+
+          {/* Section list (compact) */}
+          {sections.filter(s => s.page_key === selectedPage).length > 0 && (
+            <details style={{ ...cardStyle }}>
+              <summary style={{ cursor: 'pointer', fontSize: 12, color: 'var(--dust)', fontWeight: 600, userSelect: 'none' }}>
+                Raw section list ({sections.filter(s => s.page_key === selectedPage).length} sections on {selectedPage})
+              </summary>
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {sections.filter(s => s.page_key === selectedPage).map(s => (
+                  <div key={s.section_key} style={{ display: 'flex', alignItems: 'baseline', gap: 10, fontSize: 12 }}>
+                    <code style={{ color: 'var(--aurora)', background: 'var(--cosmos)', padding: '1px 6px', borderRadius: 3, minWidth: 160, flexShrink: 0 }}>{s.section_key}</code>
+                    <span style={{ color: 'var(--bone-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.content || '(empty)'}</span>
+                    <span style={{ color: 'var(--dust)', flexShrink: 0 }}>{fmtDate(s.updated_at)}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </>
       )}
     </div>
   );
@@ -1366,7 +1439,6 @@ const TtsPluginManager = ({ auth }) => {
   const [extras, setExtras] = useState({});
   const [expanded, setExpanded] = useState(null);
   const [testingId, setTestingId] = useState(null);
-  const tts = useTTS();
 
   // Load stored keys/extras on mount
   useEffect(() => {
@@ -1398,14 +1470,33 @@ const TtsPluginManager = ({ auth }) => {
     setExtras(prev => ({ ...prev, [storageKey]: value }));
   };
 
-  const testPlugin = async (plugin) => {
+  const testPlugin = (plugin) => {
+    // If already testing this plugin — stop it
+    if (testingId === plugin.id) {
+      stopTestSpeech();
+      setTestingId(null);
+      return;
+    }
+    // Stop any in-progress test first
+    stopTestSpeech();
     setTestingId(plugin.id);
-    // Temporarily switch to this plugin
-    const prev = getLS('plugin', 'webspeech');
-    setLS('plugin', plugin.id);
-    await new Promise(r => setTimeout(r, 50));
-    tts.speak(`test_${plugin.id}`, 'Hello! This is the Humanity AI Quest speaking with ' + plugin.name + '. The listen feature is a central part of the experience. How does this sound?');
-    setTimeout(() => { setTestingId(null); }, 200);
+
+    const voiceName =
+      plugin.id === 'streamelements' ? (extras['se_voice'] || 'Brian') :
+      plugin.id === 'elevenlabs'     ? (extras['el_voice'] || 'EXAVITQu4vr4xnSDxMaL') : null;
+
+    testSpeakPlugin(
+      plugin.id,
+      `Hello! This is Humanity AI Quest speaking through ${plugin.name}. ` +
+      'The listen feature is a central part of the experience — natural language listening and conversation. How does this sound to you?',
+      {
+        rate: 1.0,
+        volume: 1.0,
+        voiceName,
+        onEnd:   () => setTestingId(null),
+        onError: () => setTestingId(null),
+      }
+    ).catch(() => setTestingId(null));
   };
 
   const typeColor = (type) => {
@@ -1451,7 +1542,7 @@ const TtsPluginManager = ({ auth }) => {
         {TTS_PLUGINS.map(plugin => {
           const isActive = activePlugin === plugin.id;
           const isExpanded = expanded === plugin.id;
-          const isTesting = testingId === plugin.id || (tts.speakingId === `test_${plugin.id}`);
+          const isTesting = testingId === plugin.id;
           const tc = typeColor(plugin.type);
 
           return (
@@ -1501,9 +1592,9 @@ const TtsPluginManager = ({ auth }) => {
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                   <button
                     onClick={() => testPlugin(plugin)}
-                    disabled={isTesting}
+                    disabled={testingId !== null && testingId !== plugin.id}
                     style={btnStyle(isTesting ? 'aurora' : 'ghost', true)}
-                    title="Test this plugin"
+                    title={isTesting ? 'Stop test' : 'Test this plugin'}
                   >
                     {isTesting ? <Square size={11} fill="var(--aurora)" /> : <Play size={11} />}
                     {isTesting ? 'Stop' : 'Test'}

@@ -1,18 +1,18 @@
 /**
- * useTTS.jsx — Full-Featured Text-to-Speech for Humanity-AI.Quest
+ * useTTS.jsx — Full-Featured TTS for Humanity-AI.Quest
  *
- * Features:
- * - 10 plugin architecture (Web Speech, ElevenLabs, Azure, StreamElements, etc.)
- * - Full player UI: progress bar, elapsed/total time, speed control, voice picker, volume
- * - Smart neural voice selection for Web Speech API
- * - Complete markdown stripping
- * - Per-utterance tracking with progress estimation
- * - Plugin settings stored in localStorage
+ * Architecture:
+ * - testSpeakPlugin(id, text, opts) — standalone test, doesn't touch active hook state
+ * - useTTS() hook — manages playing state, progress, speed, volume for site-wide TTS
+ * - ListenButton — trigger + inline MiniPlayer with scrollIntoView + word tracking
+ *
+ * Defaults: 2× speed, max 4×
+ * Scroll: active message scrolls into view and tracks as TTS advances
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Volume2, VolumeX, Square, ChevronDown, Mic } from 'lucide-react';
+import { Volume2, VolumeX, Square, ChevronDown } from 'lucide-react';
 
-/* ─── Helpers ──────────────────────────────────────────────────── */
+/* ─── Text cleaner ───────────────────────────────────────────── */
 export function cleanForTTS(raw) {
   if (!raw) return '';
   return raw
@@ -41,6 +41,7 @@ export function cleanForTTS(raw) {
     .trim();
 }
 
+/* ─── Voice picker ──────────────────────────────────────────── */
 export function pickBestVoice(voices) {
   if (!voices || !voices.length) return null;
   const tests = [
@@ -50,221 +51,256 @@ export function pickBestVoice(voices) {
     v => /Google.*English/i.test(v.name) && v.lang === 'en-US',
     v => /Google.*English/i.test(v.name) && /^en/.test(v.lang),
     v => v.name === 'Samantha' && /^en/.test(v.lang),
-    v => /^(Karen|Moira|Veena|Tessa)$/.test(v.name) && /^en/.test(v.lang),
     v => /(natural|neural|premium)/i.test(v.name) && /^en/.test(v.lang),
     v => v.lang === 'en-US' && !v.localService,
     v => /^en/.test(v.lang) && !v.localService,
     v => v.lang === 'en-US',
     v => /^en/.test(v.lang),
   ];
-  for (const test of tests) {
-    const found = voices.find(test);
-    if (found) return found;
-  }
+  for (const fn of tests) { const v = voices.find(fn); if (v) return v; }
   return voices[0] || null;
 }
 
-/* ─── Plugin Registry ──────────────────────────────────────────── */
+/* ─── localStorage helpers ───────────────────────────────────── */
+const PFX = 'hrc_tts_';
+export const getLS = (k, d) => { try { const v = localStorage.getItem(PFX + k); return v != null ? JSON.parse(v) : d; } catch { return d; } };
+export const setLS = (k, v) => { try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch {} };
+
+/* ─── Plugin manifest ───────────────────────────────────────── */
 export const TTS_PLUGINS = [
   {
-    id: 'webspeech',
-    name: 'Web Speech API',
-    type: 'Browser Native',
-    stars: 4,
-    free: true,
-    needsKey: false,
-    voices: 'Depends on OS/browser — neural in Edge & Chrome',
-    description: 'Zero-setup browser TTS. Uses neural voices (Microsoft Aria, Google) when available in Edge or Chrome. Works offline.',
+    id: 'webspeech', name: 'Web Speech API', type: 'Browser Native', stars: 4, free: true, needsKey: false,
+    voices: 'Neural voices in Edge & Chrome (Aria, Jenny, Google US English)',
+    description: 'Zero-setup browser TTS. Picks the best neural voice automatically. Works offline.',
     pros: ['No API key', 'Works offline', 'Neural voices in Edge/Chrome', 'Instant start'],
     cons: ['Voice quality varies by browser', 'No guaranteed voice'],
     badge: 'Recommended',
   },
   {
-    id: 'streamelements',
-    name: 'StreamElements TTS',
-    type: 'Free API',
-    stars: 3,
-    free: true,
-    needsKey: false,
-    voices: 'Brian, Ivy, Emma, Justin, Joey, Nicole, Russell, Amy, Geraint',
-    description: 'Free public TTS API with natural English voices. No API key needed. Best for consistent voice across browsers.',
-    pros: ['No API key', 'Consistent voice quality', 'Multiple accent options'],
-    cons: ['Rate limited', 'Requires internet', 'English voices only'],
+    id: 'streamelements', name: 'StreamElements TTS', type: 'Free API', stars: 3, free: true, needsKey: false,
+    voices: 'Brian, Ivy, Emma, Justin, Joey, Nicole, Russell, Amy, Geraint, Salli',
+    description: 'Free public TTS API with consistent natural English voices across all browsers.',
+    pros: ['No API key', 'Consistent voice quality', 'Multiple accents'],
+    cons: ['Rate limited', 'English only', 'Requires internet'],
     badge: 'No Key Needed',
+    voiceOptions: ['Brian','Ivy','Emma','Russell','Amy','Joey','Justin','Nicole','Geraint','Salli'],
+    voiceKey: 'seVoice', defaultVoice: 'Brian',
   },
   {
-    id: 'elevenlabs',
-    name: 'ElevenLabs',
-    type: 'API (Free Tier)',
-    stars: 5,
-    free: true,
-    needsKey: true,
-    keyLabel: 'ElevenLabs API Key',
-    keyPlaceholder: 'sk-...',
+    id: 'elevenlabs', name: 'ElevenLabs', type: 'API (Free Tier)', stars: 5, free: true, needsKey: true,
+    keyLabel: 'API Key', keyPlaceholder: 'Your ElevenLabs API key',
     keyUrl: 'https://elevenlabs.io/app/api-key',
     voices: 'Rachel, Adam, Bella, Antoni, Elli + 900 more',
-    description: 'Most natural AI voices available. Free tier: 10,000 characters/month. The gold standard for voice quality.',
-    pros: ['Exceptional quality', 'Emotion & tone control', '900+ voices', 'Free 10k chars/mo'],
+    description: 'Most natural AI voices available. Free tier: 10,000 chars/month. Gold standard quality.',
+    pros: ['Exceptional quality', '900+ voices', 'Emotion & tone control', 'Free 10k/mo'],
     cons: ['Requires API key', 'Limited free quota'],
     badge: 'Best Quality',
   },
   {
-    id: 'azure',
-    name: 'Microsoft Azure TTS',
-    type: 'API (Free Tier)',
-    stars: 5,
-    free: true,
-    needsKey: true,
-    keyLabel: 'Azure Speech API Key',
-    keyPlaceholder: 'Your Azure Speech key',
+    id: 'azure', name: 'Microsoft Azure TTS', type: 'API (Free Tier)', stars: 5, free: true, needsKey: true,
+    keyLabel: 'Speech API Key', keyPlaceholder: 'Azure Speech subscription key',
     keyUrl: 'https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeechServices',
-    regionLabel: 'Azure Region',
-    regionPlaceholder: 'eastus',
+    regionLabel: 'Region', regionPlaceholder: 'eastus',
     voices: 'Aria, Jenny, Guy, Sara, Brian + 400 neural voices',
-    description: 'Microsoft neural voices including Aria & Jenny. Free tier: 500,000 chars/month. Same voices as Edge browser.',
-    pros: ['500k chars/month free', 'Neural voices', 'SSML support', 'Multi-language'],
-    cons: ['Requires Azure account', 'Setup complexity'],
+    description: 'Same neural voices as Microsoft Edge. Free: 500,000 chars/month.',
+    pros: ['500k chars/month free', 'Same as Edge voices', 'SSML support', '400+ voices'],
+    cons: ['Azure setup required', 'Billing account needed'],
     badge: 'Enterprise Grade',
   },
   {
-    id: 'openai',
-    name: 'OpenAI TTS',
-    type: 'API (Paid)',
-    stars: 5,
-    free: false,
-    needsKey: true,
-    keyLabel: 'OpenAI API Key',
-    keyPlaceholder: 'sk-...',
+    id: 'openai', name: 'OpenAI TTS', type: 'API (Paid)', stars: 5, free: false, needsKey: true,
+    keyLabel: 'OpenAI API Key', keyPlaceholder: 'sk-...',
     keyUrl: 'https://platform.openai.com/api-keys',
     voices: 'Alloy, Echo, Fable, Onyx, Nova, Shimmer',
-    description: 'Strikingly natural voices from OpenAI. Very low cost ($0.015/1k chars). Best overall quality-to-cost ratio.',
-    pros: ['Incredibly natural', '6 distinct voices', 'Fast streaming'],
-    cons: ['Paid (no free tier)', 'Requires OpenAI account'],
+    description: 'Strikingly natural voices. Very low cost ($0.015/1k chars). Best quality-to-cost ratio.',
+    pros: ['Most natural sound', '6 distinct voices', 'Fast streaming', 'Very affordable'],
+    cons: ['No free tier', 'Requires OpenAI account'],
     badge: 'Most Natural',
   },
   {
-    id: 'googlecloud',
-    name: 'Google Cloud TTS',
-    type: 'API (Free Tier)',
-    stars: 4,
-    free: true,
-    needsKey: true,
-    keyLabel: 'Google Cloud API Key',
-    keyPlaceholder: 'Your Google Cloud API key',
+    id: 'googlecloud', name: 'Google Cloud TTS', type: 'API (Free Tier)', stars: 4, free: true, needsKey: true,
+    keyLabel: 'Google Cloud API Key', keyPlaceholder: 'AIza...',
     keyUrl: 'https://console.cloud.google.com/apis/credentials',
-    voices: 'WaveNet, Neural2, Standard voices (220+)',
-    description: 'Google WaveNet voices — 1,000,000 standard characters/month free. Neural2 voices available with same key.',
-    pros: ['1M chars/month free', 'WaveNet quality', '40+ languages'],
-    cons: ['Requires Google Cloud setup', 'Billing account needed'],
+    voices: 'WaveNet, Neural2, Standard (220+ voices, 40+ languages)',
+    description: 'Google WaveNet voices — 1,000,000 Standard chars/month free.',
+    pros: ['1M chars/month free', 'WaveNet quality', '40+ languages', 'Neural2 voices'],
+    cons: ['Google Cloud setup', 'Billing account required'],
     badge: 'Google Quality',
   },
   {
-    id: 'amazon',
-    name: 'Amazon Polly',
-    type: 'API (Free Tier)',
-    stars: 4,
-    free: true,
-    needsKey: true,
-    keyLabel: 'AWS Access Key ID',
-    keyPlaceholder: 'AKIA...',
-    secretLabel: 'AWS Secret Key',
-    secretPlaceholder: 'Your AWS secret key',
-    keyUrl: 'https://console.aws.amazon.com/iam/home#/users',
+    id: 'amazon', name: 'Amazon Polly', type: 'API (Free Tier)', stars: 4, free: true, needsKey: true,
+    keyLabel: 'AWS Access Key ID', keyPlaceholder: 'AKIA...',
+    secretLabel: 'AWS Secret Key', secretPlaceholder: 'Your AWS secret',
+    keyUrl: 'https://console.aws.amazon.com/iam/home',
     voices: 'Joanna, Matthew, Amy, Brian, Ivy + Neural voices',
-    description: 'AWS Polly with Neural TTS voices. Free tier: 5 million chars/month for 12 months, then pay-as-you-go.',
-    pros: ['5M chars free (first year)', 'Neural voices', 'SSML support'],
-    cons: ['AWS setup required', 'Expires after 12 months'],
+    description: 'AWS Neural TTS. Free: 5M chars/month for first 12 months.',
+    pros: ['5M chars free (year 1)', 'Neural voices', 'SSML support', 'Reliable'],
+    cons: ['Expires after 12 months', 'AWS setup required'],
     badge: 'AWS Powered',
   },
   {
-    id: 'voicerss',
-    name: 'VoiceRSS',
-    type: 'API (Free Tier)',
-    stars: 3,
-    free: true,
-    needsKey: true,
-    keyLabel: 'VoiceRSS API Key',
-    keyPlaceholder: 'Your VoiceRSS API key',
+    id: 'voicerss', name: 'VoiceRSS', type: 'API (Free Tier)', stars: 3, free: true, needsKey: true,
+    keyLabel: 'VoiceRSS API Key', keyPlaceholder: 'Your VoiceRSS key',
     keyUrl: 'https://www.voicerss.org/registration.aspx',
     voices: '50+ languages, multiple English accents',
-    description: 'Simple REST API for text-to-speech. Free tier: 350 requests/day. Good multilingual support.',
-    pros: ['350 req/day free', 'Simple integration', '50+ languages'],
+    description: 'Simple REST API for TTS. Free: 350 requests/day. Best multilingual support.',
+    pros: ['350 req/day free', 'Very simple API', '50+ languages'],
     cons: ['350/day limit', 'Lower voice quality'],
     badge: 'Multilingual',
   },
   {
-    id: 'responsivevoice',
-    name: 'ResponsiveVoice',
-    type: 'CDN (Non-commercial Free)',
-    stars: 4,
-    free: true,
-    needsKey: false,
+    id: 'responsivevoice', name: 'ResponsiveVoice', type: 'CDN (Non-commercial)', stars: 4, free: true, needsKey: false,
     voices: '51 languages, 158 voices',
-    description: 'Popular JavaScript TTS library. Free for non-commercial use. High consistency across browsers. Used by millions.',
+    description: 'Popular JS TTS library. Free non-commercial. Consistent across all browsers. Used by millions.',
     pros: ['158 voices', '51 languages', 'Browser-consistent', 'Widely used'],
-    cons: ['Non-commercial only', 'CDN dependency'],
+    cons: ['Non-commercial only', 'CDN script required'],
     badge: '51 Languages',
   },
   {
-    id: 'kokoro',
-    name: 'Kokoro TTS (WASM)',
-    type: 'Open Source',
-    stars: 4,
-    free: true,
-    needsKey: false,
+    id: 'kokoro', name: 'Kokoro TTS (WASM)', type: 'Open Source', stars: 4, free: true, needsKey: false,
     voices: 'American & British English, multiple styles',
-    description: 'State-of-the-art open source TTS model. Runs entirely in your browser via WebAssembly — no server needed after first load.',
-    pros: ['Fully open source', 'Runs in browser', 'High quality', 'No server costs'],
-    cons: ['Large initial download (~100MB)', 'First-load latency'],
+    description: 'State-of-the-art open source model. Runs entirely in your browser via WebAssembly.',
+    pros: ['Open source', 'No server costs', 'Runs offline after load', 'High quality'],
+    cons: ['~100MB first load', 'First-load latency'],
     badge: 'Open Source',
   },
 ];
 
-/* ─── localStorage helpers ─────────────────────────────────────── */
-const LS_PREFIX = 'hrc_tts_';
-const getLS = (key, def) => { try { const v = localStorage.getItem(LS_PREFIX + key); return v != null ? JSON.parse(v) : def; } catch { return def; } };
-const setLS = (key, val) => { try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(val)); } catch { } };
+/* ─── ResponsiveVoice CDN loader ────────────────────────────── */
+let rvLoading = false, rvLoaded = false, rvCallbacks = [];
+function loadResponsiveVoice() {
+  return new Promise((resolve, reject) => {
+    if (rvLoaded && window.responsiveVoice) { resolve(); return; }
+    rvCallbacks.push({ resolve, reject });
+    if (rvLoading) return;
+    rvLoading = true;
+    const s = document.createElement('script');
+    s.src = 'https://code.responsivevoice.org/responsivevoice.js?key=FREE';
+    s.onload = () => { rvLoaded = true; rvLoading = false; rvCallbacks.forEach(c => c.resolve()); rvCallbacks = []; };
+    s.onerror = () => { rvLoading = false; rvCallbacks.forEach(c => c.reject(new Error('ResponsiveVoice CDN failed'))); rvCallbacks = []; };
+    document.head.appendChild(s);
+  });
+}
 
-/* ─── Audio playback (non-WebSpeech) ──────────────────────────── */
-async function playAudioUrl(url, headers = {}, onProgress, onEnd, onError) {
-  try {
-    const res = await fetch(url, { headers });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const audio = new Audio(objectUrl);
-    audio.onended = () => { URL.revokeObjectURL(objectUrl); onEnd(); };
-    audio.onerror = () => { URL.revokeObjectURL(objectUrl); onError(new Error('Audio playback failed')); };
-    await audio.play();
-    return audio;
-  } catch (err) {
-    onError(err);
-    return null;
+/* ─── Standalone test function (does NOT affect useTTS state) ── */
+let _testAudio = null;
+export function stopTestSpeech() {
+  if (_testAudio) { try { _testAudio.pause(); _testAudio = null; } catch(e){} }
+  try { window.speechSynthesis?.cancel(); } catch(e){}
+}
+
+export async function testSpeakPlugin(pluginId, text, { rate = 2, volume = 1, voiceName = null, onEnd = () => {}, onError = () => {} } = {}) {
+  stopTestSpeech();
+  const clean = cleanForTTS(text);
+  if (!clean) return;
+
+  switch (pluginId) {
+
+    case 'streamelements': {
+      const voice = getLS('seVoice', 'Brian');
+      const url = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(clean.slice(0, 400))}`;
+      const audio = new Audio(url);
+      audio.volume = volume;
+      audio.onended = () => { _testAudio = null; onEnd(); };
+      audio.onerror = () => { _testAudio = null; onError(new Error('StreamElements playback failed')); };
+      _testAudio = audio;
+      audio.play().catch(err => { _testAudio = null; onError(err); });
+      break;
+    }
+
+    case 'responsivevoice': {
+      try {
+        await loadResponsiveVoice();
+        const voice = getLS('rvVoice', 'UK English Female');
+        window.responsiveVoice.cancel();
+        window.responsiveVoice.speak(clean.slice(0, 500), voice, {
+          rate: Math.min(rate, 1.5), volume,
+          onend: onEnd, onerror: () => onError(new Error('ResponsiveVoice error')),
+        });
+      } catch(err) { onError(err); }
+      break;
+    }
+
+    case 'voicerss': {
+      const key = getLS('voicerss_key', '');
+      if (!key) { onError(new Error('No VoiceRSS API key set')); return; }
+      const url = `https://api.voicerss.org/?key=${key}&hl=en-us&src=${encodeURIComponent(clean.slice(0, 500))}&c=MP3&f=44khz_16bit_stereo`;
+      const audio = new Audio(url);
+      audio.volume = volume;
+      audio.onended = () => { _testAudio = null; onEnd(); };
+      audio.onerror = () => { _testAudio = null; onError(new Error('VoiceRSS failed — check key')); };
+      _testAudio = audio;
+      audio.play().catch(err => { _testAudio = null; onError(err); });
+      break;
+    }
+
+    case 'elevenlabs': {
+      const key = getLS('elevenlabs_key', '');
+      const voiceId = getLS('elVoice', 'EXAVITQu4vr4xnSDxMaL');
+      if (!key) { onError(new Error('No ElevenLabs API key set')); return; }
+      try {
+        const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+          method: 'POST',
+          headers: { 'xi-api-key': key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
+          body: JSON.stringify({ text: clean.slice(0, 500), model_id: 'eleven_monolingual_v1', voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
+        });
+        if (!res.ok) throw new Error(`ElevenLabs HTTP ${res.status}`);
+        const blob = await res.blob();
+        const src = URL.createObjectURL(blob);
+        const audio = new Audio(src);
+        audio.volume = volume;
+        audio.onended = () => { URL.revokeObjectURL(src); _testAudio = null; onEnd(); };
+        audio.onerror = () => { URL.revokeObjectURL(src); _testAudio = null; onError(new Error('ElevenLabs playback failed')); };
+        _testAudio = audio;
+        audio.play().catch(err => { _testAudio = null; onError(err); });
+      } catch(err) { onError(err); }
+      break;
+    }
+
+    // All other plugins (azure, openai, google, amazon, kokoro) + default webspeech
+    default: {
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(clean.slice(0, 800));
+      const voices = window.speechSynthesis.getVoices();
+      const vName = voiceName || getLS('voiceName', null);
+      const voice = vName ? voices.find(v => v.name === vName) : pickBestVoice(voices);
+      if (voice) utt.voice = voice;
+      utt.lang = 'en-US';
+      utt.rate = Math.min(rate, 2); // Web Speech max is ~2
+      utt.volume = volume;
+      utt.pitch = 1.0;
+      utt.onend = onEnd;
+      utt.onerror = () => onError(new Error('Web Speech error'));
+      window.speechSynthesis.speak(utt);
+      break;
+    }
   }
 }
 
-/* ─── useTTS hook ──────────────────────────────────────────────── */
+/* ─── useTTS hook ────────────────────────────────────────────── */
 export function useTTS() {
-  const [speakingId, setSpeakingId]       = useState(null);
-  const [progress, setProgress]           = useState(0);
-  const [elapsed, setElapsed]             = useState(0);
-  const [duration, setDuration]           = useState(0);
-  const [rate, setRateState]              = useState(() => getLS('rate', 1.08));
-  const [volume, setVolumeState]          = useState(() => getLS('volume', 1.0));
-  const [voices, setVoices]              = useState([]);
-  const [selectedVoice, setVoiceState]   = useState(() => getLS('voiceName', null));
-  const [activePlugin, setPluginState]   = useState(() => getLS('plugin', 'webspeech'));
+  const [speakingId, setSpeakingId]   = useState(null);
+  const [progress,   setProgress]     = useState(0);
+  const [elapsed,    setElapsed]       = useState(0);
+  const [duration,   setDuration]     = useState(0);
+  const [rate,       setRateState]    = useState(() => getLS('rate', 2));
+  const [volume,     setVolumeState]  = useState(() => getLS('volume', 1));
+  const [voices,     setVoices]       = useState([]);
+  const [selVoice,   setVoiceState]   = useState(() => getLS('voiceName', null));
+  const [wordIdx,    setWordIdx]       = useState(0);
+  const [wordTotal,  setWordTotal]    = useState(0);
 
-  const voiceRef       = useRef(null);
-  const audioRef       = useRef(null);   // HTMLAudioElement for non-WebSpeech
-  const timerRef       = useRef(null);
-  const startRef       = useRef(0);
-  const durRef         = useRef(0);
-  const idRef          = useRef(null);
+  const voiceRef   = useRef(null);
+  const audioRef   = useRef(null);
+  const timerRef   = useRef(null);
+  const startRef   = useRef(0);
+  const durRef     = useRef(0);
+  const idRef      = useRef(null);
+  const wordsRef   = useRef([]);    // word positions for tracking
 
-  // Load WebSpeech voices
+  // Load Web Speech voices
   useEffect(() => {
-    const loadVoices = () => {
+    const load = () => {
       if (!window.speechSynthesis) return;
       const v = window.speechSynthesis.getVoices();
       if (v.length) {
@@ -274,31 +310,36 @@ export function useTTS() {
         if (!getLS('voiceName', null) && best) setVoiceState(best.name);
       }
     };
-    loadVoices();
-    if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = loadVoices;
+    load();
+    if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = load;
     return () => {
       if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = null;
       window.speechSynthesis?.cancel();
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (audioRef.current) { try { audioRef.current.pause(); } catch(e){} audioRef.current = null; }
       clearInterval(timerRef.current);
     };
   }, []);
 
-  const setRate = useCallback((r) => { setRateState(r); setLS('rate', r); }, []);
+  const setRate   = useCallback((r) => { setRateState(r);  setLS('rate', r); }, []);
   const setVolume = useCallback((v) => { setVolumeState(v); setLS('volume', v); }, []);
-  const setVoice = useCallback((name) => { setVoiceState(name); setLS('voiceName', name); }, []);
-  const setPlugin = useCallback((id) => { setPluginState(id); setLS('plugin', id); }, []);
+  const setVoice  = useCallback((n) => { setVoiceState(n);  setLS('voiceName', n); voiceRef.current = voices.find(v => v.name === n) || voiceRef.current; }, [voices]);
+  const setPlugin = useCallback((id) => setLS('plugin', id), []);
 
-  const startTimer = useCallback((estimatedDur) => {
+  const estDur = (text, r) => {
+    const words = text.split(/\s+/).filter(Boolean).length;
+    return (words / (150 * Math.max(r, 0.5))) * 60;
+  };
+
+  const startTimer = useCallback((dur) => {
     clearInterval(timerRef.current);
     startRef.current = Date.now();
-    durRef.current = estimatedDur;
-    setProgress(0); setElapsed(0); setDuration(estimatedDur);
+    durRef.current = dur;
+    setProgress(0); setElapsed(0); setDuration(dur);
     timerRef.current = setInterval(() => {
       const el = (Date.now() - startRef.current) / 1000;
       setElapsed(el);
-      setProgress(Math.min(99, estimatedDur > 0 ? (el / estimatedDur) * 100 : 0));
-    }, 200);
+      if (dur > 0) setProgress(Math.min(99, (el / dur) * 100));
+    }, 150);
   }, []);
 
   const stopTimer = useCallback((done = false) => {
@@ -310,117 +351,150 @@ export function useTTS() {
     window.speechSynthesis?.cancel();
     if (audioRef.current) { try { audioRef.current.pause(); } catch(e){} audioRef.current = null; }
     clearInterval(timerRef.current);
-    setSpeakingId(null);
-    setProgress(0); setElapsed(0); idRef.current = null;
+    setSpeakingId(null); setProgress(0); setElapsed(0); setWordIdx(0);
+    idRef.current = null;
   }, []);
 
-  const estimateDuration = (text, r) => {
-    const words = text.split(/\s+/).filter(Boolean).length;
-    return (words / (150 * r)) * 60; // seconds at given rate
-  };
-
+  // ── Web Speech ──
   const speakWebSpeech = useCallback((id, text) => {
+    const r = getLS('rate', 2);
+    const vol = getLS('volume', 1);
+    const vName = getLS('voiceName', null);
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(text);
-    const vName = getLS('voiceName', null);
-    const voice = vName ? voices.find(v => v.name === vName) : voiceRef.current;
+    const allVoices = window.speechSynthesis.getVoices();
+    const voice = vName ? allVoices.find(v => v.name === vName) : voiceRef.current;
     if (voice) utt.voice = voice;
     utt.lang = 'en-US';
-    utt.rate = rate;
-    utt.pitch = 1.02;
-    utt.volume = volume;
-    const estDur = estimateDuration(text, rate);
-    startTimer(estDur);
+    utt.rate = Math.min(r, 2);  // Web Speech capped at ~2
+    utt.volume = vol;
+    utt.pitch = 1.0;
+
+    // Word boundary tracking
+    const words = text.split(/\s+/).filter(Boolean);
+    setWordTotal(words.length);
+    setWordIdx(0);
+    wordsRef.current = words;
+
     utt.onboundary = (e) => {
-      if (e.name === 'word' && durRef.current > 0) {
+      if (e.name === 'word') {
+        // Estimate word index from charIndex
+        const spoken = text.slice(0, e.charIndex).split(/\s+/).filter(Boolean).length;
+        setWordIdx(spoken);
         const el = (Date.now() - startRef.current) / 1000;
         setElapsed(el);
-        setProgress(Math.min(99, (el / durRef.current) * 100));
+        if (durRef.current > 0) setProgress(Math.min(99, (el / durRef.current) * 100));
       }
     };
     utt.onend = () => { stopTimer(true); setSpeakingId(null); idRef.current = null; };
     utt.onerror = () => { stopTimer(false); setSpeakingId(null); idRef.current = null; };
-    setSpeakingId(id);
-    idRef.current = id;
+
+    startTimer(estDur(text, r));
+    setSpeakingId(id); idRef.current = id;
     window.speechSynthesis.speak(utt);
-  }, [voices, rate, volume, startTimer, stopTimer]);
+  }, [startTimer, stopTimer]);
 
-  const speakStreamElements = useCallback(async (id, text) => {
+  // ── StreamElements (direct Audio src — no fetch, no CORS) ──
+  const speakStreamElements = useCallback((id, text) => {
     const voice = getLS('seVoice', 'Brian');
+    const vol   = getLS('volume', 1);
     const url = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text.slice(0, 500))}`;
-    const estDur = estimateDuration(text, 1.0);
-    startTimer(estDur);
+    const audio = new Audio(url);
+    audio.volume = vol;
+    const dur = estDur(text, 1.0);
+    startTimer(dur);
     setSpeakingId(id); idRef.current = id;
-    const audio = await playAudioUrl(url, {}, null,
-      () => { stopTimer(true); setSpeakingId(null); idRef.current = null; },
-      (err) => {
-        console.warn('StreamElements failed, falling back to WebSpeech:', err.message);
-        stopTimer(false);
-        speakWebSpeech(id, text);
-      }
-    );
-    if (audio) { audio.volume = volume; audioRef.current = audio; }
-  }, [volume, startTimer, stopTimer, speakWebSpeech]);
+    audio.onended = () => { audioRef.current = null; stopTimer(true); setSpeakingId(null); idRef.current = null; };
+    audio.onerror = () => {
+      audioRef.current = null; stopTimer(false);
+      // Fallback to Web Speech
+      speakWebSpeech(id, text);
+    };
+    audioRef.current = audio;
+    audio.play().catch(() => { stopTimer(false); speakWebSpeech(id, text); });
+  }, [startTimer, stopTimer, speakWebSpeech]);
 
+  // ── ElevenLabs ──
   const speakElevenLabs = useCallback(async (id, text) => {
-    const apiKey = getLS('elKey', '');
-    const voiceId = getLS('elVoice', 'EXAVITQu4vr4xnSDxMaL'); // Bella
-    if (!apiKey) { alert('ElevenLabs API key not configured. Go to Admin → TTS Plugins to add your key.'); stopAll(); return; }
-    const estDur = estimateDuration(text, 1.0);
-    startTimer(estDur);
+    const key     = getLS('elevenlabs_key', '');
+    const voiceId = getLS('elVoice', 'EXAVITQu4vr4xnSDxMaL');
+    const vol     = getLS('volume', 1);
+    if (!key) { alert('ElevenLabs API key not set. Configure it in Admin → TTS Plugins.'); return; }
+    startTimer(estDur(text, 1.0));
     setSpeakingId(id); idRef.current = id;
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
     try {
-      const res = await fetch(url, {
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
         method: 'POST',
-        headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
+        headers: { 'xi-api-key': key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
         body: JSON.stringify({ text: text.slice(0, 2500), model_id: 'eleven_monolingual_v1', voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
       });
-      if (!res.ok) throw new Error(`ElevenLabs: HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const audio = new Audio(objectUrl);
-      audio.volume = volume;
-      audio.onended = () => { URL.revokeObjectURL(objectUrl); stopTimer(true); setSpeakingId(null); idRef.current = null; };
-      audio.onerror = () => { URL.revokeObjectURL(objectUrl); stopTimer(false); setSpeakingId(null); idRef.current = null; };
+      const src = URL.createObjectURL(blob);
+      const audio = new Audio(src);
+      audio.volume = vol;
+      audio.onended = () => { URL.revokeObjectURL(src); audioRef.current = null; stopTimer(true); setSpeakingId(null); idRef.current = null; };
+      audio.onerror = () => { URL.revokeObjectURL(src); audioRef.current = null; stopTimer(false); setSpeakingId(null); idRef.current = null; };
       audioRef.current = audio;
       await audio.play();
-    } catch (err) {
-      console.warn('ElevenLabs failed:', err.message);
+    } catch(err) {
       stopTimer(false); setSpeakingId(null); idRef.current = null;
       alert(`ElevenLabs error: ${err.message}`);
     }
-  }, [volume, startTimer, stopTimer, stopAll]);
+  }, [startTimer, stopTimer]);
 
+  // ── ResponsiveVoice ──
+  const speakResponsiveVoice = useCallback(async (id, text) => {
+    const vol   = getLS('volume', 1);
+    const r     = getLS('rate', 2);
+    const voice = getLS('rvVoice', 'UK English Female');
+    startTimer(estDur(text, 1.0));
+    setSpeakingId(id); idRef.current = id;
+    try {
+      await loadResponsiveVoice();
+      window.responsiveVoice.cancel();
+      window.responsiveVoice.speak(text.slice(0, 1000), voice, {
+        rate: Math.min(r, 1.5), volume: vol,
+        onend: () => { stopTimer(true); setSpeakingId(null); idRef.current = null; },
+        onerror: () => { stopTimer(false); setSpeakingId(null); idRef.current = null; },
+      });
+    } catch(err) {
+      stopTimer(false);
+      speakWebSpeech(id, text);
+    }
+  }, [startTimer, stopTimer, speakWebSpeech]);
+
+  // ── Main speak dispatcher ──
   const speak = useCallback((id, rawText) => {
-    // Toggle off if same id
-    if (speakingId === id || idRef.current === id) { stopAll(); return; }
-    stopAll();
+    if (idRef.current === id) { stopAll(); return; }
+    if (idRef.current && idRef.current !== id) stopAll();
     const text = cleanForTTS(rawText);
     if (!text) return;
 
     const plugin = getLS('plugin', 'webspeech');
-    if (plugin === 'streamelements') { speakStreamElements(id, text); }
-    else if (plugin === 'elevenlabs') { speakElevenLabs(id, text); }
-    else { speakWebSpeech(id, text); }
-  }, [speakingId, stopAll, speakWebSpeech, speakStreamElements, speakElevenLabs]);
+    if      (plugin === 'streamelements')   speakStreamElements(id, text);
+    else if (plugin === 'elevenlabs')       speakElevenLabs(id, text);
+    else if (plugin === 'responsivevoice') speakResponsiveVoice(id, text);
+    else                                   speakWebSpeech(id, text);
+  }, [stopAll, speakWebSpeech, speakStreamElements, speakElevenLabs, speakResponsiveVoice]);
 
   return {
     speakingId, progress, elapsed, duration,
     rate, setRate, volume, setVolume,
-    voices, selectedVoice, setVoice,
-    activePlugin, setPlugin,
+    voices, selectedVoice: selVoice, setVoice,
+    wordIdx, wordTotal,
+    setPlugin,
     speak, stop: stopAll,
   };
 }
 
-/* ─── Mini Player (shown when content is actively playing) ──────── */
+/* ─── Speeds & format helper ────────────────────────────────── */
+export const TTS_SPEEDS = [0.75, 1, 1.25, 1.5, 2, 3, 4];
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
-
-const MiniPlayer = ({ id, tts }) => {
-  const { progress, elapsed, duration, rate, setRate, volume, setVolume, stop } = tts;
+/* ─── MiniPlayer (shown below active message) ────────────────── */
+const MiniPlayer = ({ tts }) => {
+  const { progress, elapsed, duration, rate, setRate, volume, setVolume, stop, wordIdx, wordTotal } = tts;
   const [showSpeed, setShowSpeed] = useState(false);
 
   return (
@@ -428,60 +502,62 @@ const MiniPlayer = ({ id, tts }) => {
       marginTop: 10, padding: '10px 12px',
       background: 'rgba(91,233,221,0.06)',
       border: '1px solid rgba(91,233,221,0.18)',
-      borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 8,
+      borderRadius: 10,
     }}>
       {/* Progress bar */}
-      <div style={{ position: 'relative', height: 4, borderRadius: 9999, background: 'rgba(91,233,221,0.12)', cursor: 'default', overflow: 'hidden' }}>
+      <div style={{ height: 3, borderRadius: 9999, background: 'rgba(91,233,221,0.12)', overflow: 'hidden', marginBottom: 8 }}>
         <div style={{
-          position: 'absolute', left: 0, top: 0, height: '100%', borderRadius: 9999,
-          background: 'linear-gradient(90deg,var(--aurora),rgba(91,233,221,0.6))',
-          width: `${progress}%`, transition: 'width 0.2s linear',
+          height: '100%', borderRadius: 9999,
+          background: 'linear-gradient(90deg,var(--aurora),rgba(91,233,221,0.5))',
+          width: `${progress}%`, transition: 'width 0.15s linear',
         }} />
       </div>
 
-      {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      {/* Controls row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {/* Stop */}
         <button onClick={stop} title="Stop" style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: 26, height: 26, borderRadius: '50%', border: '1px solid rgba(91,233,221,0.3)',
-          background: 'rgba(91,233,221,0.1)', cursor: 'pointer', flexShrink: 0,
+          width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          border: '1px solid rgba(91,233,221,0.35)', background: 'rgba(91,233,221,0.1)', cursor: 'pointer',
         }}>
-          <Square size={10} color="var(--aurora)" fill="var(--aurora)" />
+          <Square size={9} color="var(--aurora)" fill="var(--aurora)" />
         </button>
 
         {/* Time */}
-        <span style={{ fontSize: 11, color: 'var(--dust)', fontVariantNumeric: 'tabular-nums', minWidth: 70 }}>
-          {fmt(elapsed)} {duration > 0 ? `/ ${fmt(duration)}` : ''}
+        <span style={{ fontSize: 11, color: 'var(--dust)', fontVariantNumeric: 'tabular-nums', minWidth: 75 }}>
+          {fmt(elapsed)}{duration > 0 ? ` / ${fmt(duration)}` : ''}
         </span>
 
-        {/* Divider */}
+        {/* Word tracking */}
+        {wordTotal > 0 && (
+          <span style={{ fontSize: 10, color: 'rgba(91,233,221,0.5)' }}>
+            word {Math.min(wordIdx + 1, wordTotal)}/{wordTotal}
+          </span>
+        )}
+
         <div style={{ flex: 1 }} />
 
-        {/* Speed selector */}
+        {/* Speed */}
         <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => setShowSpeed(s => !s)}
-            style={{
-              fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-              border: '1px solid rgba(91,233,221,0.2)', background: 'rgba(91,233,221,0.08)',
-              color: 'var(--aurora)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3,
-            }}
-          >
-            {rate === 1.08 ? '1×' : `${rate}×`} <ChevronDown size={9} />
+          <button onClick={() => setShowSpeed(s => !s)} style={{
+            fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
+            border: '1px solid rgba(91,233,221,0.25)', background: 'rgba(91,233,221,0.08)',
+            color: 'var(--aurora)', display: 'flex', alignItems: 'center', gap: 3,
+          }}>
+            {rate}× <ChevronDown size={9} />
           </button>
           {showSpeed && (
             <div style={{
               position: 'absolute', bottom: '100%', right: 0, marginBottom: 4,
-              background: 'var(--void-2)', border: '1px solid var(--line-2)',
-              borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', zIndex: 100,
+              background: 'var(--void-2)', border: '1px solid var(--line-2)', borderRadius: 8,
+              overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', zIndex: 200,
             }}>
-              {SPEEDS.map(s => (
+              {TTS_SPEEDS.map(s => (
                 <button key={s} onClick={() => { setRate(s); setShowSpeed(false); }} style={{
-                  display: 'block', width: '100%', padding: '6px 14px', fontSize: 12, fontWeight: 500,
-                  background: (rate === s || (s === 1 && rate === 1.08)) ? 'rgba(91,233,221,0.12)' : 'transparent',
-                  color: (rate === s || (s === 1 && rate === 1.08)) ? 'var(--aurora)' : 'var(--bone-dim)',
-                  border: 'none', cursor: 'pointer', textAlign: 'center', whiteSpace: 'nowrap',
+                  display: 'block', width: '100%', padding: '6px 18px', fontSize: 12, fontWeight: 500,
+                  border: 'none', cursor: 'pointer', textAlign: 'center',
+                  background: rate === s ? 'rgba(91,233,221,0.12)' : 'transparent',
+                  color: rate === s ? 'var(--aurora)' : 'var(--bone-dim)',
                 }}>
                   {s}×
                 </button>
@@ -490,11 +566,11 @@ const MiniPlayer = ({ id, tts }) => {
           )}
         </div>
 
-        {/* Volume toggle */}
-        <button onClick={() => setVolume(volume > 0 ? 0 : 1)} title={volume > 0 ? 'Mute' : 'Unmute'} style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: 24, height: 24, borderRadius: 6, border: 'none',
-          background: 'transparent', cursor: 'pointer', color: volume > 0 ? 'var(--aurora)' : 'var(--dust)',
+        {/* Volume */}
+        <button onClick={() => setVolume(volume > 0 ? 0 : 1)} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22,
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          color: volume > 0 ? 'var(--aurora)' : 'var(--dust)',
         }}>
           {volume > 0 ? <Volume2 size={13} /> : <VolumeX size={13} />}
         </button>
@@ -503,53 +579,44 @@ const MiniPlayer = ({ id, tts }) => {
   );
 };
 
-/* ─── ListenButton ─────────────────────────────────────────────── */
+/* ─── ListenButton ─────────────────────────────────────────── */
 export const ListenButton = ({ id, text, tts, variant = 'inline' }) => {
   const active = tts.speakingId === id;
+  const wrapRef = useRef(null);
 
-  if (variant === 'pill') {
-    return (
-      <>
-        <button
-          onClick={() => tts.speak(id, text)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '6px 14px', borderRadius: 9999, fontSize: 13, fontWeight: 500,
-            cursor: 'pointer', transition: 'all 0.2s',
-            background: active ? 'rgba(91,233,221,0.15)' : 'rgba(242,234,211,0.06)',
-            color: active ? 'var(--aurora)' : 'var(--bone-dim)',
-            border: `1px solid ${active ? 'rgba(91,233,221,0.3)' : 'var(--line)'}`,
-          }}
-          title={active ? 'Stop' : 'Listen to this content'}
-        >
-          {active ? <Square size={13} fill="var(--aurora)" /> : <Volume2 size={13} />}
-          {active ? 'Playing' : 'Listen'}
-        </button>
-        {active && <MiniPlayer id={id} tts={tts} />}
-      </>
-    );
-  }
+  // Scroll into view when this message starts playing
+  useEffect(() => {
+    if (active && wrapRef.current) {
+      wrapRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [active]);
 
-  // Inline (chat messages)
+  const btn = (
+    <button
+      onClick={() => tts.speak(id, text)}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: variant === 'pill' ? 6 : 4,
+        padding: variant === 'pill' ? '6px 14px' : '3px 10px',
+        marginTop: variant === 'inline' ? 8 : 0,
+        borderRadius: 9999, fontSize: variant === 'pill' ? 13 : 11, fontWeight: 500,
+        cursor: 'pointer', transition: 'all 0.2s',
+        background: active ? 'rgba(91,233,221,0.14)' : 'rgba(242,234,211,0.05)',
+        color: active ? 'var(--aurora)' : 'var(--bone-dim)',
+        border: `1px solid ${active ? 'rgba(91,233,221,0.3)' : 'rgba(242,234,211,0.12)'}`,
+      }}
+      title={active ? 'Stop' : 'Listen to this content'}
+    >
+      {active
+        ? <><Square size={variant === 'pill' ? 12 : 10} fill="var(--aurora)" /> Playing</>
+        : <><Volume2 size={variant === 'pill' ? 13 : 10} /> Listen</>}
+    </button>
+  );
+
   return (
-    <>
-      <button
-        onClick={() => tts.speak(id, text)}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          marginTop: 8, padding: '3px 10px', borderRadius: 9999,
-          fontSize: 11, fontWeight: 500, cursor: 'pointer', transition: 'all 0.2s',
-          background: active ? 'rgba(91,233,221,0.12)' : 'rgba(242,234,211,0.05)',
-          color: active ? 'var(--aurora)' : 'var(--bone-dim)',
-          border: `1px solid ${active ? 'rgba(91,233,221,0.25)' : 'rgba(242,234,211,0.12)'}`,
-        }}
-        title={active ? 'Stop' : 'Listen to this message'}
-      >
-        {active ? <Square size={10} fill="var(--aurora)" /> : <Volume2 size={10} />}
-        {active ? 'Playing' : 'Listen'}
-      </button>
-      {active && <MiniPlayer id={id} tts={tts} />}
-    </>
+    <div ref={wrapRef} style={{ display: variant === 'pill' ? 'inline-flex' : 'block', flexDirection: 'column' }}>
+      {btn}
+      {active && <MiniPlayer tts={tts} />}
+    </div>
   );
 };
 

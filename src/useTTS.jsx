@@ -496,7 +496,7 @@ export function useTTS() {
 }
 
 /* ─── Speeds & format helper ────────────────────────────────── */
-export const TTS_SPEEDS = [0.75, 1, 1.25, 1.5, 2, 3, 4];
+export const TTS_SPEEDS = [0.75, 1, 1.25, 1.5, 2, 3, 4, 5, 6, 8, 10, 15, 20];
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /* ─── MiniPlayer (shown below active message) ────────────────── */

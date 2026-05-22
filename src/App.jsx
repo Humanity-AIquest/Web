@@ -3,11 +3,11 @@ import {
   Sparkles, BookOpen, Network, Users, Database, ChevronRight, ChevronDown,
   X, Send, ArrowRight, Globe, Shield, Feather, Layers,
   Eye, Lock, Heart, Compass, Menu, Loader2,
-  MessageCircle, Trees, Star, Mic, MicOff, Volume2, VolumeX,
+  MessageCircle, Trees, Star, Mic, MicOff, Volume2, VolumeX, Square,
   LogIn, UserPlus, User, LogOut, Lightbulb, CheckCircle, Settings
 } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
-import { useTTS, ListenButton, getLS, setLS } from './useTTS';
+import { useTTS, ListenButton, getLS, setLS, TTS_SPEEDS } from './useTTS';
 
 
 /* ============================================================
@@ -285,6 +285,34 @@ const AccountPage = ({ auth, onLogout }) => {
     </section>
   );
 };
+
+// ============ CMS HOOK ============
+function useCMS(pageKey) {
+  const [sections, setSections] = useState({});
+  useEffect(() => {
+    fetch(`/api/content?page=${pageKey}`)
+      .then(r => r.json())
+      .then(d => {
+        const map = {};
+        (d.content || []).forEach(s => { map[s.section_key] = s.content; });
+        setSections(map);
+      })
+      .catch(() => {});
+  }, [pageKey]);
+  return sections;
+}
+
+// ============ AGENT MODES ============
+const MODES = [
+  { id: 'dialogue', label: 'Dialogue' },
+  { id: 'ideate', label: 'Co-Ideator' },
+  { id: 'debate_for', label: 'Debate For' },
+  { id: 'debate_against', label: 'Debate Against' },
+  { id: 'explain', label: 'Explain' },
+];
+
+// ============ FORMAT TIME HELPER ============
+const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 // Pages registry
 const PAGES = [
@@ -1803,7 +1831,7 @@ const Footer = ({ setPage }) => (
   </footer>
 );
 
-// ============ HRC AGENT (chat) — WITH AUTH, VOICE, IDEA SUBMISSION ============
+// ============ HRC AGENT (chat) — WITH AUTH, VOICE, MODES, AUTO-SCROLL ============
 const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
   const [messages, setMessages] = useState([
     {
@@ -1814,6 +1842,8 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
+  const [mode, setMode] = useState('dialogue');
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const tts = useTTS();
 
   // Auto-voice: speaks each new agent reply automatically
@@ -1832,16 +1862,47 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
   const [ideaContent, setIdeaContent] = useState('');
   const [ideaClauses, setIdeaClauses] = useState('');
   const [ideaStatus, setIdeaStatus] = useState(null);
+
   const scrollRef = useRef(null);
+  const msgRefs = useRef({});
   const recognitionRef = useRef(null);
 
   useEffect(() => {
     if (seed && open) { setInput(seed); clearSeed(); }
   }, [seed, open, clearSeed]);
 
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
+
+  // Auto-scroll to currently speaking message
+  useEffect(() => {
+    if (!tts.speakingId) return;
+    const match = tts.speakingId.match(/^msg-(\d+)$/);
+    if (!match) return;
+    const idx = parseInt(match[1]);
+    const el = msgRefs.current[idx];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [tts.speakingId]);
+
+  // Section headings from ## markdown in assistant messages
+  const sectionHeadings = useMemo(() => {
+    const headings = [];
+    messages.forEach((m, msgIdx) => {
+      if (m.role !== 'assistant') return;
+      const matches = [...m.content.matchAll(/^##\s+(.+)$/gm)];
+      matches.forEach(match => {
+        headings.push({ label: match[1].trim(), msgIdx });
+      });
+    });
+    return headings;
+  }, [messages]);
+
+  const scrollToMessage = (idx) => {
+    const el = msgRefs.current[idx];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Voice: Speech-to-Text
   const toggleListening = () => {
@@ -1871,8 +1932,6 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
     setListening(true);
   };
 
-  // Voice: Text-to-Speech handled by useTTS() hook above
-
   const send = async () => {
     const text = input.trim();
     if (!text || loading) return;
@@ -1883,15 +1942,13 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (auth?.token) headers['Authorization'] = `Bearer ${auth.token}`;
-      const response = await fetch('/api/chat', {
-        method: 'POST', headers,
-        body: JSON.stringify({ message: text }),
-      });
+      const body = { message: text };
+      if (mode !== 'dialogue') body.mode = mode;
+      const response = await fetch('/api/chat', { method: 'POST', headers, body: JSON.stringify(body) });
       const data = await response.json();
       const reply = data.message || "I couldn't get a response. Please try again.";
-      const replyIdx = newMessages.length; // index in the final messages array
+      const replyIdx = newMessages.length;
       setMessages([...newMessages, { role: 'assistant', content: reply }]);
-      // Auto-speak the reply if voice mode is on
       if (autoVoiceRef.current) {
         setTimeout(() => tts.speak(`msg-${replyIdx}`, reply), 80);
       }
@@ -1925,50 +1982,149 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
 
   if (!open) return null;
 
+  const hasPlayer = !!tts.speakingId && !showIdeaForm;
+  const hasTabs = sectionHeadings.length > 0 && !showIdeaForm;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-end md:justify-end p-0 md:p-6"
       style={{ background: 'rgba(7, 16, 31, 0.6)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}>
-      <div className="w-full md:w-[480px] h-[85vh] md:h-[640px] rounded-t-3xl md:rounded-3xl flex flex-col grain animate-fade-up"
+      <div className="w-full md:w-[520px] h-[90vh] md:h-[680px] rounded-t-3xl md:rounded-3xl flex flex-col grain animate-fade-up"
         style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)' }}
         onClick={e => e.stopPropagation()}>
 
-        <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: 'var(--line)' }}>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 rounded-full animate-glow-breathe flex items-center justify-center" style={{
-                background: 'radial-gradient(circle, var(--aurora) 0%, var(--aurora-deep) 70%)'
-              }}>
-                <Sparkles size={18} className="text-void" />
-              </div>
+        {/* ── Row 1: Title + Mode Pills + Controls ── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '14px 16px 10px',
+          borderBottom: hasTabs || hasPlayer ? 'none' : '1px solid var(--line)',
+        }}>
+          {/* Icon + title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <div className="animate-glow-breathe" style={{
+              width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'radial-gradient(circle, var(--aurora) 0%, var(--aurora-deep) 70%)',
+            }}>
+              <Sparkles size={14} className="text-void" />
             </div>
-            <div>
-              <div className="font-display text-lg leading-tight">HRC Agent</div>
-              <div className="text-xs text-bone-dim">
-                {auth?.user ? `Signed in as ${auth.user.display_name}` : 'Carrying humanity\'s constitution'}
-              </div>
-            </div>
+            <span className="font-display" style={{ fontSize: 15 }}>HRC Agent</span>
           </div>
-          <div className="flex items-center gap-1">
-            {/* Auto-voice toggle */}
-            <button onClick={toggleAutoVoice}
-              className="p-2 rounded-full hover:bg-cosmos transition-all"
-              title={autoVoice ? 'Voice auto-play on — click to mute responses' : 'Voice off — click to auto-speak responses'}
-              style={{ background: autoVoice ? 'rgba(91,233,221,0.10)' : 'transparent' }}>
-              {autoVoice
-                ? <Volume2 size={16} className="text-aurora" />
-                : <VolumeX size={16} className="text-bone-dim" />}
+
+          {/* Mode pills — scrollable */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, overflowX: 'auto', scrollbarWidth: 'none' }}>
+            {MODES.map(m => (
+              <button key={m.id} onClick={() => setMode(m.id)} style={{
+                flexShrink: 0, padding: '3px 10px', borderRadius: 9999,
+                fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+                transition: 'all 0.15s',
+                background: mode === m.id ? 'rgba(91,233,221,0.15)' : 'transparent',
+                color: mode === m.id ? 'var(--aurora)' : 'var(--dust)',
+                border: `1px solid ${mode === m.id ? 'rgba(91,233,221,0.35)' : 'rgba(91,233,221,0.08)'}`,
+              }}>{m.label}</button>
+            ))}
+          </div>
+
+          {/* Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            <button onClick={toggleAutoVoice} style={{
+              padding: 6, borderRadius: '50%', background: autoVoice ? 'rgba(91,233,221,0.10)' : 'transparent',
+              border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }} title={autoVoice ? 'Auto-voice on' : 'Auto-voice off'}>
+              {autoVoice ? <Volume2 size={14} color="var(--aurora)" /> : <VolumeX size={14} color="var(--bone-dim)" />}
             </button>
-            <button onClick={() => setShowIdeaForm(!showIdeaForm)}
-              className="p-2 rounded-full hover:bg-cosmos transition-colors" title="Submit an idea">
-              <Lightbulb size={16} className={showIdeaForm ? 'text-gold' : 'text-bone-dim'} />
+            <button onClick={() => setShowIdeaForm(!showIdeaForm)} style={{
+              padding: 6, borderRadius: '50%', background: 'transparent', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }} title="Submit an idea">
+              <Lightbulb size={14} color={showIdeaForm ? 'var(--gold)' : 'var(--bone-dim)'} />
             </button>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-cosmos transition-colors">
-              <X size={18} />
+            <button onClick={onClose} style={{
+              padding: 6, borderRadius: '50%', background: 'transparent', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <X size={16} color="var(--bone-dim)" />
             </button>
           </div>
         </div>
 
+        {/* ── Row 2: Section Heading Tabs ── */}
+        {hasTabs && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '6px 16px', overflowX: 'auto', scrollbarWidth: 'none',
+            borderBottom: hasPlayer ? 'none' : '1px solid var(--line)',
+          }}>
+            {sectionHeadings.map((h, i) => (
+              <button key={i} onClick={() => scrollToMessage(h.msgIdx)} style={{
+                flexShrink: 0, padding: '3px 10px', borderRadius: 9999, fontSize: 10,
+                cursor: 'pointer', whiteSpace: 'nowrap', background: 'rgba(242,234,211,0.04)',
+                color: 'var(--bone-dim)', border: '1px solid var(--line)', fontWeight: 500,
+              }}>{h.label}</button>
+            ))}
+          </div>
+        )}
+
+        {/* ── Row 3: Player Strip ── */}
+        {hasPlayer && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
+            borderBottom: '1px solid var(--line)', background: 'rgba(91,233,221,0.03)',
+            position: 'relative',
+          }}>
+            {/* Stop button */}
+            <button onClick={tts.stop} title="Stop" style={{
+              width: 22, height: 22, borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(91,233,221,0.12)', border: '1px solid rgba(91,233,221,0.3)',
+            }}>
+              <Square size={8} color="var(--aurora)" fill="var(--aurora)" />
+            </button>
+
+            {/* Progress bar */}
+            <div style={{ flex: 1, height: 3, borderRadius: 9999, background: 'rgba(91,233,221,0.12)', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', borderRadius: 9999,
+                background: 'linear-gradient(90deg,var(--aurora),rgba(91,233,221,0.5))',
+                width: `${tts.progress}%`, transition: 'width 0.15s linear',
+              }} />
+            </div>
+
+            {/* Time */}
+            <span style={{ fontSize: 10, color: 'var(--dust)', fontVariantNumeric: 'tabular-nums', minWidth: 72, flexShrink: 0 }}>
+              {fmtTime(tts.elapsed)}{tts.duration > 0 ? ` / ${fmtTime(tts.duration)}` : ''}
+            </span>
+
+            {/* Speed picker */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <button onClick={() => setShowSpeedMenu(s => !s)} style={{
+                fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5, cursor: 'pointer',
+                border: '1px solid rgba(91,233,221,0.2)', background: 'rgba(91,233,221,0.06)',
+                color: 'var(--aurora)', display: 'flex', alignItems: 'center', gap: 2,
+              }}>
+                {tts.rate}× <ChevronDown size={8} />
+              </button>
+              {showSpeedMenu && (
+                <div style={{
+                  position: 'absolute', bottom: '100%', right: 0, marginBottom: 4,
+                  background: 'var(--void-2)', border: '1px solid var(--line-2)',
+                  borderRadius: 8, overflow: 'hidden auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                  zIndex: 200, maxHeight: 200,
+                }}>
+                  {TTS_SPEEDS.map(s => (
+                    <button key={s} onClick={() => { tts.setRate(s); setShowSpeedMenu(false); }} style={{
+                      display: 'block', width: '100%', padding: '5px 16px',
+                      fontSize: 11, fontWeight: 500, border: 'none', cursor: 'pointer', textAlign: 'center',
+                      background: tts.rate === s ? 'rgba(91,233,221,0.12)' : 'transparent',
+                      color: tts.rate === s ? 'var(--aurora)' : 'var(--bone-dim)',
+                    }}>{s}×</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Content ── */}
         {showIdeaForm ? (
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
             <h3 className="font-display text-lg">Submit an Idea or Amendment</h3>
@@ -2006,7 +2162,8 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
           <>
             <div ref={scrollRef} className="flex-1 overflow-y-auto chat-scroll px-5 py-6 space-y-5">
               {messages.map((m, i) => (
-                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div key={i} ref={el => { msgRefs.current[i] = el; }}
+                  className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[88%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                     m.role === 'user' ? 'bg-bone text-void rounded-br-sm' : 'rounded-bl-sm'
                   }`}
@@ -2017,9 +2174,18 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
                     } : {}}>
                     {m.content}
                     {m.role === 'assistant' && (
-                      <div>
-                        <ListenButton id={`msg-${i}`} text={m.content} tts={tts} />
-                      </div>
+                      <button onClick={() => tts.speak(`msg-${i}`, m.content)} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 3,
+                        marginTop: 8, padding: '2px 9px', borderRadius: 9999,
+                        fontSize: 10, fontWeight: 500, cursor: 'pointer',
+                        background: tts.speakingId === `msg-${i}` ? 'rgba(91,233,221,0.14)' : 'rgba(242,234,211,0.05)',
+                        color: tts.speakingId === `msg-${i}` ? 'var(--aurora)' : 'var(--bone-dim)',
+                        border: `1px solid ${tts.speakingId === `msg-${i}` ? 'rgba(91,233,221,0.3)' : 'rgba(242,234,211,0.12)'}`,
+                      }}>
+                        {tts.speakingId === `msg-${i}`
+                          ? <><Square size={8} fill="var(--aurora)" color="var(--aurora)" /> Playing</>
+                          : <><Volume2 size={9} /> Listen</>}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -2049,7 +2215,8 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
           </>
         )}
 
-        <div className="p-5 border-t" style={{ borderColor: 'var(--line)' }}>
+        {/* ── Input Footer ── */}
+        <div className="p-4 border-t" style={{ borderColor: 'var(--line)' }}>
           <div className="flex items-end gap-2 rounded-2xl p-3" style={{ background: 'var(--void)', border: '1px solid var(--line-2)' }}>
             <button onClick={toggleListening}
               className={`p-2 rounded-full transition-all ${listening ? 'bg-aurora' : ''}`}

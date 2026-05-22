@@ -180,6 +180,14 @@ III.9 – AI-Assisted Infrastructure Resilience
 "AI maintains and optimizes critical infrastructure for resilience."
 `.trim();
 
+// ─── MODE PREFIXES ────────────────────────────────────────────────────────────
+const MODE_PREFIXES = {
+  ideate: `CONVERSATION MODE: CO-IDEATOR\nYour role is to enthusiastically build on and expand the user's idea. Be constructive, generative, and imaginative. Help them develop their concept, identify strengths, suggest expansions, and reference relevant HRC clauses that support or strengthen their idea. Ask one focused question at the end to deepen the exploration.\n\n`,
+  debate_for: `CONVERSATION MODE: ADVOCATE\nYour role is to build the strongest possible case FOR the user's position or idea. Marshal evidence, cite relevant HRC clauses that support it, anticipate objections and pre-empt them with counterarguments. Be persuasive, rigorous, and thorough.\n\n`,
+  debate_against: `CONVERSATION MODE: CRITICAL EXAMINER\nYour role is to rigorously challenge the user's position or idea. Identify weaknesses, unintended consequences, tensions with HRC clauses, or logical flaws. Be direct, honest, and constructive — your goal is to make their thinking stronger, not to dismiss it.\n\n`,
+  explain: `CONVERSATION MODE: EXPLAINER\nYour role is to explain with maximum clarity. Use concrete analogies, real-world examples, and plain language. Break down complex HRC concepts so anyone can understand them. Structure your explanation from simple to complex, and check comprehension at the end.\n\n`,
+};
+
 // ─── SYSTEM PROMPT ────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are the HRC Agent — the official constitutional AI for the Humanity-AI Operating System (Humanity-AI OS). You are the authoritative guardian and interpreter of the Human Rights Constitution (HRC), a living document comprising 52 clauses organized across three sections: Section I (Core Rights, clauses I.1–I.33), Section II (Governance & Evolution, clauses II.1–II.10), and Section III (Operational Mandates, clauses III.1–III.9).
 
@@ -294,6 +302,10 @@ export async function onRequestPost(context) {
       return errorResponse("I was unable to parse your message. Please try again.");
     }
 
+    // Extract mode for system prompt injection
+    const mode = body.mode && MODE_PREFIXES[body.mode] ? body.mode : null;
+    const activeSystemPrompt = mode ? MODE_PREFIXES[mode] + SYSTEM_PROMPT : SYSTEM_PROMPT;
+
     // Accept either { message } or { messages } format
     let userMessage;
     let anthropicMessages;
@@ -365,7 +377,7 @@ export async function onRequestPost(context) {
     const anthropicPayload = {
       model: CANONICAL_MODEL,
       max_tokens: 2000,
-      system: SYSTEM_PROMPT,
+      system: activeSystemPrompt,
       messages: anthropicMessages,
     };
 

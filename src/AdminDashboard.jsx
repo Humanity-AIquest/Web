@@ -7,6 +7,7 @@ import {
   ChevronUp, MoreHorizontal, Check, Tag, Plus, Zap, SortAsc,
   ArrowUpDown, Settings2, Bookmark
 } from 'lucide-react';
+import { useTTS, ListenButton } from './useTTS';
 
 /* ============================================================
    ADMIN DASHBOARD — Humanity-AI.Quest
@@ -535,6 +536,7 @@ const ConversationsTab = ({ auth, level }) => {
   const [tagLoading, setTagLoading] = useState(null);
   const [noteInput, setNoteInput] = useState('');
   const [noteType, setNoteType] = useState('comment');
+  const tts = useTTS();
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -694,7 +696,10 @@ const ConversationsTab = ({ auth, level }) => {
                             <span style={{ fontSize: 11, fontWeight: 700, color: m.role === 'user' ? 'var(--aurora)' : 'var(--gold)', textTransform: 'uppercase' }}>{m.role}</span>
                             <span style={{ fontSize: 11, color: 'var(--dust)' }}>{fmtDate(m.created_at)}</span>
                           </div>
-                          <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{m.content}</p>
+                          <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--bone-dim)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{m.content}</p>
+                          {m.role === 'assistant' && (
+                            <ListenButton id={`convmsg-${i}`} text={m.content} tts={tts} />
+                          )}
                         </div>
                       ))
                     )}
@@ -761,6 +766,7 @@ const IdeasTab = ({ auth, level }) => {
   const [saving, setSaving] = useState(null);
   const [search, setSearch] = useState('');
   const [tagLoading, setTagLoading] = useState(null);
+  const tts = useTTS();
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -873,7 +879,10 @@ const IdeasTab = ({ auth, level }) => {
                 {expanded === idea.id && (
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {idea.content && (
-                      <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{idea.content}</p>
+                      <div>
+                        <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--bone-dim)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{idea.content}</p>
+                        <ListenButton id={`idea-${idea.id}`} text={`${idea.title}. ${idea.content}`} tts={tts} variant="pill" />
+                      </div>
                     )}
                     {idea.clause_refs && (
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -936,6 +945,7 @@ const NotesList = ({ auth, level, noteType }) => {
   const [expandedMsgs, setExpandedMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(false);
   const [tagLoading, setTagLoading] = useState(null);
+  const tts = useTTS();
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -1057,10 +1067,11 @@ const NotesList = ({ auth, level, noteType }) => {
                   </div>
                   <p style={{ margin: '0 0 4px', fontSize: 13, color: 'var(--bone)', fontWeight: 500, lineHeight: 1.4 }}>{n.note}</p>
                   {n.first_message && (
-                    <p style={{ margin: 0, fontSize: 12, color: 'var(--dust)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <p style={{ margin: '0 0 4px', fontSize: 12, color: 'var(--dust)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       "{n.first_message}"
                     </p>
                   )}
+                  <ListenButton id={`note-${n.id}`} text={n.note} tts={tts} />
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -1100,7 +1111,10 @@ const NotesList = ({ auth, level, noteType }) => {
                           <span style={{ fontSize: 11, fontWeight: 700, color: m.role === 'user' ? 'var(--aurora)' : 'var(--gold)', textTransform: 'uppercase' }}>{m.role}</span>
                           <span style={{ fontSize: 11, color: 'var(--dust)' }}>{fmtDate(m.created_at)}</span>
                         </div>
-                        <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{m.content}</p>
+                        <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--bone-dim)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{m.content}</p>
+                        {m.role === 'assistant' && (
+                          <ListenButton id={`notesmsg-${i}`} text={m.content} tts={tts} />
+                        )}
                       </div>
                     ))
                   )}

@@ -7,6 +7,7 @@ import {
   LogIn, UserPlus, User, LogOut, Lightbulb, CheckCircle, Settings
 } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
+import { useTTS, ListenButton } from './useTTS';
 
 
 /* ============================================================
@@ -992,6 +993,7 @@ const HomePage = ({ setPage, onOpenAgent }) => {
 const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
   const [filter, setFilter] = useState('all');
   const [expanded, setExpanded] = useState(null);
+  const tts = useTTS();
 
   const all = useMemo(() => [
     ...HRC_CORE.map(c => ({ ...c, cat: 'core' })),
@@ -1074,6 +1076,12 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
                       <p className="text-bone-dim leading-relaxed">{c.r}</p>
                     </div>
                     <div className="md:col-span-2 flex flex-wrap gap-3 pt-2">
+                      <ListenButton
+                        id={`clause-${id}`}
+                        text={`${c.t}. ${c.s}. Reasoning: ${c.r}`}
+                        tts={tts}
+                        variant="pill"
+                      />
                       <button onClick={() => {
                         setAgentSeed(`Tell me more about Clause ${catKey(c.cat)}.${c.n} — "${c.t}". How does it apply to my work as an innovator?`);
                         onOpenAgent();
@@ -1806,7 +1814,7 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
+  const tts = useTTS();
   const [showIdeaForm, setShowIdeaForm] = useState(false);
   const [ideaTitle, setIdeaTitle] = useState('');
   const [ideaContent, setIdeaContent] = useState('');
@@ -1851,17 +1859,7 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
     setListening(true);
   };
 
-  // Voice: Text-to-Speech
-  const speakText = (text) => {
-    if (speaking) { speechSynthesis.cancel(); setSpeaking(false); return; }
-    const cleaned = text.replace(/[#*_>`]/g, '').replace(/\n{2,}/g, '. ');
-    const utterance = new SpeechSynthesisUtterance(cleaned);
-    utterance.rate = 0.95;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    setSpeaking(true);
-    speechSynthesis.speak(utterance);
-  };
+  // Voice: Text-to-Speech handled by useTTS() hook above
 
   const send = async () => {
     const text = input.trim();
@@ -1992,13 +1990,10 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
                       color: 'var(--bone)'
                     } : {}}>
                     {m.content}
-                    {m.role === 'assistant' && i > 0 && (
-                      <button onClick={() => speakText(m.content)}
-                        className="mt-2 p-1 rounded-full hover:bg-cosmos transition-colors inline-flex items-center gap-1 text-xs text-bone-dim"
-                        title={speaking ? "Stop speaking" : "Listen to response"}>
-                        {speaking ? <VolumeX size={12} /> : <Volume2 size={12} />}
-                        {speaking ? 'Stop' : 'Listen'}
-                      </button>
+                    {m.role === 'assistant' && (
+                      <div>
+                        <ListenButton id={`msg-${i}`} text={m.content} tts={tts} />
+                      </div>
                     )}
                   </div>
                 </div>

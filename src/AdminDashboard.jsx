@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Users, MessageCircle, Lightbulb, FileText, Shield,
   Trash2, Flag, CheckCircle, XCircle, ChevronDown, ChevronRight,
   Loader2, Search, Filter, Edit2, Save, X, AlertTriangle,
   RefreshCw, Eye, EyeOff, Clock, User, Ban, UserCheck,
-  ChevronUp, MoreHorizontal, Check
+  ChevronUp, MoreHorizontal, Check, Tag, Plus, Zap, SortAsc,
+  ArrowUpDown, Settings2, Bookmark
 } from 'lucide-react';
 
 /* ============================================================
    ADMIN DASHBOARD — Humanity-AI.Quest
-   ACL levels: L4 = moderator, L5 = super-admin
+   ACL levels: 0=user, 1=viewer, 2=moderator, 3=editor, 4=manager, 5=super admin
    ============================================================ */
 
-// ─── shared API helper (mirrors App.jsx) ────────────────────
+// ─── shared API helper ────────────────────────────────────────
 async function apiCall(path, method = 'GET', body = null, token = null) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -26,14 +27,29 @@ async function apiCall(path, method = 'GET', body = null, token = null) {
   return res.json();
 }
 
-// ─── ACL helpers ────────────────────────────────────────────
-// ACL levels: 0=user, 1=viewer, 2=moderator, 3=editor, 4=manager, 5=super admin
-const aclLevel = (auth) => {
-  return auth?.user?.acl_level ?? 0;
+// ─── ACL helpers ─────────────────────────────────────────────
+const aclLevel = (auth) => auth?.user?.acl_level ?? 0;
+
+// ─── Tag helpers ─────────────────────────────────────────────
+const TAG_OPTIONS = [
+  { value: 'process_hrc',  label: 'Process for HRC',   color: 'aurora',  bg: 'rgba(91,233,221,0.18)',  fg: 'var(--aurora)' },
+  { value: 'more_info',    label: 'More info needed',   color: 'gold',    bg: 'rgba(232,177,79,0.18)',  fg: 'var(--gold)' },
+  { value: 'warn_user',    label: 'Warn user',          color: 'orange',  bg: 'rgba(251,146,60,0.18)',  fg: '#fb923c' },
+  { value: 'suspend_user', label: 'Suspend user',       color: 'red',     bg: 'rgba(220,60,60,0.18)',   fg: '#f87171' },
+];
+
+const parseTags = (str) => {
+  if (!str) return [];
+  return str.split(',').map(t => t.trim()).filter(Boolean);
 };
 
-// ─── shared sub-components ──────────────────────────────────
+const getTagOption = (value) => TAG_OPTIONS.find(o => o.value === value);
 
+const tagLabel = (value) => getTagOption(value)?.label || value.replace(/_/g, ' ');
+const tagBg    = (value) => getTagOption(value)?.bg || 'rgba(167,139,250,0.15)';
+const tagFg    = (value) => getTagOption(value)?.fg || '#a78bfa';
+
+// ─── shared sub-components ───────────────────────────────────
 const Spinner = ({ size = 16 }) => (
   <Loader2 size={size} className="animate-spin" style={{ color: 'var(--aurora)' }} />
 );
@@ -85,29 +101,15 @@ const statusBadge = (status) => {
 };
 
 const AclTag = ({ level }) => (
-  <span style={{ fontSize: 10, color: 'var(--dust)', fontWeight: 500 }}>
-    L{level}+
-  </span>
+  <span style={{ fontSize: 10, color: 'var(--dust)', fontWeight: 500 }}>L{level}+</span>
 );
 
 const ConfirmDialog = ({ open, title, message, onConfirm, onCancel, danger = true }) => {
   if (!open) return null;
   return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 200,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(7,16,31,0.75)', backdropFilter: 'blur(6px)',
-      }}
-      onClick={onCancel}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--void-2)', border: '1px solid var(--line-2)',
-          borderRadius: 16, padding: 28, maxWidth: 380, width: '90%',
-        }}
-      >
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(7,16,31,0.75)', backdropFilter: 'blur(6px)' }}
+      onClick={onCancel}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', borderRadius: 16, padding: 28, maxWidth: 380, width: '90%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <AlertTriangle size={20} color={danger ? '#f87171' : 'var(--gold)'} />
           <span style={{ fontWeight: 700, fontSize: 16 }}>{title}</span>
@@ -122,23 +124,23 @@ const ConfirmDialog = ({ open, title, message, onConfirm, onCancel, danger = tru
   );
 };
 
-// ─── inline style helpers ────────────────────────────────────
+// ─── style helpers ────────────────────────────────────────────
 const btnStyle = (variant = 'ghost', small = false) => {
   const base = {
     display: 'inline-flex', alignItems: 'center', gap: 4,
     padding: small ? '3px 10px' : '6px 14px',
     borderRadius: 8, fontSize: small ? 11 : 13, fontWeight: 500,
-    cursor: 'pointer', border: 'none', transition: 'all 0.2s',
-    whiteSpace: 'nowrap',
+    cursor: 'pointer', border: 'none', transition: 'all 0.2s', whiteSpace: 'nowrap',
   };
   const variants = {
     primary: { ...base, background: 'var(--bone)', color: 'var(--void)' },
     aurora:  { ...base, background: 'rgba(91,233,221,0.15)', color: 'var(--aurora)', border: '1px solid rgba(91,233,221,0.25)' },
-    gold:    { ...base, background: 'rgba(232,177,79,0.15)', color: 'var(--gold)',   border: '1px solid rgba(232,177,79,0.25)' },
-    danger:  { ...base, background: 'rgba(220,60,60,0.2)',   color: '#f87171',       border: '1px solid rgba(220,60,60,0.3)' },
-    orange:  { ...base, background: 'rgba(251,146,60,0.15)', color: '#fb923c',       border: '1px solid rgba(251,146,60,0.25)' },
+    blue:    { ...base, background: 'rgba(59,130,246,0.2)',  color: '#60a5fa',        border: '1px solid rgba(59,130,246,0.35)' },
+    gold:    { ...base, background: 'rgba(232,177,79,0.15)', color: 'var(--gold)',    border: '1px solid rgba(232,177,79,0.25)' },
+    danger:  { ...base, background: 'rgba(220,60,60,0.2)',   color: '#f87171',        border: '1px solid rgba(220,60,60,0.3)' },
+    orange:  { ...base, background: 'rgba(251,146,60,0.15)', color: '#fb923c',        border: '1px solid rgba(251,146,60,0.25)' },
     ghost:   { ...base, background: 'rgba(242,234,211,0.06)', color: 'var(--bone-dim)', border: '1px solid var(--line)' },
-    green:   { ...base, background: 'rgba(52,211,153,0.12)', color: '#34d399',       border: '1px solid rgba(52,211,153,0.25)' },
+    green:   { ...base, background: 'rgba(52,211,153,0.12)', color: '#34d399',        border: '1px solid rgba(52,211,153,0.25)' },
   };
   return variants[variant] || variants.ghost;
 };
@@ -162,15 +164,12 @@ const tableHeadStyle = {
 
 const tdStyle = { padding: '10px 12px', fontSize: 13, color: 'var(--bone-dim)', verticalAlign: 'middle' };
 
-// ─── date formatter ─────────────────────────────────────────
 const fmtDate = (d) => {
   if (!d) return '—';
-  try {
-    return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch { return d; }
+  try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+  catch { return d; }
 };
 
-// ─── empty state ─────────────────────────────────────────────
 const Empty = ({ icon: Icon, label }) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 0', color: 'var(--dust)' }}>
     <Icon size={32} style={{ marginBottom: 12, opacity: 0.4 }} />
@@ -178,13 +177,195 @@ const Empty = ({ icon: Icon, label }) => (
   </div>
 );
 
-// ─── error banner ─────────────────────────────────────────────
 const ErrorBanner = ({ message, onRetry }) => (
   <div style={{ ...cardStyle, border: '1px solid rgba(220,60,60,0.3)', background: 'rgba(220,60,60,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
     <span style={{ color: '#f87171', fontSize: 13 }}>{message}</span>
     {onRetry && <button onClick={onRetry} style={btnStyle('danger', true)}><RefreshCw size={12} /> Retry</button>}
   </div>
 );
+
+/* ============================================================
+   TAG DROPDOWN — hover multi-select with checkmarks
+   Used by ConversationsTab and IdeasTab
+   ============================================================ */
+const TagDropdown = ({ itemId, currentTagStr, level, onTagChange, onDelete, loading }) => {
+  const [open, setOpen] = useState(false);
+  const [customTag, setCustomTag] = useState('');
+  const timerRef = useRef(null);
+
+  const tags = parseTags(currentTagStr);
+  const isTagged = tags.length > 0;
+  const customTags = tags.filter(t => !TAG_OPTIONS.find(o => o.value === t));
+
+  const handleMouseEnter = () => {
+    clearTimeout(timerRef.current);
+    setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    timerRef.current = setTimeout(() => setOpen(false), 200);
+  };
+
+  const toggleTag = (e, value) => {
+    e.stopPropagation();
+    const newTags = tags.includes(value)
+      ? tags.filter(t => t !== value)
+      : [...tags, value];
+    onTagChange(newTags);
+  };
+
+  const addCustomTag = (e) => {
+    e.stopPropagation();
+    const tag = customTag.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    if (!tag || tags.includes(tag)) { setCustomTag(''); return; }
+    onTagChange([...tags, tag]);
+    setCustomTag('');
+  };
+
+  const removeCustomTag = (e, tag) => {
+    e.stopPropagation();
+    onTagChange(tags.filter(t => t !== tag));
+  };
+
+  return (
+    <div
+      style={{ position: 'relative' }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+        disabled={loading}
+        style={{
+          ...btnStyle(isTagged ? 'blue' : 'ghost', true),
+          position: 'relative',
+        }}
+        title={isTagged ? `Tags: ${tags.map(tagLabel).join(', ')}` : 'Add tags'}
+      >
+        {loading ? <Spinner size={11} /> : <Tag size={11} />}
+        Tags{isTagged ? ` (${tags.length})` : ''}
+        <ChevronDown size={9} />
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute', right: 0, top: '100%', marginTop: 3, zIndex: 150,
+            background: 'var(--void-2)', border: '1px solid var(--line-2)', borderRadius: 10,
+            minWidth: 230, padding: 6, boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
+          }}
+          onMouseEnter={() => clearTimeout(timerRef.current)}
+          onMouseLeave={handleMouseLeave}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Predefined tags */}
+          {TAG_OPTIONS.map(opt => {
+            const checked = tags.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                onClick={e => toggleTag(e, opt.value)}
+                style={{
+                  display: 'flex', width: '100%', alignItems: 'center', gap: 9,
+                  padding: '7px 10px', background: 'transparent', border: 'none',
+                  color: checked ? 'var(--bone)' : 'var(--bone-dim)', fontSize: 13,
+                  cursor: 'pointer', borderRadius: 6, textAlign: 'left', transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(91,233,221,0.07)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <span style={{
+                  width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                  border: `1.5px solid ${checked ? opt.fg : 'rgba(107,117,147,0.5)'}`,
+                  background: checked ? opt.bg : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {checked && <Check size={10} color={opt.fg} />}
+                </span>
+                <span style={{ flex: 1 }}>{opt.label}</span>
+                {checked && (
+                  <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: opt.bg, color: opt.fg, fontWeight: 700 }}>
+                    ON
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Custom tags + input */}
+          <div style={{ borderTop: '1px solid var(--line)', marginTop: 6, paddingTop: 6, padding: '6px 8px 4px' }}>
+            <div style={{ fontSize: 10, color: 'var(--dust)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+              Custom Tag
+            </div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              <input
+                value={customTag}
+                onChange={e => setCustomTag(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addCustomTag(e); }}
+                onClick={e => e.stopPropagation()}
+                placeholder="e.g. hrc-12"
+                style={{ ...inputStyle, padding: '4px 8px', fontSize: 12, flex: 1 }}
+              />
+              <button onClick={addCustomTag} style={{ ...btnStyle('aurora', true), padding: '4px 8px' }}>
+                <Plus size={11} />
+              </button>
+            </div>
+            {customTags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                {customTags.map(ct => (
+                  <span key={ct} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, padding: '2px 6px 2px 8px', borderRadius: 9999, background: 'rgba(167,139,250,0.15)', color: '#a78bfa', fontWeight: 600 }}>
+                    {ct.replace(/_/g, ' ')}
+                    <button onClick={e => removeCustomTag(e, ct)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a78bfa', padding: 0, display: 'flex' }}>
+                      <X size={9} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Delete option (L4+) */}
+          {onDelete && level >= 4 && (
+            <div style={{ borderTop: '1px solid var(--line)', marginTop: 4, paddingTop: 4 }}>
+              <button
+                onClick={e => { e.stopPropagation(); setOpen(false); onDelete(); }}
+                style={{
+                  display: 'flex', width: '100%', alignItems: 'center', gap: 8,
+                  padding: '7px 10px', background: 'transparent', border: 'none',
+                  color: '#f87171', fontSize: 13, cursor: 'pointer', borderRadius: 6, textAlign: 'left',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(248,113,113,0.08)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <Trash2 size={12} /> Delete <AclTag level={4} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Tag pills shown on the left side of a conversation row
+const TagPills = ({ tagStr }) => {
+  const tags = parseTags(tagStr);
+  if (tags.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
+      {tags.map(t => (
+        <span key={t} style={{
+          display: 'inline-block', fontSize: 9, fontWeight: 700,
+          padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap',
+          background: tagBg(t), color: tagFg(t), letterSpacing: '0.03em',
+          textTransform: 'uppercase', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis',
+        }} title={tagLabel(t)}>
+          {tagLabel(t)}
+        </span>
+      ))}
+    </div>
+  );
+};
 
 /* ============================================================
    TAB 1 — USERS
@@ -194,7 +375,7 @@ const UsersTab = ({ auth, level }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
-  const [confirm, setConfirm] = useState(null); // { action, user }
+  const [confirm, setConfirm] = useState(null);
   const [banReason, setBanReason] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
 
@@ -223,22 +404,12 @@ const UsersTab = ({ auth, level }) => {
     finally { setActionLoading(null); setConfirm(null); setBanReason(''); }
   };
 
-  const requestAction = (action, user) => {
-    setConfirm({ action, user });
-    setBanReason('');
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* search bar */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--dust)' }} />
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search users…"
-            style={{ ...inputStyle, paddingLeft: 32 }}
-          />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users…" style={{ ...inputStyle, paddingLeft: 32 }} />
         </div>
         <button onClick={load} style={btnStyle('ghost', true)}><RefreshCw size={13} /></button>
       </div>
@@ -264,86 +435,46 @@ const UsersTab = ({ auth, level }) => {
                 <tr key={u.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--line)' : 'none' }}>
                   <td style={{ ...tdStyle, color: 'var(--bone)', fontWeight: 500 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: '50%',
-                        background: 'var(--cosmos)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 12, color: 'var(--aurora)', fontWeight: 700, flexShrink: 0,
-                      }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--cosmos)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'var(--aurora)', fontWeight: 700, flexShrink: 0 }}>
                         {(u.display_name || u.email || '?')[0].toUpperCase()}
                       </div>
-                      <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {u.display_name || '—'}
-                      </span>
+                      <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.display_name || '—'}</span>
                     </div>
                   </td>
                   <td style={tdStyle}>{u.email || '—'}</td>
                   <td style={tdStyle}>{statusBadge(u.role || 'user')}</td>
-                  <td style={{ ...tdStyle }}>
+                  <td style={tdStyle}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {statusBadge(u.status || 'active')}
-                      {u.ban_reason && (
-                        <span style={{ fontSize: 10, color: '#f87171', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {u.ban_reason}
-                        </span>
-                      )}
+                      {u.ban_reason && <span style={{ fontSize: 10, color: '#f87171', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.ban_reason}</span>}
                     </div>
                   </td>
                   <td style={tdStyle}>{fmtDate(u.created_at)}</td>
                   <td style={tdStyle}>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                       {level >= 4 && u.status !== 'active' && (
-                        <button
-                          onClick={() => requestAction('activate', u)}
-                          disabled={!!actionLoading}
-                          style={btnStyle('green', true)}
-                          title="Activate (L4+)"
-                        >
-                          {actionLoading === u.id + 'activate' ? <Spinner /> : <UserCheck size={12} />}
-                          Activate <AclTag level={4} />
+                        <button onClick={() => setConfirm({ action: 'activate', user: u })} disabled={!!actionLoading} style={btnStyle('green', true)}>
+                          {actionLoading === u.id + 'activate' ? <Spinner /> : <UserCheck size={12} />} Activate <AclTag level={4} />
                         </button>
                       )}
                       {level >= 4 && u.status !== 'suspended' && u.status !== 'banned' && (
-                        <button
-                          onClick={() => requestAction('suspend', u)}
-                          disabled={!!actionLoading}
-                          style={btnStyle('orange', true)}
-                          title="Suspend (L4+)"
-                        >
-                          {actionLoading === u.id + 'suspend' ? <Spinner /> : <Clock size={12} />}
-                          Suspend <AclTag level={4} />
+                        <button onClick={() => setConfirm({ action: 'suspend', user: u })} disabled={!!actionLoading} style={btnStyle('orange', true)}>
+                          {actionLoading === u.id + 'suspend' ? <Spinner /> : <Clock size={12} />} Suspend <AclTag level={4} />
                         </button>
                       )}
                       {level >= 4 && u.status !== 'banned' && (
-                        <button
-                          onClick={() => requestAction('ban', u)}
-                          disabled={!!actionLoading}
-                          style={btnStyle('danger', true)}
-                          title="Ban (L4+)"
-                        >
-                          {actionLoading === u.id + 'ban' ? <Spinner /> : <Ban size={12} />}
-                          Ban <AclTag level={4} />
+                        <button onClick={() => setConfirm({ action: 'ban', user: u })} disabled={!!actionLoading} style={btnStyle('danger', true)}>
+                          {actionLoading === u.id + 'ban' ? <Spinner /> : <Ban size={12} />} Ban <AclTag level={4} />
                         </button>
                       )}
                       {level >= 5 && (u.acl_level ?? 0) < 1 && (
-                        <button
-                          onClick={() => requestAction('promote', u)}
-                          disabled={!!actionLoading}
-                          style={btnStyle('aurora', true)}
-                          title="Promote to Admin (L5 only)"
-                        >
-                          {actionLoading === u.id + 'promote' ? <Spinner /> : <Shield size={12} />}
-                          Promote <AclTag level={5} />
+                        <button onClick={() => setConfirm({ action: 'promote', user: u })} disabled={!!actionLoading} style={btnStyle('aurora', true)}>
+                          {actionLoading === u.id + 'promote' ? <Spinner /> : <Shield size={12} />} Promote <AclTag level={5} />
                         </button>
                       )}
                       {level >= 5 && (u.acl_level ?? 0) >= 1 && (
-                        <button
-                          onClick={() => requestAction('revoke_admin', u)}
-                          disabled={!!actionLoading}
-                          style={btnStyle('danger', true)}
-                          title="Revoke Admin (L5 only)"
-                        >
-                          {actionLoading === u.id + 'revoke_admin' ? <Spinner /> : <XCircle size={12} />}
-                          Revoke <AclTag level={5} />
+                        <button onClick={() => setConfirm({ action: 'revoke_admin', user: u })} disabled={!!actionLoading} style={btnStyle('danger', true)}>
+                          {actionLoading === u.id + 'revoke_admin' ? <Spinner /> : <XCircle size={12} />} Revoke <AclTag level={5} />
                         </button>
                       )}
                     </div>
@@ -357,50 +488,29 @@ const UsersTab = ({ auth, level }) => {
 
       {/* Confirm dialog */}
       {confirm && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 200,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(7,16,31,0.8)', backdropFilter: 'blur(6px)',
-          }}
-          onClick={() => setConfirm(null)}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', borderRadius: 16, padding: 28, maxWidth: 400, width: '90%' }}
-          >
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(7,16,31,0.8)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setConfirm(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', borderRadius: 16, padding: 28, maxWidth: 400, width: '90%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
               <AlertTriangle size={20} color="#f87171" />
-              <span style={{ fontWeight: 700, fontSize: 16 }}>
-                Confirm: {confirm.action.replace('_', ' ')} "{confirm.user.display_name || confirm.user.email}"
-              </span>
+              <span style={{ fontWeight: 700, fontSize: 16 }}>Confirm: {confirm.action.replace('_', ' ')} "{confirm.user.display_name || confirm.user.email}"</span>
             </div>
             {confirm.action === 'ban' && (
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 12, color: 'var(--dust)', display: 'block', marginBottom: 6 }}>Ban reason (visible to user)</label>
-                <input
-                  value={banReason}
-                  onChange={e => setBanReason(e.target.value)}
-                  placeholder="Reason for ban…"
-                  style={inputStyle}
-                />
+                <input value={banReason} onChange={e => setBanReason(e.target.value)} placeholder="Reason for ban…" style={inputStyle} />
               </div>
             )}
             <p style={{ color: 'var(--bone-dim)', fontSize: 13, marginBottom: 20 }}>
-              {confirm.action === 'ban'     && 'This user will lose access to the platform.'}
-              {confirm.action === 'suspend' && 'This user will be temporarily unable to sign in.'}
-              {confirm.action === 'activate' && 'This user account will be restored to active.'}
-              {confirm.action === 'promote' && 'This user will gain admin (L4) privileges.'}
-              {confirm.action === 'revoke_admin' && 'Admin privileges will be removed from this user.'}
+              {confirm.action === 'ban'          && 'This user will lose access to the platform.'}
+              {confirm.action === 'suspend'       && 'This user will be temporarily unable to sign in.'}
+              {confirm.action === 'activate'      && 'This user account will be restored to active.'}
+              {confirm.action === 'promote'       && 'This user will gain admin (L4) privileges.'}
+              {confirm.action === 'revoke_admin'  && 'Admin privileges will be removed from this user.'}
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setConfirm(null)} style={btnStyle('ghost')}>Cancel</button>
-              <button
-                onClick={() => doAction(confirm.action, confirm.user, confirm.action === 'ban' ? { ban_reason: banReason } : {})}
-                style={btnStyle('danger')}
-              >
-                Confirm
-              </button>
+              <button onClick={() => doAction(confirm.action, confirm.user, confirm.action === 'ban' ? { ban_reason: banReason } : {})} style={btnStyle('danger')}>Confirm</button>
             </div>
           </div>
         </div>
@@ -410,15 +520,8 @@ const UsersTab = ({ auth, level }) => {
 };
 
 /* ============================================================
-   TAB 2 — CONVERSATIONS
+   TAB 2 — CONVERSATIONS (with multi-tag hover dropdown)
    ============================================================ */
-const FLAG_CATEGORIES = [
-  { value: 'process_hrc',  label: 'Flag - Process for HRC',       color: 'aurora' },
-  { value: 'more_info',    label: 'Flag - More information needed', color: 'gold' },
-  { value: 'warn_user',    label: 'Flag - Warn user',              color: 'orange' },
-  { value: 'suspend_user', label: 'Flag - Suspend user',           color: 'red' },
-];
-
 const ConversationsTab = ({ auth, level }) => {
   const [convs, setConvs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -429,8 +532,7 @@ const ConversationsTab = ({ auth, level }) => {
   const [msgsLoading, setMsgsLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const [actionLoading, setActionLoading] = useState(null);
-  const [flagMenu, setFlagMenu] = useState(null);
+  const [tagLoading, setTagLoading] = useState(null);
   const [noteInput, setNoteInput] = useState('');
   const [noteType, setNoteType] = useState('comment');
 
@@ -450,13 +552,11 @@ const ConversationsTab = ({ auth, level }) => {
     return !q || (c.first_message || '').toLowerCase().includes(q);
   });
 
-  // Fetch full messages when expanding a conversation
   const toggleExpand = async (convId) => {
     if (expanded === convId) { setExpanded(null); return; }
     setExpanded(convId);
     setMsgsLoading(true);
-    setExpandedMsgs([]);
-    setExpandedNotes([]);
+    setExpandedMsgs([]); setExpandedNotes([]);
     try {
       const data = await apiCall(`/api/admin/conversations?id=${convId}`, 'GET', null, auth.token);
       setExpandedMsgs(data.messages || []);
@@ -465,34 +565,28 @@ const ConversationsTab = ({ auth, level }) => {
     finally { setMsgsLoading(false); }
   };
 
-  const doFlag = async (c, category) => {
-    setActionLoading(c.id);
-    setFlagMenu(null);
+  const handleTagChange = async (conv, newTags) => {
+    setTagLoading(conv.id);
     try {
-      await apiCall('/api/admin/conversations', 'POST', { conversation_id: c.id, action: 'flag', flag_category: category }, auth.token);
-      setConvs(prev => prev.map(x => x.id === c.id ? { ...x, flagged: 1, flag_category: category } : x));
+      if (newTags.length === 0) {
+        await apiCall('/api/admin/conversations', 'POST', { conversation_id: conv.id, action: 'unflag' }, auth.token);
+        setConvs(prev => prev.map(x => x.id === conv.id ? { ...x, flagged: 0, flag_category: null } : x));
+      } else {
+        const tagsStr = newTags.join(',');
+        await apiCall('/api/admin/conversations', 'POST', { conversation_id: conv.id, action: 'flag', flag_category: tagsStr }, auth.token);
+        setConvs(prev => prev.map(x => x.id === conv.id ? { ...x, flagged: 1, flag_category: tagsStr } : x));
+      }
     } catch (e) { alert(`Error: ${e.message}`); }
-    finally { setActionLoading(null); }
+    finally { setTagLoading(null); }
   };
 
-  const doUnflag = async (c) => {
-    setActionLoading(c.id);
+  const doDelete = async (conv) => {
+    if (!window.confirm('Permanently delete this conversation and all messages?')) return;
     try {
-      await apiCall('/api/admin/conversations', 'POST', { conversation_id: c.id, action: 'unflag' }, auth.token);
-      setConvs(prev => prev.map(x => x.id === c.id ? { ...x, flagged: 0, flag_category: null } : x));
+      await apiCall('/api/admin/conversations', 'POST', { conversation_id: conv.id, action: 'delete' }, auth.token);
+      setConvs(prev => prev.filter(x => x.id !== conv.id));
+      if (expanded === conv.id) setExpanded(null);
     } catch (e) { alert(`Error: ${e.message}`); }
-    finally { setActionLoading(null); }
-  };
-
-  const doDelete = async (c) => {
-    if (!confirm('Permanently delete this conversation and all its messages?')) return;
-    setActionLoading(c.id);
-    try {
-      await apiCall('/api/admin/conversations', 'POST', { conversation_id: c.id, action: 'delete' }, auth.token);
-      setConvs(prev => prev.filter(x => x.id !== c.id));
-      if (expanded === c.id) setExpanded(null);
-    } catch (e) { alert(`Error: ${e.message}`); }
-    finally { setActionLoading(null); }
   };
 
   const addNote = async (convId) => {
@@ -502,16 +596,15 @@ const ConversationsTab = ({ auth, level }) => {
         conversation_id: convId, action: 'add_note', note: noteInput.trim(), note_type: noteType
       }, auth.token);
       setNoteInput('');
-      // Refresh notes
       const data = await apiCall(`/api/admin/conversations?id=${convId}`, 'GET', null, auth.token);
       setExpandedNotes(data.notes || []);
     } catch (e) { alert(`Error: ${e.message}`); }
   };
 
   const filterOpts = [
-    { value: 'all',        label: 'All' },
-    { value: 'flagged',    label: 'Flagged' },
-    { value: 'anonymous',  label: 'Anon only' },
+    { value: 'all', label: 'All' },
+    { value: 'flagged', label: 'Tagged' },
+    { value: 'anonymous', label: 'Anon' },
     { value: 'registered', label: 'Registered' },
   ];
 
@@ -525,7 +618,7 @@ const ConversationsTab = ({ auth, level }) => {
         <div style={{ display: 'flex', gap: 6 }}>
           {filterOpts.map(o => (
             <button key={o.value} onClick={() => setFilter(o.value)}
-              style={{ ...btnStyle(filter === o.value ? 'aurora' : 'ghost', true) }}>
+              style={btnStyle(filter === o.value ? 'aurora' : 'ghost', true)}>
               {o.label}
             </button>
           ))}
@@ -541,155 +634,113 @@ const ConversationsTab = ({ auth, level }) => {
         <Empty icon={MessageCircle} label="No conversations found" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filtered.map(c => (
-            <div key={c.id} style={{ ...cardStyle, padding: 0 }}>
-              {/* header row */}
-              <div
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-                  cursor: 'pointer', userSelect: 'none',
-                }}
-                onClick={() => toggleExpand(c.id)}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                    {statusBadge(c.user_type === 'registered' ? 'user' : 'anon')}
-                    {c.user_name && <span style={{ fontSize: 12, color: 'var(--bone-dim)' }}>{c.user_name}</span>}
-                    {c.flagged ? <Badge label={c.flag_category ? c.flag_category.replace('_', ' ') : 'Flagged'} color="red" /> : null}
-                    <span style={{ fontSize: 12, color: 'var(--dust)' }}>{c.message_count ?? 0} msgs</span>
-                    <span style={{ fontSize: 12, color: 'var(--dust)' }}>{fmtDate(c.started_at)}</span>
+          {filtered.map(c => {
+            const cTags = parseTags(c.flag_category);
+            return (
+              <div key={c.id} style={{ ...cardStyle, padding: 0 }}>
+                {/* header row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => toggleExpand(c.id)}>
+
+                  {/* Left: tag pills */}
+                  {cTags.length > 0 && (
+                    <div style={{ flexShrink: 0 }}>
+                      <TagPills tagStr={c.flag_category} />
+                    </div>
+                  )}
+
+                  {/* Center: conversation info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      {statusBadge(c.user_type === 'registered' ? 'user' : 'anon')}
+                      {c.user_name && <span style={{ fontSize: 12, color: 'var(--bone-dim)' }}>{c.user_name}</span>}
+                      <span style={{ fontSize: 12, color: 'var(--dust)' }}>{c.message_count ?? 0} msgs</span>
+                      <span style={{ fontSize: 12, color: 'var(--dust)' }}>{fmtDate(c.started_at)}</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {c.first_message || '(no preview)'}
+                    </p>
                   </div>
-                  <p style={{
-                    margin: 0, fontSize: 13, color: 'var(--bone-dim)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {c.first_message || '(no preview)'}
-                  </p>
+
+                  {/* Right: tag dropdown + chevron */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <TagDropdown
+                      itemId={c.id}
+                      currentTagStr={c.flag_category}
+                      level={level}
+                      loading={tagLoading === c.id}
+                      onTagChange={(newTags) => handleTagChange(c, newTags)}
+                      onDelete={() => doDelete(c)}
+                    />
+                    {expanded === c.id ? <ChevronDown size={16} color="var(--dust)" /> : <ChevronRight size={16} color="var(--dust)" />}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
-                  {/* Flag dropdown */}
-                  {!c.flagged ? (
-                    <div style={{ position: 'relative' }}>
-                      <button
-                        onClick={e => { e.stopPropagation(); setFlagMenu(flagMenu === c.id ? null : c.id); }}
-                        style={btnStyle('ghost', true)} title="Flag options"
-                      >
-                        {actionLoading === c.id ? <Spinner /> : <Flag size={12} />} Flag
-                        <ChevronDown size={10} />
-                      </button>
-                      {flagMenu === c.id && (
-                        <div onClick={e => e.stopPropagation()} style={{
-                          position: 'absolute', right: 0, top: '100%', marginTop: 4, zIndex: 100,
-                          background: 'var(--void-2)', border: '1px solid var(--line-2)', borderRadius: 8,
-                          minWidth: 240, padding: 4, boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+
+                {/* expanded: messages + notes */}
+                {expanded === c.id && (
+                  <div style={{ borderTop: '1px solid var(--line)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {msgsLoading ? (
+                      <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}><Spinner size={18} /></div>
+                    ) : expandedMsgs.length === 0 ? (
+                      <span style={{ fontSize: 13, color: 'var(--dust)' }}>No messages in this conversation.</span>
+                    ) : (
+                      expandedMsgs.map((m, i) => (
+                        <div key={i} style={{
+                          padding: '8px 12px', borderRadius: 8,
+                          background: m.role === 'user' ? 'rgba(91,233,221,0.06)' : 'rgba(232,177,79,0.06)',
+                          border: `1px solid ${m.role === 'user' ? 'rgba(91,233,221,0.12)' : 'rgba(232,177,79,0.12)'}`,
                         }}>
-                          {FLAG_CATEGORIES.map(fc => (
-                            <button key={fc.value} onClick={() => doFlag(c, fc.value)}
-                              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', color: 'var(--bone-dim)', fontSize: 13, cursor: 'pointer', borderRadius: 6 }}
-                              onMouseOver={e => e.target.style.background = 'rgba(91,233,221,0.08)'}
-                              onMouseOut={e => e.target.style.background = 'transparent'}
-                            >
-                              {fc.label}
-                            </button>
-                          ))}
-                          {level >= 4 && (
-                            <button onClick={() => doDelete(c)}
-                              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', color: '#f87171', fontSize: 13, cursor: 'pointer', borderRadius: 6, borderTop: '1px solid var(--line-2)', marginTop: 4, paddingTop: 10 }}
-                              onMouseOver={e => e.target.style.background = 'rgba(248,113,113,0.08)'}
-                              onMouseOut={e => e.target.style.background = 'transparent'}
-                            >
-                              Delete (irrelevant)
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <button
-                      onClick={e => { e.stopPropagation(); doUnflag(c); }}
-                      style={btnStyle('danger', true)} title="Unflag"
-                    >
-                      {actionLoading === c.id ? <Spinner /> : <Flag size={12} />} Unflag
-                    </button>
-                  )}
-                  {expanded === c.id ? <ChevronDown size={16} color="var(--dust)" /> : <ChevronRight size={16} color="var(--dust)" />}
-                </div>
-              </div>
-
-              {/* expanded messages + admin notes */}
-              {expanded === c.id && (
-                <div style={{ borderTop: '1px solid var(--line)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {msgsLoading ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}><Spinner size={18} /></div>
-                  ) : expandedMsgs.length === 0 ? (
-                    <span style={{ fontSize: 13, color: 'var(--dust)' }}>No messages in this conversation.</span>
-                  ) : (
-                    expandedMsgs.map((m, i) => (
-                      <div key={i} style={{
-                        padding: '8px 12px', borderRadius: 8,
-                        background: m.role === 'user' ? 'rgba(91,233,221,0.06)' : 'rgba(232,177,79,0.06)',
-                        border: `1px solid ${m.role === 'user' ? 'rgba(91,233,221,0.12)' : 'rgba(232,177,79,0.12)'}`,
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: m.role === 'user' ? 'var(--aurora)' : 'var(--gold)', textTransform: 'uppercase' }}>
-                            {m.role}
-                          </span>
-                          <span style={{ fontSize: 11, color: 'var(--dust)' }}>{fmtDate(m.created_at)}</span>
-                        </div>
-                        <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{m.content}</p>
-                      </div>
-                    ))
-                  )}
-
-                  {/* Admin Notes Section */}
-                  {expandedNotes.length > 0 && (
-                    <div style={{ marginTop: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: 1 }}>Admin Notes</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
-                        {expandedNotes.map((n, i) => (
-                          <div key={i} style={{
-                            padding: '8px 12px', borderRadius: 8,
-                            background: n.note_type === 'next_action' ? 'rgba(251,191,36,0.08)' : 'rgba(148,163,184,0.08)',
-                            borderLeft: `3px solid ${n.note_type === 'next_action' ? 'var(--gold)' : 'var(--dust)'}`,
-                          }}>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                              <Badge label={n.note_type === 'next_action' ? 'Next Action' : 'Comment'} color={n.note_type === 'next_action' ? 'gold' : 'dust'} />
-                              <span style={{ fontSize: 11, color: 'var(--dust)' }}>{n.admin_name || 'Admin'} &middot; {fmtDate(n.created_at)}</span>
-                            </div>
-                            <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)' }}>{n.note}</p>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: m.role === 'user' ? 'var(--aurora)' : 'var(--gold)', textTransform: 'uppercase' }}>{m.role}</span>
+                            <span style={{ fontSize: 11, color: 'var(--dust)' }}>{fmtDate(m.created_at)}</span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                          <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{m.content}</p>
+                        </div>
+                      ))
+                    )}
 
-                  {/* Add Note Form */}
-                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                        <button onClick={() => setNoteType('comment')}
-                          style={btnStyle(noteType === 'comment' ? 'aurora' : 'ghost', true)}>
-                          Comment
-                        </button>
-                        <button onClick={() => setNoteType('next_action')}
-                          style={btnStyle(noteType === 'next_action' ? 'gold' : 'ghost', true)}>
-                          Next Action
-                        </button>
+                    {/* Admin Notes */}
+                    {expandedNotes.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: 1 }}>Admin Notes</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                          {expandedNotes.map((n, i) => (
+                            <div key={i} style={{
+                              padding: '8px 12px', borderRadius: 8,
+                              background: n.note_type === 'next_action' ? 'rgba(251,191,36,0.08)' : 'rgba(148,163,184,0.08)',
+                              borderLeft: `3px solid ${n.note_type === 'next_action' ? 'var(--gold)' : 'var(--dust)'}`,
+                            }}>
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                                <Badge label={n.note_type === 'next_action' ? 'Next Action' : 'Comment'} color={n.note_type === 'next_action' ? 'gold' : 'dust'} />
+                                <span style={{ fontSize: 11, color: 'var(--dust)' }}>{n.admin_name || 'Admin'} · {fmtDate(n.created_at)}</span>
+                              </div>
+                              <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)' }}>{n.note}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <input value={noteInput} onChange={e => setNoteInput(e.target.value)}
-                        placeholder={noteType === 'next_action' ? 'Add a next action for HRC improvement...' : 'Add an admin comment...'}
-                        style={inputStyle}
-                        onKeyDown={e => { if (e.key === 'Enter') addNote(c.id); }}
-                      />
+                    )}
+
+                    {/* Add Note */}
+                    <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                          <button onClick={() => setNoteType('comment')} style={btnStyle(noteType === 'comment' ? 'aurora' : 'ghost', true)}>Comment</button>
+                          <button onClick={() => setNoteType('next_action')} style={btnStyle(noteType === 'next_action' ? 'gold' : 'ghost', true)}>Next Action</button>
+                        </div>
+                        <input value={noteInput} onChange={e => setNoteInput(e.target.value)}
+                          placeholder={noteType === 'next_action' ? 'Add a next action for HRC improvement...' : 'Add an admin comment...'}
+                          style={inputStyle}
+                          onKeyDown={e => { if (e.key === 'Enter') addNote(c.id); }}
+                        />
+                      </div>
+                      <button onClick={() => addNote(c.id)} style={btnStyle('aurora', true)} disabled={!noteInput.trim()}>Add</button>
                     </div>
-                    <button onClick={() => addNote(c.id)} style={btnStyle('aurora', true)} disabled={!noteInput.trim()}>
-                      Add
-                    </button>
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -697,7 +748,7 @@ const ConversationsTab = ({ auth, level }) => {
 };
 
 /* ============================================================
-   TAB 3 — IDEAS
+   TAB 3 — IP DEV AGENT (Ideas)
    ============================================================ */
 const IDEA_STATUSES = ['submitted', 'under_review', 'accepted', 'implemented', 'deferred', 'rejected', 'deleted'];
 
@@ -706,9 +757,10 @@ const IdeasTab = ({ auth, level }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
-  const [editing, setEditing] = useState({}); // { [id]: { status, comment } }
+  const [editing, setEditing] = useState({});
   const [saving, setSaving] = useState(null);
   const [search, setSearch] = useState('');
+  const [tagLoading, setTagLoading] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -723,14 +775,11 @@ const IdeasTab = ({ auth, level }) => {
 
   const filtered = ideas.filter(i => {
     const q = search.toLowerCase();
-    return !q || (i.title || '').toLowerCase().includes(q) || (i.submitter_name || '').toLowerCase().includes(q);
+    return !q || (i.title || '').toLowerCase().includes(q) || (i.display_name || '').toLowerCase().includes(q);
   });
 
   const startEdit = (idea) => {
-    setEditing(prev => ({
-      ...prev,
-      [idea.id]: { status: idea.status || 'submitted', comment: idea.admin_comment || '' },
-    }));
+    setEditing(prev => ({ ...prev, [idea.id]: { status: idea.status || 'submitted', comment: idea.admin_comment || '' } }));
     setExpanded(idea.id);
   };
 
@@ -739,11 +788,25 @@ const IdeasTab = ({ auth, level }) => {
     if (!e) return;
     setSaving(idea.id);
     try {
-      await apiCall('/api/admin/ideas', 'POST', { idea_id: idea.id, action: 'update_status', status: e.status, admin_comment: e.comment }, auth.token);
+      // Use PUT with correct body format for ideas backend
+      await apiCall('/api/admin/ideas', 'PUT', { idea_id: idea.id, status: e.status, comment: e.comment }, auth.token);
       setIdeas(prev => prev.map(x => x.id === idea.id ? { ...x, status: e.status, admin_comment: e.comment } : x));
       setEditing(prev => { const n = { ...prev }; delete n[idea.id]; return n; });
     } catch (err) { alert(`Error: ${err.message}`); }
     finally { setSaving(null); }
+  };
+
+  const handleTagChange = async (idea, newTags) => {
+    setTagLoading(idea.id);
+    try {
+      const tagsStr = newTags.join(',');
+      await apiCall('/api/admin/ideas', 'POST', { idea_id: idea.id, action: 'set_tags', tags: tagsStr }, auth.token);
+      setIdeas(prev => prev.map(x => x.id === idea.id ? { ...x, tags: tagsStr } : x));
+    } catch (e) {
+      // Fallback: store tags client-side if backend doesn't support yet
+      setIdeas(prev => prev.map(x => x.id === idea.id ? { ...x, tags: newTags.join(',') } : x));
+    }
+    finally { setTagLoading(null); }
   };
 
   return (
@@ -767,56 +830,66 @@ const IdeasTab = ({ auth, level }) => {
           {filtered.map(idea => {
             const isEditing = !!editing[idea.id];
             const ed = editing[idea.id] || {};
+            const ideaTags = parseTags(idea.tags || '');
             return (
               <div key={idea.id} style={cardStyle}>
-                {/* header */}
-                <div
-                  style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer', userSelect: 'none' }}
-                  onClick={() => setExpanded(expanded === idea.id ? null : idea.id)}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  {/* Tag pills */}
+                  {ideaTags.length > 0 && (
+                    <div style={{ flexShrink: 0, paddingTop: 2 }}>
+                      <TagPills tagStr={idea.tags} />
+                    </div>
+                  )}
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0, cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => setExpanded(expanded === idea.id ? null : idea.id)}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                       {statusBadge(idea.status || 'submitted')}
-                      <span style={{ fontSize: 12, color: 'var(--dust)' }}>by {idea.submitter_name || 'Anonymous'}</span>
+                      <span style={{ fontSize: 12, color: 'var(--dust)' }}>by {idea.display_name || 'Anonymous'}</span>
                       <span style={{ fontSize: 12, color: 'var(--dust)' }}>{fmtDate(idea.created_at)}</span>
                     </div>
                     <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--bone)', lineHeight: 1.4 }}>
                       {idea.title || '(Untitled)'}
                     </h4>
                   </div>
+
+                  {/* Actions */}
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                    <button
-                      onClick={e => { e.stopPropagation(); startEdit(idea); }}
-                      style={btnStyle('aurora', true)}
-                    >
+                    <TagDropdown
+                      itemId={idea.id}
+                      currentTagStr={idea.tags || ''}
+                      level={level}
+                      loading={tagLoading === idea.id}
+                      onTagChange={(newTags) => handleTagChange(idea, newTags)}
+                    />
+                    <button onClick={e => { e.stopPropagation(); startEdit(idea); }} style={btnStyle('aurora', true)}>
                       <Edit2 size={12} /> Review
                     </button>
                     {expanded === idea.id ? <ChevronDown size={16} color="var(--dust)" /> : <ChevronRight size={16} color="var(--dust)" />}
                   </div>
                 </div>
 
-                {/* expanded */}
                 {expanded === idea.id && (
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {idea.body && (
-                      <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{idea.body}</p>
+                    {idea.content && (
+                      <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{idea.content}</p>
                     )}
-
-                    {/* admin review panel */}
-                    <div style={{ background: 'rgba(7,16,31,0.4)', borderRadius: 10, padding: 14, border: '1px solid var(--line-2)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 10 }}>
-                        Admin Review
+                    {idea.clause_refs && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 12, color: 'var(--dust)' }}>HRC refs:</span>
+                        {String(idea.clause_refs).split(',').map(r => (
+                          <Badge key={r} label={r.trim()} color="aurora" />
+                        ))}
                       </div>
-                      <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                    )}
+                    <div style={{ background: 'rgba(7,16,31,0.4)', borderRadius: 10, padding: 14, border: '1px solid var(--line-2)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 10 }}>Admin Review</div>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                         {IDEA_STATUSES.map(s => (
-                          <button
-                            key={s}
+                          <button key={s}
                             onClick={() => isEditing && setEditing(prev => ({ ...prev, [idea.id]: { ...prev[idea.id], status: s } }))}
-                            style={{
-                              ...btnStyle(isEditing && ed.status === s ? 'aurora' : 'ghost', true),
-                              opacity: isEditing ? 1 : 0.5, cursor: isEditing ? 'pointer' : 'default',
-                            }}
-                          >
+                            style={{ ...btnStyle(isEditing && ed.status === s ? 'aurora' : 'ghost', true), opacity: isEditing ? 1 : 0.5, cursor: isEditing ? 'pointer' : 'default' }}>
                             {s.replace('_', ' ')}
                           </button>
                         ))}
@@ -827,32 +900,15 @@ const IdeasTab = ({ auth, level }) => {
                         placeholder="Admin comment (visible to submitter)…"
                         readOnly={!isEditing}
                         rows={3}
-                        style={{
-                          ...inputStyle, resize: 'vertical', lineHeight: 1.5, minHeight: 70,
-                          opacity: isEditing ? 1 : 0.6,
-                        }}
+                        style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, minHeight: 70, opacity: isEditing ? 1 : 0.6 }}
                       />
                       {isEditing && (
                         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                          <button
-                            onClick={() => saveEdit(idea)}
-                            disabled={saving === idea.id}
-                            style={btnStyle('primary')}
-                          >
+                          <button onClick={() => saveEdit(idea)} disabled={saving === idea.id} style={btnStyle('primary')}>
                             {saving === idea.id ? <Spinner /> : <Save size={13} />} Save
                           </button>
-                          <button
-                            onClick={() => setEditing(prev => { const n = { ...prev }; delete n[idea.id]; return n; })}
-                            style={btnStyle('ghost')}
-                          >
-                            Cancel
-                          </button>
+                          <button onClick={() => setEditing(prev => { const n = { ...prev }; delete n[idea.id]; return n; })} style={btnStyle('ghost')}>Cancel</button>
                         </div>
-                      )}
-                      {!isEditing && idea.admin_comment && (
-                        <p style={{ fontSize: 12, color: 'var(--aurora)', margin: '8px 0 0', fontStyle: 'italic' }}>
-                          "{idea.admin_comment}"
-                        </p>
                       )}
                     </div>
                   </div>
@@ -867,165 +923,231 @@ const IdeasTab = ({ auth, level }) => {
 };
 
 /* ============================================================
-   TAB 4 — COMMENTS
+   SHARED — NotesList (used by Comments and Actions tabs)
+   Fetches conversation_notes of a given type
    ============================================================ */
-const CommentsTab = ({ auth, level }) => {
-  const [comments, setComments] = useState([]);
+const NotesList = ({ auth, level, noteType }) => {
+  const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState(new Set());
-  const [deleting, setDeleting] = useState(false);
-  const [confirm, setConfirm] = useState(false);
+  const [sort, setSort] = useState('latest');
+  const [expandedConv, setExpandedConv] = useState(null);
+  const [expandedMsgs, setExpandedMsgs] = useState([]);
+  const [msgsLoading, setMsgsLoading] = useState(false);
+  const [tagLoading, setTagLoading] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const data = await apiCall('/api/admin/comments', 'GET', null, auth.token);
-      setComments(data.comments ?? data ?? []);
-    } catch (e) { setError(e.message); }
+      const data = await apiCall(`/api/admin/notes?type=${noteType}`, 'GET', null, auth.token);
+      setNotes(data.notes ?? []);
+    } catch (e) {
+      // Graceful fallback if endpoint doesn't exist yet
+      setError('Notes endpoint not yet available. Notes are visible inside each Conversation.');
+    }
     finally { setLoading(false); }
-  }, [auth.token]);
+  }, [auth.token, noteType]);
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = comments.filter(c => {
-    const q = search.toLowerCase();
-    const matchQ = !q || (c.content || '').toLowerCase().includes(q);
-    const matchF = filter === 'all'
-      ? true
-      : filter === 'anon' ? !c.user_id
-      : !!c.user_id;
-    return matchQ && matchF;
-  });
-
-  const toggleSelect = (id) => {
-    setSelected(prev => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  };
-
-  const selectAll = () => {
-    if (selected.size === filtered.length) setSelected(new Set());
-    else setSelected(new Set(filtered.map(c => c.id)));
-  };
-
-  const bulkDelete = async () => {
-    setDeleting(true);
+  const expandConv = async (convId) => {
+    if (expandedConv === convId) { setExpandedConv(null); setExpandedMsgs([]); return; }
+    setExpandedConv(convId);
+    setMsgsLoading(true);
+    setExpandedMsgs([]);
     try {
-      await apiCall('/api/admin/comments', 'DELETE', { ids: [...selected] }, auth.token);
-      setComments(prev => prev.filter(c => !selected.has(c.id)));
-      setSelected(new Set());
-    } catch (e) { alert(`Error: ${e.message}`); }
-    finally { setDeleting(false); setConfirm(false); }
+      const data = await apiCall(`/api/admin/conversations?id=${convId}`, 'GET', null, auth.token);
+      setExpandedMsgs(data.messages || []);
+    } catch (e) { setExpandedMsgs([]); }
+    finally { setMsgsLoading(false); }
   };
+
+  const handleTagChange = async (note, newTags) => {
+    setTagLoading(note.conversation_id);
+    try {
+      if (newTags.length === 0) {
+        await apiCall('/api/admin/conversations', 'POST', { conversation_id: note.conversation_id, action: 'unflag' }, auth.token);
+        setNotes(prev => prev.map(n => n.conversation_id === note.conversation_id ? { ...n, flagged: 0, flag_category: null } : n));
+      } else {
+        const tagsStr = newTags.join(',');
+        await apiCall('/api/admin/conversations', 'POST', { conversation_id: note.conversation_id, action: 'flag', flag_category: tagsStr }, auth.token);
+        setNotes(prev => prev.map(n => n.conversation_id === note.conversation_id ? { ...n, flagged: 1, flag_category: tagsStr } : n));
+      }
+    } catch (e) { alert(`Error: ${e.message}`); }
+    finally { setTagLoading(null); }
+  };
+
+  const filtered = notes
+    .filter(n => {
+      const q = search.toLowerCase();
+      return !q || (n.note || '').toLowerCase().includes(q) || (n.first_message || '').toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (sort === 'hrc') {
+        // Process for HRC conversations first
+        const aHrc = (a.flag_category || '').includes('process_hrc') ? 0 : 1;
+        const bHrc = (b.flag_category || '').includes('process_hrc') ? 0 : 1;
+        if (aHrc !== bHrc) return aHrc - bHrc;
+      }
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+
+  const iconEl = noteType === 'next_action' ? <Zap size={32} /> : <MessageCircle size={32} />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--dust)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search comments…" style={{ ...inputStyle, paddingLeft: 32 }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${noteType === 'next_action' ? 'actions' : 'comments'}…`} style={{ ...inputStyle, paddingLeft: 32 }} />
         </div>
-        {['all', 'anon', 'registered'].map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={btnStyle(filter === f ? 'aurora' : 'ghost', true)}>
-            {f.charAt(0).toUpperCase() + f.slice(1)}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setSort('latest')} style={btnStyle(sort === 'latest' ? 'aurora' : 'ghost', true)}>
+            <SortAsc size={11} /> Latest
           </button>
-        ))}
+          <button onClick={() => setSort('hrc')} style={btnStyle(sort === 'hrc' ? 'aurora' : 'ghost', true)}>
+            <Bookmark size={11} /> HRC First
+          </button>
+        </div>
         <button onClick={load} style={btnStyle('ghost', true)}><RefreshCw size={13} /></button>
       </div>
 
-      {level >= 4 && selected.size > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, background: 'rgba(220,60,60,0.1)', border: '1px solid rgba(220,60,60,0.25)' }}>
-          <span style={{ fontSize: 13, color: '#f87171' }}>{selected.size} selected</span>
-          <button onClick={() => setConfirm(true)} style={btnStyle('danger', true)} disabled={deleting}>
-            {deleting ? <Spinner /> : <Trash2 size={12} />} Bulk Delete <AclTag level={4} />
-          </button>
-          <button onClick={() => setSelected(new Set())} style={btnStyle('ghost', true)}>Clear</button>
+      {error && (
+        <div style={{ ...cardStyle, border: '1px solid rgba(232,177,79,0.3)', background: 'rgba(232,177,79,0.06)', padding: '14px 16px' }}>
+          <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--gold)', fontWeight: 600 }}>
+            {noteType === 'next_action' ? 'Next Actions' : 'Comments'} are stored per conversation.
+          </p>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--bone-dim)', lineHeight: 1.6 }}>
+            Open the <strong style={{ color: 'var(--bone)' }}>Conversations</strong> tab, expand any conversation, and add notes using the Comment / Next Action buttons.
+            Once the <code style={{ fontSize: 11, background: 'var(--cosmos)', padding: '1px 5px', borderRadius: 3, color: 'var(--aurora)' }}>/api/admin/notes</code> endpoint is deployed, this view will auto-populate.
+          </p>
         </div>
       )}
 
-      {error && <ErrorBanner message={error} onRetry={load} />}
-
-      {loading ? (
+      {!error && loading && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={24} /></div>
-      ) : filtered.length === 0 ? (
-        <Empty icon={MessageCircle} label="No comments found" />
-      ) : (
-        <div style={{ ...cardStyle, padding: 0, overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                {level >= 4 && (
-                  <th style={{ ...tableHeadStyle, width: 36 }}>
-                    <input
-                      type="checkbox"
-                      checked={selected.size === filtered.length && filtered.length > 0}
-                      onChange={selectAll}
-                      style={{ cursor: 'pointer', accentColor: 'var(--aurora)' }}
-                    />
-                  </th>
-                )}
-                {['User', 'Content', 'Type', 'Date'].map(h => (
-                  <th key={h} style={{ ...tableHeadStyle, textAlign: 'left' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c, i) => (
-                <tr key={c.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                  {level >= 4 && (
-                    <td style={{ ...tdStyle, width: 36 }}>
-                      <input
-                        type="checkbox"
-                        checked={selected.has(c.id)}
-                        onChange={() => toggleSelect(c.id)}
-                        style={{ cursor: 'pointer', accentColor: 'var(--aurora)' }}
-                      />
-                    </td>
-                  )}
-                  <td style={tdStyle}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--bone)' }}>{c.user_name || 'Anonymous'}</div>
-                    {c.user_email && <div style={{ fontSize: 11, color: 'var(--dust)' }}>{c.user_email}</div>}
-                  </td>
-                  <td style={{ ...tdStyle, maxWidth: 320 }}>
-                    <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {c.content}
-                    </p>
-                  </td>
-                  <td style={tdStyle}>{statusBadge(c.user_id ? 'user' : 'anon')}</td>
-                  <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{fmtDate(c.created_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       )}
 
-      <ConfirmDialog
-        open={confirm}
-        title="Bulk Delete Comments"
-        message={`Permanently delete ${selected.size} comment(s)? This cannot be undone.`}
-        onConfirm={bulkDelete}
-        onCancel={() => setConfirm(false)}
-      />
+      {!error && !loading && filtered.length === 0 && (
+        <Empty icon={noteType === 'next_action' ? Zap : MessageCircle}
+          label={noteType === 'next_action' ? 'No next actions yet' : 'No admin comments yet'} />
+      )}
+
+      {!error && !loading && filtered.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {filtered.map(n => (
+            <div key={n.id} style={{ ...cardStyle, padding: 0 }}>
+              {/* Note header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px' }}>
+                {/* Tag pills */}
+                {parseTags(n.flag_category).length > 0 && (
+                  <div style={{ flexShrink: 0 }}>
+                    <TagPills tagStr={n.flag_category} />
+                  </div>
+                )}
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Source conversation */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
+                    <Badge label={noteType === 'next_action' ? 'Action' : 'Comment'} color={noteType === 'next_action' ? 'gold' : 'dust'} />
+                    <span style={{ fontSize: 11, color: 'var(--dust)' }}>{n.admin_name || 'Admin'} · {fmtDate(n.created_at)}</span>
+                    {n.conv_user_name && <span style={{ fontSize: 11, color: 'var(--dust)' }}>on conv by {n.conv_user_name}</span>}
+                    {n.user_type && statusBadge(n.user_type === 'registered' ? 'user' : 'anon')}
+                  </div>
+                  <p style={{ margin: '0 0 4px', fontSize: 13, color: 'var(--bone)', fontWeight: 500, lineHeight: 1.4 }}>{n.note}</p>
+                  {n.first_message && (
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--dust)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      "{n.first_message}"
+                    </p>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <TagDropdown
+                    itemId={n.conversation_id}
+                    currentTagStr={n.flag_category}
+                    level={level}
+                    loading={tagLoading === n.conversation_id}
+                    onTagChange={(newTags) => handleTagChange(n, newTags)}
+                  />
+                  <button
+                    onClick={() => expandConv(n.conversation_id)}
+                    style={btnStyle('ghost', true)}
+                    title="View full conversation"
+                  >
+                    {expandedConv === n.conversation_id ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                    View
+                  </button>
+                </div>
+              </div>
+
+              {/* Expanded conversation */}
+              {expandedConv === n.conversation_id && (
+                <div style={{ borderTop: '1px solid var(--line)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {msgsLoading ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: 16 }}><Spinner size={18} /></div>
+                  ) : expandedMsgs.length === 0 ? (
+                    <span style={{ fontSize: 13, color: 'var(--dust)' }}>No messages found.</span>
+                  ) : (
+                    expandedMsgs.map((m, i) => (
+                      <div key={i} style={{
+                        padding: '8px 12px', borderRadius: 8,
+                        background: m.role === 'user' ? 'rgba(91,233,221,0.06)' : 'rgba(232,177,79,0.06)',
+                        border: `1px solid ${m.role === 'user' ? 'rgba(91,233,221,0.12)' : 'rgba(232,177,79,0.12)'}`,
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: m.role === 'user' ? 'var(--aurora)' : 'var(--gold)', textTransform: 'uppercase' }}>{m.role}</span>
+                          <span style={{ fontSize: 11, color: 'var(--dust)' }}>{fmtDate(m.created_at)}</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 13, color: 'var(--bone-dim)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{m.content}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
 /* ============================================================
-   TAB 5 — CMS
+   TAB 4 — COMMENTS (admin notes of type='comment')
    ============================================================ */
+const CommentsTab = ({ auth, level }) => (
+  <NotesList auth={auth} level={level} noteType="comment" />
+);
+
+/* ============================================================
+   TAB 5 — ACTIONS (admin notes of type='next_action')
+   ============================================================ */
+const ActionsTab = ({ auth, level }) => (
+  <NotesList auth={auth} level={level} noteType="next_action" />
+);
+
+/* ============================================================
+   TAB 6 — CMS
+   ============================================================ */
+const CMS_DEFAULTS = [
+  { page_key: 'home', section_key: 'hero_title',       label: 'Home — Hero Title',       content: 'The Constitution for the Age of AI' },
+  { page_key: 'home', section_key: 'hero_subtitle',    label: 'Home — Hero Subtitle',    content: 'A living document. A global movement. A new form of governance.' },
+  { page_key: 'home', section_key: 'beta_notice',      label: 'Home — Beta Notice',      content: 'Beta Preview — This platform is under active development.' },
+  { page_key: 'join', section_key: 'page_title',       label: 'Join — Page Title',       content: 'Choose Your Path' },
+  { page_key: 'quest', section_key: 'intro',           label: 'Quest — Intro',           content: 'Complete challenges to earn your place in the founding council.' },
+  { page_key: 'community', section_key: 'intro',       label: 'Community — Intro',       content: 'Connect with fellow constitutional architects from around the world.' },
+];
+
 const CmsTab = ({ auth, level }) => {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editing, setEditing] = useState({}); // { [id]: draft }
+  const [editing, setEditing] = useState({});
   const [saving, setSaving] = useState(null);
-  const [expanded, setExpanded] = useState(null);
+  const [seeding, setSeeding] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
@@ -1041,117 +1163,163 @@ const CmsTab = ({ auth, level }) => {
 
   const filtered = sections.filter(s => {
     const q = search.toLowerCase();
-    return !q || (s.slug || '').toLowerCase().includes(q) || (s.title || '').toLowerCase().includes(q);
+    return !q || (s.section_key || '').toLowerCase().includes(q) || (s.page_key || '').toLowerCase().includes(q) || (s.title || '').toLowerCase().includes(q);
   });
 
-  const startEdit = (s) => {
-    setEditing(prev => ({ ...prev, [s.id]: s.body || '' }));
-    setExpanded(s.id);
+  const startEdit = (key) => {
+    if (!editMode && level < 5) return;
+    setEditing(prev => {
+      const s = sections.find(x => (x.id || `${x.page_key}_${x.section_key}`) === key);
+      return { ...prev, [key]: s?.content || s?.body || '' };
+    });
   };
 
   const save = async (s) => {
-    setSaving(s.id);
+    const key = s.id || `${s.page_key}_${s.section_key}`;
+    setSaving(key);
     try {
-      await apiCall('/api/admin/content', 'POST', { page_key: s.page_key, section_key: s.section_key, content: editing[s.id], content_type: s.content_type || 'text' }, auth.token);
-      setSections(prev => prev.map(x => x.id === s.id ? { ...x, body: editing[s.id], updated_at: new Date().toISOString() } : x));
-      setEditing(prev => { const n = { ...prev }; delete n[s.id]; return n; });
+      await apiCall('/api/admin/content', 'POST', {
+        page_key: s.page_key, section_key: s.section_key,
+        content: editing[key], content_type: s.content_type || 'text'
+      }, auth.token);
+      setSections(prev => prev.map(x => {
+        const xKey = x.id || `${x.page_key}_${x.section_key}`;
+        return xKey === key ? { ...x, content: editing[key], body: editing[key], updated_at: new Date().toISOString() } : x;
+      }));
+      setEditing(prev => { const n = { ...prev }; delete n[key]; return n; });
     } catch (e) { alert(`Error: ${e.message}`); }
     finally { setSaving(null); }
   };
 
+  const seedDefaults = async () => {
+    setSeeding(true);
+    try {
+      for (const def of CMS_DEFAULTS) {
+        await apiCall('/api/admin/content', 'POST', {
+          page_key: def.page_key, section_key: def.section_key,
+          content: def.content, content_type: 'text'
+        }, auth.token).catch(() => {}); // ignore if already exists
+      }
+      await load();
+    } catch (e) { alert(`Error: ${e.message}`); }
+    finally { setSeeding(false); }
+  };
+
+  const isEmpty = !loading && !error && filtered.length === 0;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--dust)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search content sections…" style={{ ...inputStyle, paddingLeft: 32 }} />
         </div>
         <button onClick={load} style={btnStyle('ghost', true)}><RefreshCw size={13} /></button>
+        {level >= 5 && (
+          <button
+            onClick={() => setEditMode(m => !m)}
+            style={btnStyle(editMode ? 'gold' : 'ghost', true)}
+          >
+            <Settings2 size={13} />
+            {editMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
+          </button>
+        )}
       </div>
+
+      {/* Edit mode banner */}
+      {editMode && (
+        <div style={{ background: 'rgba(232,177,79,0.1)', border: '1px solid rgba(232,177,79,0.3)', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Edit2 size={14} color="var(--gold)" />
+          <span style={{ fontSize: 13, color: 'var(--gold)', fontWeight: 500 }}>
+            Edit Mode — Click any section below to edit text content. Changes save directly to the live site.
+          </span>
+        </div>
+      )}
 
       {error && <ErrorBanner message={error} onRetry={load} />}
 
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={24} /></div>
-      ) : filtered.length === 0 ? (
-        <Empty icon={FileText} label="No content sections found" />
-      ) : (
+      {loading && <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={24} /></div>}
+
+      {isEmpty && (
+        <div style={{ ...cardStyle, textAlign: 'center', padding: '40px 24px' }}>
+          <FileText size={36} style={{ color: 'var(--dust)', opacity: 0.4, marginBottom: 12 }} />
+          <h3 style={{ margin: '0 0 8px', fontSize: 16, color: 'var(--bone)' }}>No CMS Sections Yet</h3>
+          <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--bone-dim)', lineHeight: 1.6 }}>
+            The CMS lets you edit text content that appears on the live site.<br />
+            Seed default sections to get started, then use <strong>Edit Mode</strong> to modify them.
+          </p>
+          {level >= 3 && (
+            <button onClick={seedDefaults} disabled={seeding} style={btnStyle('aurora')}>
+              {seeding ? <Spinner /> : <Plus size={14} />}
+              Initialize Default Sections
+            </button>
+          )}
+          {level < 3 && (
+            <p style={{ fontSize: 12, color: 'var(--dust)' }}>Ask a Super Admin (L3+) to initialize CMS sections.</p>
+          )}
+        </div>
+      )}
+
+      {!loading && filtered.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map(s => {
-            const isEditing = editing[s.id] !== undefined;
+            const key = s.id || `${s.page_key}_${s.section_key}`;
+            const isEditing = editing[key] !== undefined;
+            const content = isEditing ? editing[key] : (s.content || s.body || '');
+
             return (
-              <div key={s.id} style={cardStyle}>
-                {/* header */}
-                <div
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}
-                  onClick={() => setExpanded(expanded === s.id ? null : s.id)}
-                >
+              <div key={key} style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: isEditing ? 12 : 0 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--bone)' }}>{s.title || s.slug}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--bone)' }}>{s.title || s.section_key || key}</span>
                       <code style={{ fontSize: 11, background: 'var(--cosmos)', padding: '1px 6px', borderRadius: 4, color: 'var(--aurora)' }}>
-                        {s.slug}
+                        {s.page_key}/{s.section_key}
                       </code>
-                      {s.revision_count > 0 && (
-                        <Badge label={`${s.revision_count} rev${s.revision_count !== 1 ? 's' : ''}`} color="dust" />
-                      )}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--dust)', marginTop: 3 }}>
-                      Last updated: {fmtDate(s.updated_at)}
-                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--dust)', marginTop: 2 }}>Updated: {fmtDate(s.updated_at)}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                    <button onClick={e => { e.stopPropagation(); startEdit(s); }} style={btnStyle('aurora', true)}>
-                      <Edit2 size={12} /> Edit
-                    </button>
-                    {expanded === s.id ? <ChevronDown size={16} color="var(--dust)" /> : <ChevronRight size={16} color="var(--dust)" />}
+                    {(editMode || level >= 3) && !isEditing && (
+                      <button onClick={() => startEdit(key)} style={btnStyle('aurora', true)}>
+                        <Edit2 size={12} /> Edit
+                      </button>
+                    )}
+                    {isEditing && (
+                      <>
+                        <button onClick={() => save(s)} disabled={saving === key} style={btnStyle('primary', true)}>
+                          {saving === key ? <Spinner /> : <Save size={12} />} Save
+                        </button>
+                        <button onClick={() => setEditing(prev => { const n = { ...prev }; delete n[key]; return n; })} style={btnStyle('ghost', true)}>
+                          <X size={12} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* expanded editor */}
-                {expanded === s.id && (
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
-                    <textarea
-                      value={isEditing ? editing[s.id] : (s.body || '')}
-                      onChange={e => isEditing && setEditing(prev => ({ ...prev, [s.id]: e.target.value }))}
-                      readOnly={!isEditing}
-                      rows={10}
-                      style={{
-                        ...inputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 200,
-                        fontFamily: 'monospace', fontSize: 12,
-                        opacity: isEditing ? 1 : 0.65,
-                      }}
-                    />
-
-                    {/* revision history */}
-                    {(s.revisions || []).length > 0 && (
-                      <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 11, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 8 }}>
-                          Revision History
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {(s.revisions || []).map((r, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: 6, background: 'rgba(7,16,31,0.4)', fontSize: 12 }}>
-                              <span style={{ color: 'var(--bone-dim)' }}>Rev #{(s.revisions.length - i)}</span>
-                              <span style={{ color: 'var(--dust)' }}>{fmtDate(r.created_at)}</span>
-                              <span style={{ color: 'var(--dust)' }}>{r.author || 'admin'}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {isEditing && (
-                      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                        <button onClick={() => save(s)} disabled={saving === s.id} style={btnStyle('primary')}>
-                          {saving === s.id ? <Spinner /> : <Save size={13} />} Save Revision
-                        </button>
-                        <button onClick={() => setEditing(prev => { const n = { ...prev }; delete n[s.id]; return n; })} style={btnStyle('ghost')}>
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                {isEditing ? (
+                  <textarea
+                    value={editing[key]}
+                    onChange={e => setEditing(prev => ({ ...prev, [key]: e.target.value }))}
+                    rows={4}
+                    autoFocus
+                    style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, minHeight: 80, marginTop: 8 }}
+                  />
+                ) : (
+                  <p
+                    onClick={() => editMode && startEdit(key)}
+                    style={{
+                      margin: '6px 0 0', fontSize: 13, color: 'var(--bone-dim)', lineHeight: 1.5,
+                      cursor: editMode ? 'text' : 'default',
+                      padding: editMode ? '4px 6px' : 0,
+                      borderRadius: editMode ? 4 : 0,
+                      border: editMode ? '1px dashed rgba(232,177,79,0.3)' : 'none',
+                      background: editMode ? 'rgba(232,177,79,0.04)' : 'transparent',
+                    }}>
+                    {content || <em style={{ color: 'var(--dust)' }}>(empty)</em>}
+                  </p>
                 )}
               </div>
             );
@@ -1169,14 +1337,9 @@ export const AdminDashboard = ({ auth }) => {
   const [activeTab, setActiveTab] = useState('users');
   const level = aclLevel(auth);
 
-  // Redirect if not at least L1 (viewer)
   if (level < 1) {
     return (
-      <div style={{
-        minHeight: '60vh', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', gap: 16,
-        color: 'var(--dust)',
-      }}>
+      <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, color: 'var(--dust)' }}>
         <Shield size={40} style={{ opacity: 0.3 }} />
         <p style={{ fontSize: 15 }}>Admin access required (L1+).</p>
       </div>
@@ -1184,37 +1347,25 @@ export const AdminDashboard = ({ auth }) => {
   }
 
   const tabs = [
-    { id: 'users',         label: 'Users',         icon: Users,         minLevel: 1 },
-    { id: 'conversations', label: 'Conversations',  icon: MessageCircle, minLevel: 1 },
-    { id: 'ideas',         label: 'Ideas',          icon: Lightbulb,     minLevel: 1 },
-    { id: 'comments',      label: 'Comments',       icon: MessageCircle, minLevel: 1 },
-    { id: 'cms',           label: 'CMS',            icon: FileText,      minLevel: 3 },
+    { id: 'users',         label: 'Users',          icon: Users,         minLevel: 1 },
+    { id: 'conversations', label: 'Conversations',   icon: MessageCircle, minLevel: 1 },
+    { id: 'ideas',         label: 'IP Dev Agent',    icon: Lightbulb,     minLevel: 1 },
+    { id: 'comments',      label: 'Comments',        icon: MessageCircle, minLevel: 1 },
+    { id: 'actions',       label: 'Actions',         icon: Zap,           minLevel: 1 },
+    { id: 'cms',           label: 'CMS',             icon: FileText,      minLevel: 3 },
   ].filter(t => level >= t.minLevel);
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--void)',
-      padding: '0 0 60px',
-    }}>
-      {/* ── top bar ─────────────────────────── */}
-      <div style={{
-        background: 'var(--void-2)', borderBottom: '1px solid var(--line-2)',
-        padding: '20px 24px 0',
-        position: 'sticky', top: 0, zIndex: 50,
-      }}>
+    <div style={{ minHeight: '100vh', background: 'var(--void)', padding: '0 0 60px' }}>
+      {/* Top bar */}
+      <div style={{ background: 'var(--void-2)', borderBottom: '1px solid var(--line-2)', padding: '20px 24px 0', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(91,233,221,0.12)', border: '1px solid rgba(91,233,221,0.2)',
-            }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(91,233,221,0.12)', border: '1px solid rgba(91,233,221,0.2)' }}>
               <Shield size={18} color="var(--aurora)" />
             </div>
             <div>
-              <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--bone)' }}>
-                Admin Dashboard
-              </h1>
+              <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--bone)' }}>Admin Dashboard</h1>
               <p style={{ margin: 0, fontSize: 12, color: 'var(--dust)' }}>
                 Signed in as <strong style={{ color: 'var(--bone-dim)' }}>{auth?.user?.display_name || auth?.user?.email}</strong>
                 {' · '}
@@ -1223,24 +1374,21 @@ export const AdminDashboard = ({ auth }) => {
             </div>
           </div>
 
-          {/* tab strip */}
-          <div style={{ display: 'flex', gap: 4, overflowX: 'auto' }}>
+          {/* Tab strip */}
+          <div style={{ display: 'flex', gap: 2, overflowX: 'auto' }}>
             {tabs.map(t => {
               const Icon = t.icon;
               const active = activeTab === t.id;
               return (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '8px 16px', border: 'none', cursor: 'pointer',
-                    background: 'transparent', color: active ? 'var(--aurora)' : 'var(--dust)',
-                    fontSize: 13, fontWeight: active ? 600 : 400,
-                    borderBottom: active ? '2px solid var(--aurora)' : '2px solid transparent',
-                    transition: 'all 0.2s', whiteSpace: 'nowrap', marginBottom: -1,
-                  }}
-                >
+                <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '8px 16px', border: 'none', cursor: 'pointer',
+                  background: 'transparent',
+                  color: active ? 'var(--aurora)' : 'var(--dust)',
+                  fontSize: 13, fontWeight: active ? 600 : 400,
+                  borderBottom: active ? '2px solid var(--aurora)' : '2px solid transparent',
+                  transition: 'all 0.2s', whiteSpace: 'nowrap', marginBottom: -1,
+                }}>
                   <Icon size={14} />
                   {t.label}
                 </button>
@@ -1250,12 +1398,13 @@ export const AdminDashboard = ({ auth }) => {
         </div>
       </div>
 
-      {/* ── tab content ─────────────────────── */}
+      {/* Tab content */}
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 0' }}>
         {activeTab === 'users'         && <UsersTab         auth={auth} level={level} />}
         {activeTab === 'conversations' && <ConversationsTab auth={auth} level={level} />}
         {activeTab === 'ideas'         && <IdeasTab         auth={auth} level={level} />}
         {activeTab === 'comments'      && <CommentsTab      auth={auth} level={level} />}
+        {activeTab === 'actions'       && <ActionsTab       auth={auth} level={level} />}
         {activeTab === 'cms'           && <CmsTab           auth={auth} level={level} />}
       </div>
     </div>

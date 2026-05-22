@@ -123,4 +123,36 @@ export async function onRequestPut(context) {
   }
 }
 
+// POST /api/admin/ideas — body: { idea_id, action: 'set_tags', tags: 'tag1,tag2' }
+export async function onRequestPost(context) {
+  const { request, env } = context;
+  try {
+    const user = await getUser(request, env);
+    const aclError = requireACL(user, 2);
+    if (aclError) return aclError;
+
+    const body = await request.json();
+    const { idea_id, action, tags } = body;
+
+    if (!idea_id) return jsonError("idea_id required.");
+
+    if (action === 'set_tags') {
+      // Auto-migrate tags column
+      try {
+        await env.DB.prepare("ALTER TABLE ideas ADD COLUMN tags TEXT").run();
+      } catch (e) { /* column already exists */ }
+
+      const tagsStr = (tags || '').toString().trim();
+      await env.DB.prepare("UPDATE ideas SET tags = ? WHERE id = ?")
+        .bind(tagsStr || null, idea_id).run();
+
+      return json({ success: true, idea_id, tags: tagsStr });
+    }
+
+    return jsonError("Invalid action. Use: set_tags");
+  } catch (err) {
+    return jsonError("Failed to update idea: " + err.message);
+  }
+}
+
 export async function onRequestOptions() { return optionsResponse(); }

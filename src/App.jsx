@@ -1844,6 +1844,7 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
   const [listening, setListening] = useState(false);
   const [mode, setMode] = useState('dialogue');
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [activeSectionIdx, setActiveSectionIdx] = useState(-1);
   const tts = useTTS();
 
   // Auto-voice: speaks each new agent reply automatically
@@ -1902,6 +1903,23 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
   const scrollToMessage = (idx) => {
     const el = msgRefs.current[idx];
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // Section tab click: pause TTS → scroll → resume
+  const switchSection = (msgIdx, secIdx) => {
+    const wasPlaying = !!tts.speakingId;
+    if (wasPlaying) tts.stop();
+    setActiveSectionIdx(secIdx);
+    setTimeout(() => {
+      const el = msgRefs.current[msgIdx];
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (wasPlaying) {
+        setTimeout(() => {
+          const m = messages[msgIdx];
+          if (m) tts.speak(`msg-${msgIdx}`, m.content);
+        }, 500);
+      }
+    }, 50);
   };
 
   // Voice: Speech-to-Text
@@ -1993,50 +2011,33 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
         style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)' }}
         onClick={e => e.stopPropagation()}>
 
-        {/* ── Row 1: Title + Mode Pills + Controls ── */}
+        {/* ── Row 1: Title + Controls (no mode pills, no lightbulb) ── */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '14px 16px 10px',
-          borderBottom: hasTabs || hasPlayer ? 'none' : '1px solid var(--line)',
+          borderBottom: '1px solid var(--line)',
         }}>
-          {/* Icon + title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {/* Orb + title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
             <div className="animate-glow-breathe" style={{
               width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'radial-gradient(circle, var(--aurora) 0%, var(--aurora-deep) 70%)',
             }}>
               <Sparkles size={14} className="text-void" />
             </div>
-            <span className="font-display" style={{ fontSize: 15 }}>HRC Agent</span>
+            <div>
+              <div className="font-display" style={{ fontSize: 15, lineHeight: 1.2 }}>HRC Agent</div>
+              <div style={{ fontSize: 10, color: 'var(--dust)', lineHeight: 1 }}>Carrying humanity's constitution</div>
+            </div>
           </div>
 
-          {/* Mode pills — scrollable */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, overflowX: 'auto', scrollbarWidth: 'none' }}>
-            {MODES.map(m => (
-              <button key={m.id} onClick={() => setMode(m.id)} style={{
-                flexShrink: 0, padding: '3px 10px', borderRadius: 9999,
-                fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
-                transition: 'all 0.15s',
-                background: mode === m.id ? 'rgba(91,233,221,0.15)' : 'transparent',
-                color: mode === m.id ? 'var(--aurora)' : 'var(--dust)',
-                border: `1px solid ${mode === m.id ? 'rgba(91,233,221,0.35)' : 'rgba(91,233,221,0.08)'}`,
-              }}>{m.label}</button>
-            ))}
-          </div>
-
-          {/* Controls */}
+          {/* Controls: volume toggle + close only */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
             <button onClick={toggleAutoVoice} style={{
               padding: 6, borderRadius: '50%', background: autoVoice ? 'rgba(91,233,221,0.10)' : 'transparent',
               border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }} title={autoVoice ? 'Auto-voice on' : 'Auto-voice off'}>
               {autoVoice ? <Volume2 size={14} color="var(--aurora)" /> : <VolumeX size={14} color="var(--bone-dim)" />}
-            </button>
-            <button onClick={() => setShowIdeaForm(!showIdeaForm)} style={{
-              padding: 6, borderRadius: '50%', background: 'transparent', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }} title="Submit an idea">
-              <Lightbulb size={14} color={showIdeaForm ? 'var(--gold)' : 'var(--bone-dim)'} />
             </button>
             <button onClick={onClose} style={{
               padding: 6, borderRadius: '50%', background: 'transparent', border: 'none', cursor: 'pointer',
@@ -2047,37 +2048,19 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
           </div>
         </div>
 
-        {/* ── Row 2: Section Heading Tabs ── */}
-        {hasTabs && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '6px 16px', overflowX: 'auto', scrollbarWidth: 'none',
-            borderBottom: hasPlayer ? 'none' : '1px solid var(--line)',
-          }}>
-            {sectionHeadings.map((h, i) => (
-              <button key={i} onClick={() => scrollToMessage(h.msgIdx)} style={{
-                flexShrink: 0, padding: '3px 10px', borderRadius: 9999, fontSize: 10,
-                cursor: 'pointer', whiteSpace: 'nowrap', background: 'rgba(242,234,211,0.04)',
-                color: 'var(--bone-dim)', border: '1px solid var(--line)', fontWeight: 500,
-              }}>{h.label}</button>
-            ))}
-          </div>
-        )}
-
-        {/* ── Row 3: Player Strip ── */}
+        {/* ── Row 2: Player Strip ── */}
         {hasPlayer && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
+            display: 'flex', alignItems: 'center', gap: 8, padding: '6px 16px',
             borderBottom: '1px solid var(--line)', background: 'rgba(91,233,221,0.03)',
-            position: 'relative',
           }}>
             {/* Stop button */}
             <button onClick={tts.stop} title="Stop" style={{
-              width: 22, height: 22, borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
+              width: 20, height: 20, borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'rgba(91,233,221,0.12)', border: '1px solid rgba(91,233,221,0.3)',
             }}>
-              <Square size={8} color="var(--aurora)" fill="var(--aurora)" />
+              <Square size={7} color="var(--aurora)" fill="var(--aurora)" />
             </button>
 
             {/* Progress bar */}
@@ -2090,7 +2073,7 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
             </div>
 
             {/* Time */}
-            <span style={{ fontSize: 10, color: 'var(--dust)', fontVariantNumeric: 'tabular-nums', minWidth: 72, flexShrink: 0 }}>
+            <span style={{ fontSize: 10, color: 'var(--dust)', fontVariantNumeric: 'tabular-nums', minWidth: 68, flexShrink: 0 }}>
               {fmtTime(tts.elapsed)}{tts.duration > 0 ? ` / ${fmtTime(tts.duration)}` : ''}
             </span>
 
@@ -2121,6 +2104,60 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ── Row 3: Section Heading Tabs — letter index, same size as mode pills ── */}
+        {hasTabs && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            /* padding-top creates breathing room from player; overflowY:hidden = no vertical scrollbar */
+            padding: '7px 12px 4px',
+            overflowX: 'auto', overflowY: 'hidden',
+            scrollbarWidth: 'thin', scrollbarColor: 'var(--dust) transparent',
+            WebkitOverflowScrolling: 'touch',
+            borderBottom: '1px solid var(--line)',
+            background: 'rgba(91,233,221,0.015)',
+            flexShrink: 0,
+          }}>
+            {/* SECTIONS label — matches MODE label style */}
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '1.5px', color: 'var(--dust)',
+              textTransform: 'uppercase', flexShrink: 0, paddingRight: 2, whiteSpace: 'nowrap',
+            }}>SECTIONS</span>
+
+            {sectionHeadings.map((h, i) => {
+              const letter = String.fromCharCode(65 + i); // A, B, C…
+              const isActive = activeSectionIdx === i;
+              return (
+                <button key={i} title={h.label} onClick={() => switchSection(h.msgIdx, i)} style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  /* Identical padding/radius to mode pills */
+                  padding: '3px 8px', borderRadius: 9999,
+                  fontSize: 10, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                  flexShrink: 0, transition: 'all 0.15s',
+                  background: isActive ? 'rgba(91,233,221,0.12)' : 'rgba(19,31,50,0.9)',
+                  color: isActive ? 'var(--aurora)' : 'var(--dust)',
+                  border: `1px solid ${isActive ? 'rgba(91,233,221,0.3)' : 'rgba(232,234,222,0.08)'}`,
+                }}>
+                  {isActive && <span style={{ fontSize: 8 }}>•</span>}
+                  <span style={{ fontFamily: 'monospace', fontWeight: 800 }}>{letter}</span>
+                  {/* Small listen indicator */}
+                  <span style={{
+                    width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
+                    background: 'rgba(91,233,221,0.12)', border: '1px solid rgba(91,233,221,0.25)',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <svg width="5" height="5" viewBox="0 0 10 10" style={{ display: 'block' }}>
+                      <polygon points="2,1 9,5 2,9" fill="var(--aurora)" />
+                    </svg>
+                  </span>
+                </button>
+              );
+            })}
+
+            {/* overflow hint */}
+            <span style={{ fontSize: 9, color: 'var(--dust)', flexShrink: 0, paddingLeft: 2 }}>›</span>
           </div>
         )}
 
@@ -2215,35 +2252,98 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
           </>
         )}
 
-        {/* ── Input Footer ── */}
-        <div className="p-4 border-t" style={{ borderColor: 'var(--line)' }}>
-          <div className="flex items-end gap-2 rounded-2xl p-3" style={{ background: 'var(--void)', border: '1px solid var(--line-2)' }}>
+        {/* ── Input Console ── */}
+        <div style={{ borderTop: '1px solid var(--line)', flexShrink: 0 }}>
+
+          {/* Mode strip — pill shape (border-radius:9999), same colours as before */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '7px 14px 0',
+            overflowX: 'auto', overflowY: 'hidden',
+            scrollbarWidth: 'thin', scrollbarColor: 'var(--dust) transparent',
+            WebkitOverflowScrolling: 'touch',
+          }}>
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '1.5px', color: 'var(--dust)',
+              textTransform: 'uppercase', flexShrink: 0,
+            }}>MODE</span>
+            {MODES.map(m => (
+              <button key={m.id} onClick={() => setMode(m.id)} style={{
+                flexShrink: 0,
+                padding: '3px 10px',
+                borderRadius: 9999, /* original pill shape */
+                fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+                transition: 'all 0.15s',
+                background: mode === m.id ? 'rgba(91,233,221,0.15)' : 'rgba(19,31,50,0.9)',
+                color: mode === m.id ? 'var(--aurora)' : 'var(--dust)',
+                border: `1px solid ${mode === m.id ? 'rgba(91,233,221,0.35)' : 'rgba(232,234,222,0.08)'}`,
+              }}>{m.label}</button>
+            ))}
+            <span style={{ fontSize: 9, color: 'var(--dust)', flexShrink: 0 }}>›</span>
+          </div>
+
+          {/* Input row */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, padding: '7px 14px 9px' }}>
             <button onClick={toggleListening}
-              className={`p-2 rounded-full transition-all ${listening ? 'bg-aurora' : ''}`}
-              title={listening ? "Stop listening" : "Speak your question"}>
+              style={{
+                padding: 8, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0,
+                background: listening ? 'var(--aurora)' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              title={listening ? 'Stop listening' : 'Speak your question'}>
               {listening ? <MicOff size={14} className="text-void" /> : <Mic size={14} className="text-bone-dim" />}
             </button>
             <textarea value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }}}
-              placeholder={listening ? "Listening..." : "Ask the constitution. Share your idea."}
+              placeholder={listening ? 'Listening…' : 'Ask the constitution. Share your idea.'}
               rows={1}
               className="flex-1 bg-transparent outline-none text-sm text-bone placeholder:text-dust resize-none"
-              style={{ minHeight: '20px', maxHeight: '120px' }}
+              style={{ minHeight: 20, maxHeight: 120 }}
             />
             <button onClick={send} disabled={!input.trim() || loading}
-              className="p-2 rounded-full transition-all disabled:opacity-30"
-              style={{ background: input.trim() ? 'var(--aurora)' : 'transparent' }}>
-              <Send size={14} className={input.trim() ? 'text-void' : 'text-bone-dim'} />
+              style={{
+                width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0,
+                background: input.trim() ? 'var(--aurora)' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (!input.trim() || loading) ? 0.3 : 1,
+              }}>
+              <Send size={13} color={input.trim() ? 'var(--void)' : 'var(--bone-dim)'} />
             </button>
           </div>
-          <div className="text-xs text-dust mt-2 px-1 flex items-center justify-between">
-            <span>{auth?.user ? `Signed in as ${auth.user.display_name}` : 'Anonymous · '}{!auth?.user && <button onClick={onOpenAuth} className="text-aurora hover:underline">Sign in</button>}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              {autoVoice
-                ? <><Volume2 size={9} />{getLS('plugin', 'webspeech') === 'elevenlabs' ? 'ElevenLabs voice' : 'Browser voice'}</>
-                : 'Voice off'}
+
+          {/* Status footer — status badge replaces voice label */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '0 14px 9px', fontSize: 10, color: 'var(--dust)',
+          }}>
+            <span>
+              {auth?.user
+                ? auth.user.display_name
+                : <><span>Anonymous · </span><button onClick={onOpenAuth} style={{ color: 'var(--aurora)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 10 }}>Sign in</button></>
+              }
             </span>
+            {/* Contextual status badge */}
+            {(() => {
+              const [label, color, bg, border] = loading
+                ? ['Thinking', 'var(--gold)', 'rgba(232,177,79,0.10)', 'rgba(232,177,79,0.25)']
+                : listening
+                ? ['Listening', '#a8d8ff', 'rgba(100,180,255,0.10)', 'rgba(100,180,255,0.25)']
+                : tts.speakingId
+                ? ['Reading', 'var(--aurora)', 'rgba(91,233,221,0.10)', 'rgba(91,233,221,0.25)']
+                : ['Idle', 'var(--dust)', 'transparent', 'rgba(232,234,222,0.06)'];
+              return (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 600,
+                  padding: '2px 8px', borderRadius: 9999, color, background: bg, border: `1px solid ${border}`,
+                }}>
+                  <span style={{
+                    width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0,
+                    animation: (loading || listening || tts.speakingId) ? 'pulse-soft 1.2s ease-in-out infinite' : 'none',
+                  }} />
+                  {label}
+                </span>
+              );
+            })()}
           </div>
         </div>
       </div>

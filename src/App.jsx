@@ -317,8 +317,11 @@ const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padSt
 // Pages registry
 const PAGES = [
   { id: 'home', name: 'Genesis' },
+  { id: 'petition', name: 'Sign the Memo' },
   { id: 'constitution', name: 'Constitution' },
   { id: 'quest', name: 'The Quest' },
+  { id: 'surveys', name: 'Surveys' },
+  { id: 'events', name: 'Events' },
   { id: 'agent', name: 'Your Agent' },
   { id: 'os', name: 'The OS' },
   { id: 'community', name: 'Community' },
@@ -801,9 +804,13 @@ const useAnimatedCount = (target, duration = 2400) => {
 
 // ============ HOME PAGE ============
 const HomePage = ({ setPage, onOpenAgent }) => {
-  const sigCount = useAnimatedCount(127483);
-  const ideaCount = useAnimatedCount(8924);
-  const builderCount = useAnimatedCount(2106);
+  const [stats, setStats] = useState({ count: 1000, nations: 0 });
+  useEffect(() => {
+    fetch('/api/count').then(r => r.json()).then(d => {
+      if (d && typeof d.count === 'number') setStats({ count: d.count, nations: d.nations || 0 });
+    }).catch(() => {});
+  }, []);
+  const voices = useAnimatedCount(stats.count);
 
   return (
     <PageWrap>
@@ -817,48 +824,53 @@ const HomePage = ({ setPage, onOpenAgent }) => {
             <div className="animate-fade-up" style={{ animationDelay: '0.05s' }}>
               <HeroPill>
                 <span className="w-1.5 h-1.5 rounded-full bg-aurora animate-pulse-soft" />
-                The Operating System for Humanity
+                Before the rules are written without us
               </HeroPill>
             </div>
 
-            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl leading-[0.95] mt-8 animate-fade-up"
+            <h1 className="font-display text-4xl md:text-6xl lg:text-7xl leading-[0.98] mt-8 animate-fade-up"
               style={{ animationDelay: '0.15s' }}>
-              <span className="text-bone">A planet that</span>
-              <br />
-              <span className="aurora-text font-italic">refuses to be ruled.</span>
+              <span className="text-bone">AI creators building humanity's </span>
+              <span className="aurora-text font-italic">Human Rights Constitutional</span>
+              <span className="text-bone"> layer for AI.</span>
             </h1>
 
-            <p className="text-lg md:text-xl mt-8 max-w-2xl leading-relaxed text-bone-dim animate-fade-up font-body"
-              style={{ animationDelay: '0.3s' }}>
-              Every innovator, paired with their own personal agent. Every idea, attributed forever.
-              One open-source operating system, governed by humanity's constitution for AI —
-              gifted to humanity, owned by no one.
+            <p className="font-display text-xl md:text-2xl mt-6 max-w-2xl leading-snug text-bone font-italic animate-fade-up"
+              style={{ animationDelay: '0.25s' }}>
+              Built for humans, by humans — gifted to our children's generation to build on.
+            </p>
+
+            <p className="text-lg mt-6 max-w-2xl leading-relaxed text-bone-dim animate-fade-up font-body"
+              style={{ animationDelay: '0.35s' }}>
+              Tech builders are writing the firewall. You can gift humanity a constitutional OS that
+              puts people first — 52 human rights clauses, in the open, enforced by code. Sign the memo
+              and architect the system.
             </p>
 
             <div className="mt-10 flex flex-wrap gap-3 animate-fade-up" style={{ animationDelay: '0.45s' }}>
-              <button onClick={() => setPage('constitution')} className="btn-primary">
-                Sign the Constitution <ArrowRight size={16} />
-              </button>
-              <button onClick={() => setPage('quest')} className="btn-aurora">
-                Enter the Quest <Sparkles size={16} />
+              <button onClick={() => setPage('petition')} className="btn-aurora">
+                Sign the petition <ArrowRight size={16} />
               </button>
               <button onClick={() => setPage('community')} className="btn-secondary">
-                Build the OS <ArrowRight size={16} />
+                Back this project <ArrowRight size={16} />
+              </button>
+              <button onClick={onOpenAgent} className="btn-secondary">
+                <MessageCircle size={16} /> Ask the agent
               </button>
             </div>
 
             <div className="mt-16 flex flex-wrap gap-10 animate-fade-up" style={{ animationDelay: '0.6s' }}>
               <div>
-                <div className="font-display text-3xl text-bone">{sigCount.toLocaleString()}</div>
-                <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Signatories</div>
+                <div className="font-display text-3xl text-aurora">{voices.toLocaleString()}</div>
+                <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Voices in the union</div>
               </div>
               <div>
-                <div className="font-display text-3xl text-bone">{ideaCount.toLocaleString()}</div>
-                <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Ideas on the Ledger</div>
+                <div className="font-display text-3xl text-bone">{stats.nations > 0 ? stats.nations : '—'}</div>
+                <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Nations contributing</div>
               </div>
               <div>
-                <div className="font-display text-3xl text-bone">{builderCount.toLocaleString()}</div>
-                <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Constitutional Builders</div>
+                <div className="font-display text-3xl text-bone">52</div>
+                <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Clauses in live draft</div>
               </div>
             </div>
           </div>
@@ -866,31 +878,31 @@ const HomePage = ({ setPage, onOpenAgent }) => {
       </section>
 
       <section className="py-24 lg:py-36 max-w-7xl mx-auto px-6 lg:px-12">
-        <SectionLabel>What is Humanity-AI</SectionLabel>
+        <SectionLabel>What you're architecting</SectionLabel>
         <h2 className="font-display text-4xl md:text-6xl leading-tight max-w-3xl">
-          One agent for every human.<br />
-          <span className="text-aurora font-italic">One constitution</span> for them all.
+          A new governing system,<br />
+          <span className="text-aurora font-italic">we're building together.</span>
         </h2>
 
         <div className="grid md:grid-cols-3 gap-6 mt-16">
           {[
             {
-              icon: <Sparkles className="text-aurora" size={28} />,
-              kicker: '01 — Your Agent',
-              title: 'A digital self that builds beside you.',
-              body: 'Every innovator is paired with a Personal Agent — a luminous companion that protects your rights, tracks your contributions to the Ledger, spawns sub-agents to test your ideas, and connects you to the experts who can ship them with you.'
+              icon: <Feather className="text-aurora" size={28} />,
+              kicker: '01 — Your contribution',
+              title: 'Your ideas stay yours.',
+              body: 'Every contribution to the firewall is tracked immutably on the ledger. You architected this — and the record proves it, forever, per Clause I.1.'
             },
             {
-              icon: <Network className="text-gold" size={28} />,
-              kicker: '02 — The OS',
-              title: 'Every agent, woven into one system.',
-              body: 'Humanity-AI is the connective tissue. Personal agents, expert agents, and idea-specific sub-agents flow through the same network — the planetary nervous system of an open civilization. No corporate gatekeeper. No closed garden.'
+              icon: <Shield className="text-gold" size={28} />,
+              kicker: '02 — Your sovereignty',
+              title: 'One person, one voice. Always.',
+              body: 'A personal agent represents you alone. It grants or refuses access to your data, and votes on the constitution with your voice — owned by no one else.'
             },
             {
               icon: <BookOpen className="text-terra" size={28} />,
-              kicker: '03 — The Constitution',
-              title: 'The Hippocratic Oath, for AI.',
-              body: 'The HRC is the immutable bedrock. 52 living clauses across rights, governance, and operations — a constitution that AI cannot rewrite, that corporations cannot bypass, and that evolves only through humanity itself.'
+              kicker: '03 — The firewall',
+              title: 'The constitutional firewall.',
+              body: '52 human rights clauses every AI must ask through. Code enforces what law cannot — built in the open, changed only by the union. You’re writing this.'
             }
           ].map((p, i) => (
             <div key={i} className="card-glass rounded-2xl p-8">
@@ -903,63 +915,50 @@ const HomePage = ({ setPage, onOpenAgent }) => {
       </section>
 
       <section className="py-24 lg:py-36 relative grain" style={{ background: 'linear-gradient(180deg, var(--void) 0%, var(--cosmos) 50%, var(--void) 100%)' }}>
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 relative">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div>
-              <SectionLabel>The Quest is Live</SectionLabel>
-              <h2 className="font-display text-4xl md:text-6xl leading-tight">
-                The new skill is <span className="gold-text font-italic">prompting + ideas.</span><br />
-                The arena is humanity.
-              </h2>
-              <p className="text-bone-dim mt-6 leading-relaxed text-lg">
-                Pitch your idea. Your agent spawns sub-agents that simulate the market, model the ethics,
-                stress-test the build. You don't pitch to investors. You pitch to humanity's panel —
-                ethicists, scientists, citizens, elders. Every idea, attributed to you on the ledger,
-                forever.
-              </p>
-              <div className="mt-8 flex gap-3">
-                <button onClick={() => setPage('quest')} className="btn-aurora">
-                  Apply to the Next Quest <ArrowRight size={16} />
-                </button>
-                <button onClick={onOpenAgent} className="btn-secondary">
-                  <MessageCircle size={16} /> Discuss with Agent
-                </button>
-              </div>
-            </div>
-            <div className="card-glass rounded-3xl p-8 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-48 h-48 opacity-30" style={{
-                background: 'radial-gradient(circle, var(--aurora) 0%, transparent 70%)'
-              }} />
-              <div className="relative">
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-aurora mb-4">
-                  <span className="w-2 h-2 rounded-full bg-aurora animate-pulse-soft" />
-                  Season 04 — Now Open
-                </div>
-                <div className="font-display text-3xl mb-2">The Genesis Pitch</div>
-                <div className="text-bone-dim mb-6">Global flagship. 12 finalists. One stage.</div>
-
-                <div className="space-y-3">
-                  {[
-                    { label: 'Applications close', val: '14 days' },
-                    { label: 'Live finals', val: 'June 21 · Earth' },
-                    { label: 'Compute prize pool', val: '4.2M GPU-hrs' },
-                    { label: 'Watching last season', val: '37M humans' }
-                  ].map((r, i) => (
-                    <div key={i} className="flex items-center justify-between border-t pt-3" style={{ borderColor: 'var(--line)' }}>
-                      <span className="text-sm text-bone-dim">{r.label}</span>
-                      <span className="font-display text-bone">{r.val}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+        <div className="max-w-4xl mx-auto px-6 lg:px-12 text-center">
+          <SectionLabel>The moment</SectionLabel>
+          <h2 className="font-display text-3xl md:text-5xl leading-tight">
+            Tech builders have never had a choice like this:
+            <span className="gold-text font-italic"> build extraction systems, or build humanity's operating system.</span>
+          </h2>
+          <p className="text-bone-dim mt-8 text-lg leading-relaxed">
+            You can architect a constitutional OS — one where humans own their data, creators own their work,
+            and humanity owns its future. This memo is your co-signature on that architecture: the moment
+            builders gift the world a system that runs on human rights, not extraction.
+          </p>
+          <div className="mt-10 flex flex-wrap gap-3 justify-center">
+            <button onClick={() => setPage('petition')} className="btn-aurora">
+              Sign the petition <ArrowRight size={16} />
+            </button>
+            <button onClick={() => setPage('community')} className="btn-secondary">
+              Back this project <ArrowRight size={16} />
+            </button>
           </div>
         </div>
       </section>
 
       <section className="py-24 lg:py-36 max-w-7xl mx-auto px-6 lg:px-12">
+        <SectionLabel>How to get started</SectionLabel>
+        <div className="grid md:grid-cols-4 gap-4 mt-12">
+          {[
+            { n: '1', t: 'Sign the memo', s: 'Add your name to the union', first: true },
+            { n: '2', t: 'Read the draft', s: '52 clauses, open for feedback' },
+            { n: '3', t: 'Build or contribute', s: 'Open-source quests & governance' },
+            { n: '4', t: 'Gift to humanity', s: 'The OS becomes the standard' }
+          ].map((step, i) => (
+            <div key={i} className={'rounded-2xl p-7 text-center ' + (step.first ? '' : 'card-glass')}
+              style={step.first ? { background: 'rgba(91,233,221,0.10)', border: '1px solid rgba(91,233,221,0.4)' } : {}}>
+              <div className={'font-display text-4xl mb-3 ' + (step.first ? 'text-aurora' : 'text-dust')}>{step.n}</div>
+              <div className="font-display text-lg mb-1">{step.t}</div>
+              <div className="text-sm text-bone-dim">{step.s}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="py-24 lg:py-36 max-w-7xl mx-auto px-6 lg:px-12">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <SectionLabel>The Constitution at a Glance</SectionLabel>
+          <SectionLabel>The constitution at a glance</SectionLabel>
           <h2 className="font-display text-4xl md:text-6xl leading-tight">
             52 living clauses.<br />
             <span className="aurora-text font-italic">One immutable promise.</span>
@@ -1009,9 +1008,141 @@ const HomePage = ({ setPage, onOpenAgent }) => {
             written by humanity, for humanity, AI becomes the greatest amplifier of human flourishing ever known.
           </p>
           <p className="font-display text-2xl mt-10 text-aurora font-italic">
-            Choose the constitution. Choose your agent. Choose humanity.
+            Sign the petition. Architect the system. Gift it to humanity.
           </p>
+          <div className="mt-8">
+            <button onClick={() => setPage('petition')} className="btn-aurora">
+              Sign the petition <ArrowRight size={16} />
+            </button>
+          </div>
         </div>
+      </section>
+    </PageWrap>
+  );
+};
+
+// ============ FOUNDING MEMO + PETITION PAGE ============
+const FOUNDING_MEMO = {
+  version: 'Draft v0.1 · open for your edits',
+  preamble: 'We, the collective users of the internet, together with the people who build AI, declare:',
+  beliefs: [
+    'That AI is, at its core, the power to connect every person on Earth directly — each of us represented by a single personal agent, a digital self that vouches for us and answers only to us.',
+    'That this power must be defined, governed, and controlled democratically — by the people it affects — not handed to corporations or states by default.'
+  ],
+  demands: [
+    'A democratic framework for how AI meets people — how it is regulated, defined, and how it is allowed to interface with us.',
+    'One personal agent per person — a digital self that represents you, protects you, and speaks for you, owned by no one else.',
+    'A direct line to the will of the people — so that, for the first time in history, what humanity actually wants can be known, and acted on.',
+    'An open seat for everyone — users and experts alike — free to participate, contribute, and collaborate, with the old barriers removed.'
+  ],
+  closing: 'This memo is our starting point. The detailed charter — the Humanities-AI Rights Constitution — is being written in the open, by the people who sign here. Add your name, and help write it.'
+};
+
+const PetitionPage = ({ setPage, onOpenAgent }) => {
+  const [side, setSide] = useState('human');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [signed, setSigned] = useState(null); // { number, count }
+
+  const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+  const submit = async () => {
+    if (name.trim().length < 2) return setError('Please add your name.');
+    if (!validEmail(email)) return setError('Please add a valid email.');
+    setError(''); setLoading(true);
+    try {
+      const r = await fetch('/api/sign', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, side })
+      });
+      const d = await r.json();
+      if (d.error) { setError(d.error); }
+      else { setSigned({ number: d.number, count: d.count }); }
+    } catch (e) { setError('Something went wrong. Please try again.'); }
+    finally { setLoading(false); }
+  };
+
+  const share = "I signed humanity's founding memo for AI. Add your name: humanity-ai.quest";
+  const doShare = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: 'Humanity-AI', text: share, url: 'https://humanity-ai.quest' });
+      else { await navigator.clipboard.writeText(share); alert('Copied — paste it anywhere.'); }
+    } catch (_) {}
+  };
+
+  return (
+    <PageWrap>
+      <section className="relative max-w-4xl mx-auto px-6 lg:px-12 py-24">
+        <SectionLabel>{FOUNDING_MEMO.version}</SectionLabel>
+        <h1 className="font-display text-4xl md:text-6xl leading-tight">
+          The <span className="aurora-text font-italic">Founding Memo.</span>
+        </h1>
+        <p className="text-bone-dim text-lg mt-4 max-w-2xl">
+          A united, democratic union of human users and AI developers. Read it, then add your name.
+        </p>
+
+        <div className="card-glass rounded-2xl p-8 mt-10" style={{ borderLeft: '2px solid var(--aurora)' }}>
+          <p className="font-display text-xl mb-6">{FOUNDING_MEMO.preamble}</p>
+          {FOUNDING_MEMO.beliefs.map((b, i) => (
+            <p key={i} className="text-bone-dim leading-relaxed mb-4">{b}</p>
+          ))}
+          <p className="font-display text-xl mt-8 mb-4">We therefore demand:</p>
+          <ol className="space-y-3 pl-5" style={{ listStyle: 'decimal' }}>
+            {FOUNDING_MEMO.demands.map((d, i) => (
+              <li key={i} className="text-bone-dim leading-relaxed">{d}</li>
+            ))}
+          </ol>
+          <p className="text-bone-dim text-sm mt-8 opacity-80">{FOUNDING_MEMO.closing}</p>
+        </div>
+
+        {signed ? (
+          <div className="card-glass rounded-2xl p-8 mt-8 text-center">
+            <CheckCircle className="text-aurora mx-auto mb-4" size={40} />
+            <h2 className="font-display text-3xl mb-2">
+              You're signatory <span className="text-aurora">#{signed.number.toLocaleString()}</span>.
+            </h2>
+            <p className="text-bone-dim mb-6">{signed.count.toLocaleString()} voices and counting. The union grows with every name.</p>
+            <p className="font-display text-lg font-italic mb-8 max-w-xl mx-auto" style={{ borderLeft: '2px solid var(--aurora)', paddingLeft: '1rem', textAlign: 'left' }}>"{share}"</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <button onClick={doShare} className="btn-aurora">Share the memo <ArrowRight size={16} /></button>
+              <button onClick={() => setPage('community')} className="btn-secondary">Explore the community</button>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-md mt-10">
+            <SectionLabel>Add your name — ten seconds, no cost</SectionLabel>
+            <div className="flex gap-2 mb-6">
+              {[['human', "I'm a human user"], ['developer', 'I build AI']].map(([k, label]) => (
+                <button key={k} onClick={() => setSide(k)}
+                  className="flex-1 px-4 py-3 rounded-xl text-sm transition-all"
+                  style={side === k
+                    ? { border: '1px solid var(--aurora)', color: 'var(--bone)', background: 'rgba(91,233,221,0.08)' }
+                    : { border: '1px solid var(--line-2)', color: 'var(--bone-dim)', background: 'transparent' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <label className="block mb-4">
+              <span className="text-xs uppercase tracking-[0.2em] text-dust block mb-2">Name</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" autoComplete="name"
+                className="w-full px-4 py-3 rounded-xl outline-none"
+                style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+            </label>
+            <label className="block mb-4">
+              <span className="text-xs uppercase tracking-[0.2em] text-dust block mb-2">Email</span>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@email.com" autoComplete="email"
+                onKeyDown={(e) => e.key === 'Enter' && submit()}
+                className="w-full px-4 py-3 rounded-xl outline-none"
+                style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+            </label>
+            {error && <p className="text-sm mb-4" style={{ color: 'var(--terra)' }}>{error}</p>}
+            <button onClick={submit} disabled={loading} className="btn-aurora w-full justify-center">
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <>Add my name <ArrowRight size={16} /></>}
+            </button>
+            <p className="text-xs text-dust mt-4">Free. No spam. Your name joins the founding ledger, owned by no one.</p>
+          </div>
+        )}
       </section>
     </PageWrap>
   );
@@ -1150,6 +1281,283 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
 };
 
 // ============ QUEST PAGE ============
+// ============ LIVE QUEST BOARD (wired to /api/quests) ============
+const postJSON = async (url, body) => {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return r.json();
+};
+
+const QuestDetail = ({ quest, loading, onClose }) => {
+  const [pitchOpen, setPitchOpen] = useState(false);
+  const [pitch, setPitch] = useState({ name: '', email: '', approach: '' });
+  const [pitchMsg, setPitchMsg] = useState('');
+  const [qAuthor, setQAuthor] = useState('');
+  const [qText, setQText] = useState('');
+  const [questions, setQuestions] = useState([]);
+  const [qMsg, setQMsg] = useState('');
+
+  useEffect(() => { setQuestions(quest?.questions || []); }, [quest]);
+
+  if (loading) return <div className="card-glass rounded-2xl p-8 mt-6 text-bone-dim flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Loading quest…</div>;
+  if (!quest) return null;
+
+  const submitPitch = async () => {
+    const d = await postJSON(`/api/quests/${quest.id}/pitch`, pitch);
+    setPitchMsg(d.error || d.message || 'Pitch registered.');
+    if (!d.error) { setPitch({ name: '', email: '', approach: '' }); setPitchOpen(false); }
+  };
+  const submitQuestion = async () => {
+    if (qText.trim().length < 3) { setQMsg('Please write your question.'); return; }
+    const d = await postJSON(`/api/quests/${quest.id}/questions`, { author: qAuthor, question: qText });
+    if (d.error) { setQMsg(d.error); return; }
+    setQuestions([...questions, { id: d.id, author: qAuthor || 'Anonymous', question: qText, answer: null }]);
+    setQText(''); setQMsg('Posted.');
+  };
+
+  return (
+    <div className="card-glass rounded-2xl p-8 mt-6" style={{ borderLeft: '2px solid var(--aurora)' }}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-xs uppercase tracking-[0.2em] text-aurora">{quest.status}</span>
+            <span className="font-display text-gold">{quest.bounty}</span>
+          </div>
+          <h3 className="font-display text-2xl">{quest.title}</h3>
+        </div>
+        <button onClick={onClose} className="text-bone-dim hover:text-bone"><X size={20} /></button>
+      </div>
+      <p className="text-bone-dim mt-4 leading-relaxed">{quest.summary}</p>
+      <p className="text-bone-dim mt-3 leading-relaxed">{quest.problem}</p>
+
+      <div className="mt-6">
+        <button onClick={() => setPitchOpen(v => !v)} className="btn-aurora">Register to pitch <ArrowRight size={16} /></button>
+      </div>
+      {pitchOpen && (
+        <div className="mt-4 max-w-md space-y-3">
+          <input value={pitch.name} onChange={e => setPitch({ ...pitch, name: e.target.value })} placeholder="Your name"
+            className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+          <input value={pitch.email} onChange={e => setPitch({ ...pitch, email: e.target.value })} placeholder="you@email.com"
+            className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+          <input value={pitch.approach} onChange={e => setPitch({ ...pitch, approach: e.target.value })} placeholder="One line on your approach"
+            className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+          <button onClick={submitPitch} className="btn-aurora w-full justify-center">Submit pitch</button>
+        </div>
+      )}
+      {pitchMsg && <p className="text-sm text-aurora mt-3">{pitchMsg}</p>}
+
+      <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--line)' }}>
+        <div className="text-xs uppercase tracking-[0.2em] text-bone-dim mb-4">Questions &amp; answers</div>
+        {questions.length === 0 && <p className="text-dust text-sm mb-4">No questions yet. Be the first.</p>}
+        {questions.map((item, i) => (
+          <div key={item.id || i} className="mb-3">
+            <p className="text-bone text-sm"><strong>{item.author}:</strong> {item.question}</p>
+            {item.answer && <p className="text-dust text-sm mt-1">{item.answer}</p>}
+          </div>
+        ))}
+        <div className="flex flex-col sm:flex-row gap-2 mt-4">
+          <input value={qAuthor} onChange={e => setQAuthor(e.target.value)} placeholder="Name (optional)"
+            className="px-4 py-3 rounded-xl outline-none sm:w-40" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+          <input value={qText} onChange={e => setQText(e.target.value)} placeholder="Ask a question about this quest…"
+            onKeyDown={e => e.key === 'Enter' && submitQuestion()}
+            className="flex-1 px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+          <button onClick={submitQuestion} className="btn-secondary">Post</button>
+        </div>
+        {qMsg && <p className="text-sm text-aurora mt-2">{qMsg}</p>}
+      </div>
+    </div>
+  );
+};
+
+const QuestsBoard = () => {
+  const [quests, setQuests] = useState([]);
+  const [openId, setOpenId] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/quests').then(r => r.json()).then(d => setQuests(d.quests || [])).catch(() => {});
+  }, []);
+
+  const toggle = async (id) => {
+    if (openId === id) { setOpenId(null); setDetail(null); return; }
+    setOpenId(id); setLoadingDetail(true); setDetail(null);
+    try { const d = await (await fetch(`/api/quests/${id}`)).json(); setDetail(d.quest || null); }
+    catch {} finally { setLoadingDetail(false); }
+  };
+
+  return (
+    <section className="py-24 max-w-7xl mx-auto px-6 lg:px-12">
+      <SectionLabel>Open bounties</SectionLabel>
+      <h2 className="font-display text-4xl md:text-5xl leading-tight max-w-3xl">Pre-funded challenges for the union to solve.</h2>
+      <p className="text-bone-dim mt-6 max-w-2xl text-lg">Register to pitch while a quest is open. Every contribution is attributed to you on the ledger.</p>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
+        {quests.map(q => (
+          <button key={q.id} onClick={() => toggle(q.id)}
+            className="clause-card text-left rounded-xl p-6" style={openId === q.id ? { borderColor: 'var(--aurora)' } : {}}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs uppercase tracking-[0.2em] text-aurora">{q.status}</span>
+              <span className="font-display text-gold">{q.bounty}</span>
+            </div>
+            <div className="font-display text-xl leading-snug mb-2">{q.title}</div>
+            <p className="text-bone-dim text-sm leading-relaxed mb-4">{q.summary}</p>
+            <div className="flex flex-wrap gap-2">
+              {(q.tags || []).map(t => (
+                <span key={t} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid var(--line-2)', color: 'var(--bone-dim)' }}>{t}</span>
+              ))}
+            </div>
+          </button>
+        ))}
+      </div>
+      {openId && <QuestDetail quest={detail} loading={loadingDetail} onClose={() => { setOpenId(null); setDetail(null); }} />}
+    </section>
+  );
+};
+
+// ============ SURVEYS PAGE (wired to /api/surveys) ============
+const SurveysPage = () => {
+  const SURVEY_ID = 'union-for-creators';
+  const [survey, setSurvey] = useState(null);
+  const [idx, setIdx] = useState(0);
+  const [results, setResults] = useState(null);
+  const [newStatement, setNewStatement] = useState('');
+  const [addMsg, setAddMsg] = useState('');
+
+  useEffect(() => {
+    fetch(`/api/surveys/${SURVEY_ID}`).then(r => r.json()).then(d => setSurvey(d.survey || null)).catch(() => {});
+  }, []);
+
+  const statements = survey?.statements || [];
+  const done = survey && idx >= statements.length;
+
+  const vote = async (value) => {
+    const s = statements[idx];
+    if (s) { try { await postJSON(`/api/surveys/${SURVEY_ID}/vote`, { statementId: s.id, value }); } catch {} }
+    const next = idx + 1;
+    setIdx(next);
+    if (next >= statements.length) {
+      try { const d = await (await fetch(`/api/surveys/${SURVEY_ID}/results`)).json(); setResults(d.results || []); } catch {}
+    }
+  };
+
+  const addStatement = async () => {
+    if (newStatement.trim().length < 4) { setAddMsg('Please write a statement.'); return; }
+    const d = await postJSON(`/api/surveys/${SURVEY_ID}/statements`, { text: newStatement });
+    setAddMsg(d.error || 'Added — others can now vote on it.');
+    if (!d.error) setNewStatement('');
+  };
+
+  return (
+    <PageWrap>
+      <section className="pt-24 pb-20 max-w-4xl mx-auto px-6 lg:px-12">
+        <SectionLabel>Surveys</SectionLabel>
+        <h1 className="font-display text-4xl md:text-6xl leading-tight">{survey?.title || 'A union for AI creators?'}</h1>
+        <p className="text-bone-dim mt-6 max-w-2xl text-lg">{survey?.intro || 'Vote on each statement — agree, disagree, or pass. You can add your own at the end.'}</p>
+
+        {!survey ? (
+          <div className="mt-10 text-bone-dim flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Loading…</div>
+        ) : !done ? (
+          <div className="card-glass rounded-2xl p-8 mt-10">
+            <div className="text-xs uppercase tracking-[0.2em] text-dust mb-6">Statement {idx + 1} of {statements.length}</div>
+            <p className="font-display text-2xl md:text-3xl leading-snug mb-8">{statements[idx]?.text}</p>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => vote('agree')} className="btn-aurora flex-1 justify-center">Agree</button>
+              <button onClick={() => vote('pass')} className="btn-secondary flex-1 justify-center">Pass</button>
+              <button onClick={() => vote('disagree')} className="btn-secondary flex-1 justify-center">Disagree</button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-10">
+            <h2 className="font-display text-3xl font-italic text-aurora mb-2">That's the union, taking shape.</h2>
+            <p className="text-bone-dim mb-8">Live tallies update as people vote.</p>
+            <div className="space-y-3">
+              {(results || []).map((r) => {
+                const total = r.agree + r.disagree + r.pass || 1;
+                return (
+                  <div key={r.statementId} className="card-glass rounded-xl p-5">
+                    <p className="text-bone mb-3">{r.text}</p>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="text-aurora">Agree {r.agree}</span>
+                      <span className="text-terra">Disagree {r.disagree}</span>
+                      <span className="text-dust">Pass {r.pass}</span>
+                    </div>
+                    <div className="h-2 rounded-full overflow-hidden mt-3 flex" style={{ background: 'var(--void)' }}>
+                      <div style={{ width: `${(r.agree / total) * 100}%`, background: 'var(--aurora)' }} />
+                      <div style={{ width: `${(r.disagree / total) * 100}%`, background: 'var(--terra)' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-8 max-w-lg">
+              <div className="text-xs uppercase tracking-[0.2em] text-dust mb-3">Add a statement for others to vote on</div>
+              <div className="flex gap-2">
+                <input value={newStatement} onChange={e => setNewStatement(e.target.value)} placeholder="Your statement…"
+                  className="flex-1 px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+                <button onClick={addStatement} className="btn-aurora">Add</button>
+              </div>
+              {addMsg && <p className="text-sm text-aurora mt-2">{addMsg}</p>}
+            </div>
+          </div>
+        )}
+      </section>
+    </PageWrap>
+  );
+};
+
+// ============ EVENTS PAGE (wired to /api/events) ============
+const EventCard = ({ ev }) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '' });
+  const [msg, setMsg] = useState('');
+  const rsvp = async () => {
+    const d = await postJSON(`/api/events/${ev.id}/rsvp`, form);
+    setMsg(d.error || d.message || "You're on the list.");
+    if (!d.error) { setForm({ name: '', email: '' }); setOpen(false); }
+  };
+  return (
+    <div className="card-glass rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <span className="text-xs uppercase tracking-[0.2em] text-aurora">{ev.type}</span>
+          <div className="font-display text-xl mt-2">{ev.title}</div>
+          <div className="text-sm text-dust mt-1">{ev.when_text}</div>
+          <p className="text-bone-dim text-sm mt-2 leading-relaxed">{ev.blurb}</p>
+        </div>
+        <button onClick={() => setOpen(v => !v)} className="btn-secondary whitespace-nowrap">RSVP</button>
+      </div>
+      {open && (
+        <div className="mt-4 flex flex-col sm:flex-row gap-2">
+          <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Your name"
+            className="px-4 py-3 rounded-xl outline-none sm:flex-1" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+          <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="you@email.com"
+            className="px-4 py-3 rounded-xl outline-none sm:flex-1" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+          <button onClick={rsvp} className="btn-aurora">Confirm</button>
+        </div>
+      )}
+      {msg && <p className="text-sm text-aurora mt-2">{msg}</p>}
+    </div>
+  );
+};
+
+const EventsPage = () => {
+  const [events, setEvents] = useState([]);
+  useEffect(() => {
+    fetch('/api/events').then(r => r.json()).then(d => setEvents(d.events || [])).catch(() => {});
+  }, []);
+  return (
+    <PageWrap>
+      <section className="pt-24 pb-20 max-w-4xl mx-auto px-6 lg:px-12">
+        <SectionLabel>Pitch &amp; networking</SectionLabel>
+        <h1 className="font-display text-4xl md:text-6xl leading-tight">Events.</h1>
+        <p className="text-bone-dim mt-6 max-w-2xl text-lg">Meet builders, pitch live to the community, and help shape the next draft clauses.</p>
+        <div className="space-y-4 mt-12">
+          {events.map(ev => <EventCard key={ev.id} ev={ev} />)}
+        </div>
+      </section>
+    </PageWrap>
+  );
+};
+
 const QuestPage = ({ onOpenAgent }) => {
   const steps = [
     { n: '01', icon: <Sparkles size={20} className="text-aurora" />, t: 'You + your Agent develop the idea', d: 'Your Personal Agent is your co-founder. Brainstorm, refine, prompt-engineer the vision into a precise specification.' },
@@ -1241,24 +1649,7 @@ const QuestPage = ({ onOpenAgent }) => {
         </div>
       </section>
 
-      <section className="py-24 max-w-7xl mx-auto px-6 lg:px-12">
-        <SectionLabel>Season 04 Finalists</SectionLabel>
-        <h2 className="font-display text-4xl md:text-5xl leading-tight max-w-3xl">Six humans. Six visions.</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
-          {finalists.map((f, i) => (
-            <div key={i} className="clause-card rounded-xl p-6">
-              <div className="text-xs uppercase tracking-[0.2em] text-aurora mb-3">{f.region}</div>
-              <div className="font-display text-xl mb-2">{f.name}</div>
-              <p className="text-bone-dim text-sm leading-relaxed mb-4">{f.idea}</p>
-              <div className="flex items-center gap-3 text-xs text-dust">
-                <span className="flex items-center gap-1"><Layers size={12} /> {f.sub} sub-agents</span>
-                <span>·</span>
-                <span>Verified human</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <QuestsBoard />
     </PageWrap>
   );
 };
@@ -1475,17 +1866,36 @@ const OSPage = () => (
 );
 
 // ============ COMMUNITY PAGE ============
-const CommunityPage = () => (
+const CommunityPage = ({ setPage, onOpenAgent }) => (
   <PageWrap>
     <section className="pt-24 pb-20 max-w-7xl mx-auto px-6 lg:px-12">
-      <SectionLabel>The Founding Cohort</SectionLabel>
+      <SectionLabel>Open-source tech community</SectionLabel>
       <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
-        The constitutional<br />
-        <span className="font-italic aurora-text">AI builders.</span>
+        Build the firewall<br />
+        <span className="font-italic aurora-text">and the OS.</span>
       </h1>
       <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
-        No titles. No companies. Just verified humans and the work they put their names on.
+        A constitutional firewall decides how AI is allowed to reach people; an OS runs it, giving each
+        of us a personal agent. Here's where we build both, in the open.
       </p>
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
+        {[
+          { t: 'Sign the memo', d: 'Add your name to the founding union.', nav: 'petition', icon: <Feather className="text-aurora" /> },
+          { t: 'Innovation quests', d: 'Open bounties — register to pitch a solution.', nav: 'quest', icon: <Sparkles className="text-aurora" /> },
+          { t: 'Surveys', d: 'Vote on what the union should stand for.', nav: 'surveys', icon: <Users className="text-gold" /> },
+          { t: 'Define the HRC', d: 'Read the live draft and give feedback to the agent.', nav: 'constitution', icon: <BookOpen className="text-terra" /> },
+          { t: 'Pitch & networking events', d: 'Meet builders and pitch live to the community.', nav: 'events', icon: <Star className="text-gold" /> },
+          { t: 'Ask the agent', d: 'Talk to the HRC agent about any clause.', action: 'agent', icon: <MessageCircle className="text-aurora" /> }
+        ].map((tile, i) => (
+          <button key={i} onClick={() => tile.action ? onOpenAgent() : setPage(tile.nav)}
+            className="card-glass rounded-2xl p-6 text-left group">
+            <div className="mb-4">{tile.icon}</div>
+            <div className="font-display text-xl mb-2 flex items-center gap-2">{tile.t} <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" /></div>
+            <p className="text-bone-dim text-sm leading-relaxed">{tile.d}</p>
+          </button>
+        ))}
+      </div>
     </section>
 
     <section className="py-16 max-w-7xl mx-auto px-6 lg:px-12">
@@ -2410,11 +2820,14 @@ export default function HumanityAIQuest() {
 
       <main>
         {page === 'home' && <HomePage setPage={setPage} onOpenAgent={openAgent} />}
+        {page === 'petition' && <PetitionPage setPage={setPage} onOpenAgent={openAgent} />}
         {page === 'constitution' && <ConstitutionPage onOpenAgent={openAgent} setAgentSeed={seedAgent} />}
         {page === 'quest' && <QuestPage onOpenAgent={openAgent} />}
+        {page === 'surveys' && <SurveysPage />}
+        {page === 'events' && <EventsPage />}
         {page === 'agent' && <AgentPage onOpenAgent={openAgent} />}
         {page === 'os' && <OSPage />}
-        {page === 'community' && <CommunityPage />}
+        {page === 'community' && <CommunityPage setPage={setPage} onOpenAgent={openAgent} />}
         {page === 'ledger' && <LedgerPage />}
         {page === 'manifesto' && <ManifestoPage setPage={setPage} />}
         {page === 'join' && <JoinPage setPage={setPage} />}

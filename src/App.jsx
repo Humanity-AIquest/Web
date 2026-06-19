@@ -662,16 +662,70 @@ const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
 };
 
 // ============ NAV ============
+// Grouped menu — two primary CTAs (Sign the Memo, Join the Community) plus a
+// Vision group, replacing the old flat overflowing nav.
+const NAV_GROUPS = {
+  community: [
+    { id: 'quest', name: 'Innovation Quests', desc: 'Open bounties — pitch a solution' },
+    { id: 'surveys', name: 'Surveys', desc: 'Vote on what the union stands for' },
+    { id: 'events', name: 'Pitch & networking events', desc: 'Meet builders, pitch live' },
+    { id: 'media', name: 'Media', desc: 'Podcasts & writing' },
+    { id: 'courses', name: 'Courses', desc: 'Opens after our first funding' },
+    { id: 'constitution', name: 'Define the HRC', desc: 'Read the draft, give feedback' },
+  ],
+  vision: [
+    { id: 'constitution', name: 'The Constitution', desc: 'The 52 living clauses' },
+    { id: 'os', name: 'The OS', desc: 'How the system runs' },
+    { id: 'ledger', name: 'The Ledger', desc: 'Attribution, forever' },
+    { id: 'manifesto', name: 'Manifesto', desc: 'Why we build' },
+    { id: 'agent', name: 'Your Agent', desc: 'Your digital self' },
+    { id: 'about', name: 'About', desc: 'Origin & governance' },
+  ],
+};
+
+const NavDropdown = ({ label, items, page, setPage, openMenu, setOpenMenu }) => {
+  const isOpen = openMenu === label;
+  const activeHere = items.some(it => it.id === page);
+  return (
+    <div className="relative" onMouseEnter={() => setOpenMenu(label)} onMouseLeave={() => setOpenMenu(null)}>
+      <button onClick={() => setOpenMenu(isOpen ? null : label)}
+        className="px-3 py-1.5 text-sm tracking-wide flex items-center gap-1 transition-colors"
+        style={{ color: (isOpen || activeHere) ? 'var(--aurora)' : 'var(--bone-dim)' }}>
+        {label}
+        <ChevronDown size={14} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
+      </button>
+      {isOpen && (
+        <div className="absolute left-0 top-full pt-2">
+          <div className="rounded-2xl p-2 shadow-2xl" style={{ minWidth: 270, background: 'rgba(7,16,31,0.98)', border: '1px solid var(--line-2)', backdropFilter: 'blur(12px)' }}>
+            {items.map(it => (
+              <button key={it.name} onClick={() => { setPage(it.id); setOpenMenu(null); }}
+                className="w-full text-left px-4 py-3 rounded-xl flex flex-col gap-0.5 hover:bg-cosmos transition-colors"
+                style={{ color: page === it.id ? 'var(--aurora)' : 'var(--bone)' }}>
+                <span className="text-sm font-display">{it.name}</span>
+                {it.desc && <span className="text-xs text-bone-dim">{it.desc}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
   const [open, setOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null);
+  const [mobileGroup, setMobileGroup] = useState(null);
+  const go = (id) => { setPage(id); setOpen(false); setOpenMenu(null); };
+
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md" style={{
         background: 'rgba(7, 16, 31, 0.7)',
         borderBottom: '1px solid var(--line)'
       }}>
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
-          <button onClick={() => setPage('home')} className="flex items-center gap-3 group">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 h-16 flex items-center justify-between gap-4">
+          <button onClick={() => go('home')} className="flex items-center gap-3 group flex-shrink-0">
             <svg width="32" height="32" viewBox="0 0 32 32" className="animate-glow-breathe">
               <circle cx="16" cy="16" r="6" fill="var(--aurora)" opacity="0.9" />
               <circle cx="16" cy="16" r="11" fill="none" stroke="var(--gold)" strokeWidth="0.6" opacity="0.5" />
@@ -680,24 +734,25 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
               <circle cx="5" cy="16" r="1" fill="var(--bone)" opacity="0.6" />
               <circle cx="16" cy="5" r="1" fill="var(--terra)" opacity="0.7" />
             </svg>
-            <span className="font-display text-lg tracking-tight text-bone">Humanity-AI<span className="text-aurora">.</span>Quest</span>
+            <span className="font-display text-lg tracking-tight text-bone hidden sm:inline">Humanity-AI<span className="text-aurora">.</span>Quest</span>
           </button>
 
           <div className="hidden lg:flex items-center gap-1">
-            {PAGES.map(p => (
-              <button key={p.id} onClick={() => setPage(p.id)}
-                className="px-3 py-1.5 text-sm tracking-wide transition-colors"
-                style={{
-                  color: page === p.id ? 'var(--aurora)' : 'var(--bone-dim)'
-                }}>
-                {p.name}
-              </button>
-            ))}
+            <button onClick={() => go('petition')}
+              className="px-3 py-1.5 text-sm tracking-wide transition-colors"
+              style={{ color: page === 'petition' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
+              The Memo
+            </button>
+            <NavDropdown label="Community" items={NAV_GROUPS.community} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
+            <NavDropdown label="The Vision" items={NAV_GROUPS.vision} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => go('petition')} className="btn-aurora hidden sm:inline-flex" style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem' }}>
+              Sign the Memo <ArrowRight size={14} />
+            </button>
             <button onClick={onOpenAgent}
-              className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
+              className="hidden xl:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
               style={{ borderColor: 'var(--line-2)', color: 'var(--bone)' }}>
               <Sparkles size={14} className="text-aurora" />
               <span>HRC Agent</span>
@@ -705,35 +760,27 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
             {auth?.user ? (
               <>
                 {(auth.user.acl_level ?? 0) >= 1 && (
-                  <button onClick={() => setPage('admin')}
+                  <button onClick={() => go('admin')}
                     className="hidden md:inline-flex items-center gap-2 px-3 py-2 text-sm rounded-full border transition-all"
                     style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
                     <Settings size={14} />
-                    <span>Admin</span>
+                    <span className="hidden lg:inline">Admin</span>
                   </button>
                 )}
-                <button onClick={() => setPage('account')}
+                <button onClick={() => go('account')}
                   className="hidden md:inline-flex items-center gap-2 px-3 py-2 text-sm rounded-full border transition-all"
                   style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>
                   <User size={14} />
-                  <span>{auth.user.display_name}</span>
+                  <span className="hidden lg:inline">{auth.user.display_name}</span>
                 </button>
               </>
             ) : (
-              <>
-                <button onClick={() => onOpenAuth('signup')}
-                  className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
-                  style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>
-                  <UserPlus size={14} />
-                  <span>Sign Up</span>
-                </button>
-                <button onClick={() => onOpenAuth('login')}
-                  className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
-                  style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
-                  <LogIn size={14} />
-                  <span>Sign In</span>
-                </button>
-              </>
+              <button onClick={() => onOpenAuth('login')}
+                className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
+                style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+                <LogIn size={14} />
+                <span>Sign In</span>
+              </button>
             )}
             <button onClick={() => setOpen(!open)} className="lg:hidden p-2">
               {open ? <X size={20} /> : <Menu size={20} />}
@@ -742,20 +789,48 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
         </div>
 
         {open && (
-          <div className="lg:hidden border-t" style={{ borderColor: 'var(--line)' }}>
-            <div className="px-6 py-4 grid grid-cols-2 gap-2">
-              {PAGES.map(p => (
-                <button key={p.id} onClick={() => { setPage(p.id); setOpen(false); }}
-                  className="text-left px-3 py-2 text-sm"
-                  style={{ color: page === p.id ? 'var(--aurora)' : 'var(--bone-dim)' }}>
-                  {p.name}
-                </button>
+          <div className="lg:hidden border-t" style={{ borderColor: 'var(--line)', maxHeight: '80vh', overflowY: 'auto' }}>
+            <div className="px-6 py-4 space-y-1">
+              <button onClick={() => go('petition')} className="btn-aurora w-full justify-center mb-2">Sign the Memo <ArrowRight size={14} /></button>
+              {[['Community', 'community'], ['The Vision', 'vision']].map(([label, key]) => (
+                <div key={key}>
+                  <button onClick={() => setMobileGroup(mobileGroup === key ? null : key)}
+                    className="w-full flex items-center justify-between px-2 py-3 text-sm font-display"
+                    style={{ color: 'var(--bone)' }}>
+                    {label}
+                    <ChevronDown size={16} style={{ transform: mobileGroup === key ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
+                  </button>
+                  {mobileGroup === key && (
+                    <div className="pl-3 pb-2">
+                      {NAV_GROUPS[key].map(it => (
+                        <button key={it.name} onClick={() => go(it.id)}
+                          className="w-full text-left px-3 py-2.5 text-sm rounded-lg hover:bg-cosmos"
+                          style={{ color: page === it.id ? 'var(--aurora)' : 'var(--bone-dim)' }}>
+                          {it.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
               <button onClick={() => { onOpenAgent(); setOpen(false); }}
-                className="col-span-2 mt-2 px-3 py-2 text-sm rounded-full border flex items-center justify-center gap-2"
+                className="w-full mt-2 px-3 py-3 text-sm rounded-full border flex items-center justify-center gap-2"
                 style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>
                 <Sparkles size={14} /> Open HRC Agent
               </button>
+              {auth?.user ? (
+                <div className="flex gap-2 pt-2">
+                  {(auth.user.acl_level ?? 0) >= 1 && (
+                    <button onClick={() => go('admin')} className="flex-1 px-3 py-2.5 text-sm rounded-full border" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>Admin</button>
+                  )}
+                  <button onClick={() => go('account')} className="flex-1 px-3 py-2.5 text-sm rounded-full border" style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>{auth.user.display_name}</button>
+                </div>
+              ) : (
+                <div className="flex gap-2 pt-2">
+                  <button onClick={() => { onOpenAuth('login'); setOpen(false); }} className="flex-1 px-3 py-2.5 text-sm rounded-full border" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>Sign In</button>
+                  <button onClick={() => { onOpenAuth('signup'); setOpen(false); }} className="flex-1 px-3 py-2.5 text-sm rounded-full border" style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>Sign Up</button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1022,20 +1097,19 @@ const HomePage = ({ setPage, onOpenAgent }) => {
 };
 
 // ============ FOUNDING MEMO + PETITION PAGE ============
+// EDIT ME: initial draft of the petition text — the founder will revise this.
 const FOUNDING_MEMO = {
   version: 'Draft v0.1 · open for your edits',
-  preamble: 'We, the collective users of the internet, together with the people who build AI, declare:',
-  beliefs: [
-    'That AI is, at its core, the power to connect every person on Earth directly — each of us represented by a single personal agent, a digital self that vouches for us and answers only to us.',
-    'That this power must be defined, governed, and controlled democratically — by the people it affects — not handed to corporations or states by default.'
-  ],
+  union: 'A united, democratic union of human users and AI developers.',
+  preamble: 'We, the collective users of the internet, demand:',
   demands: [
-    'A democratic framework for how AI meets people — how it is regulated, defined, and how it is allowed to interface with us.',
-    'One personal agent per person — a digital self that represents you, protects you, and speaks for you, owned by no one else.',
-    'A direct line to the will of the people — so that, for the first time in history, what humanity actually wants can be known, and acted on.',
-    'An open seat for everyone — users and experts alike — free to participate, contribute, and collaborate, with the old barriers removed.'
+    'A framework for regulating, defining, and controlling the way AI interfaces with humanity — decided democratically, by the people it affects.',
   ],
-  closing: 'This memo is our starting point. The detailed charter — the Humanities-AI Rights Constitution — is being written in the open, by the people who sign here. Add your name, and help write it.'
+  reasoning: [
+    'Because AI is, at its core, nothing other than the ability to connect every person on Earth directly — each of us represented by a single personal, digital, agentic self that vouches for us and answers only to us.',
+    'Because, for the first time in history, we are able to know the will of the people — with users and experts alike empowered to participate, contribute, and collaborate, and the traditional barriers removed.',
+  ],
+  closing: "This is our starting point — open for your edits. There's no sense in signing a constitution that is still being written; so we sign this instead: the founding memo of the union that will write it.",
 };
 
 const PetitionPage = ({ setPage, onOpenAgent }) => {
@@ -1083,17 +1157,16 @@ const PetitionPage = ({ setPage, onOpenAgent }) => {
         </p>
 
         <div className="card-glass rounded-2xl p-8 mt-10" style={{ borderLeft: '2px solid var(--aurora)' }}>
-          <p className="font-display text-xl mb-6">{FOUNDING_MEMO.preamble}</p>
-          {FOUNDING_MEMO.beliefs.map((b, i) => (
-            <p key={i} className="text-bone-dim leading-relaxed mb-4">{b}</p>
-          ))}
-          <p className="font-display text-xl mt-8 mb-4">We therefore demand:</p>
-          <ol className="space-y-3 pl-5" style={{ listStyle: 'decimal' }}>
+          <p className="font-display text-xl mb-5">{FOUNDING_MEMO.preamble}</p>
+          <ol className="space-y-3 pl-5 mb-6" style={{ listStyle: 'decimal' }}>
             {FOUNDING_MEMO.demands.map((d, i) => (
-              <li key={i} className="text-bone-dim leading-relaxed">{d}</li>
+              <li key={i} className="text-bone leading-relaxed text-lg">{d}</li>
             ))}
           </ol>
-          <p className="text-bone-dim text-sm mt-8 opacity-80">{FOUNDING_MEMO.closing}</p>
+          {FOUNDING_MEMO.reasoning.map((r, i) => (
+            <p key={i} className="text-bone-dim leading-relaxed mb-4">{r}</p>
+          ))}
+          <p className="text-bone-dim text-sm mt-6 pt-6 opacity-80" style={{ borderTop: '1px solid var(--line)' }}>{FOUNDING_MEMO.closing}</p>
         </div>
 
         {signed ? (
@@ -1177,9 +1250,9 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
             <span className="font-italic aurora-text">for Artificial Intelligence.</span>
           </h1>
           <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
-            Fifty-two living clauses, organized across rights, governance, and operations.
-            Click any clause to read its full text and reasoning. Discuss any clause with the HRC Agent
-            to explore its implications for your work.
+            Fifty-two living clauses, organized across rights, governance, and operations — the draft the
+            union signs and amends in the open. Click any clause to read its full text and reasoning, or
+            discuss it with the HRC Agent to explore what it means for your work.
           </p>
 
           <div className="mt-10 flex flex-wrap gap-2">
@@ -1758,7 +1831,7 @@ const AgentPage = ({ onOpenAgent }) => (
 );
 
 // ============ OS PAGE ============
-const OSPage = () => (
+const OSPage = ({ setPage }) => (
   <PageWrap>
     <section className="relative pt-24 pb-20 grain">
       <AgentNetwork density={50} height="100%" />
@@ -1862,6 +1935,16 @@ const OSPage = () => (
         </div>
       </div>
     </section>
+
+    <section className="py-24 max-w-4xl mx-auto px-6 lg:px-12 text-center">
+      <h2 className="font-display text-3xl md:text-4xl leading-tight">
+        The OS is gifted to humanity. <span className="font-italic text-aurora">Help architect it.</span>
+      </h2>
+      <div className="mt-8 flex flex-wrap gap-3 justify-center">
+        <button onClick={() => setPage('petition')} className="btn-aurora">Sign the petition <ArrowRight size={16} /></button>
+        <button onClick={() => setPage('community')} className="btn-secondary">Build with us <ArrowRight size={16} /></button>
+      </div>
+    </section>
   </PageWrap>
 );
 
@@ -1886,6 +1969,8 @@ const CommunityPage = ({ setPage, onOpenAgent }) => (
           { t: 'Surveys', d: 'Vote on what the union should stand for.', nav: 'surveys', icon: <Users className="text-gold" /> },
           { t: 'Define the HRC', d: 'Read the live draft and give feedback to the agent.', nav: 'constitution', icon: <BookOpen className="text-terra" /> },
           { t: 'Pitch & networking events', d: 'Meet builders and pitch live to the community.', nav: 'events', icon: <Star className="text-gold" /> },
+          { t: 'Media', d: 'Podcasts and writing from the movement.', nav: 'media', icon: <Mic className="text-aurora" /> },
+          { t: 'Courses', d: 'Open after our first funding milestone.', nav: 'courses', icon: <BookOpen className="text-gold" /> },
           { t: 'Ask the agent', d: 'Talk to the HRC agent about any clause.', action: 'agent', icon: <MessageCircle className="text-aurora" /> }
         ].map((tile, i) => (
           <button key={i} onClick={() => tile.action ? onOpenAgent() : setPage(tile.nav)}
@@ -1951,7 +2036,7 @@ const CommunityPage = ({ setPage, onOpenAgent }) => (
 );
 
 // ============ LEDGER PAGE ============
-const LedgerPage = () => {
+const LedgerPage = ({ setPage }) => {
   const total = useAnimatedCount(8924);
   const today = useAnimatedCount(127);
 
@@ -2022,6 +2107,10 @@ const LedgerPage = () => {
             AI-generated innovations credit their human collaborators or enter the public domain.
             Resources flow to humans who steward ideas — but the ideas themselves belong to humanity.
           </p>
+          <div className="mt-10 flex flex-wrap gap-3 justify-center">
+            <button onClick={() => setPage('petition')} className="btn-aurora">Sign the petition <ArrowRight size={16} /></button>
+            <button onClick={() => setPage('quest')} className="btn-secondary">See the quests <ArrowRight size={16} /></button>
+          </div>
         </div>
       </section>
     </PageWrap>
@@ -2066,11 +2155,11 @@ const ManifestoPage = ({ setPage }) => (
         </p>
         <p>
           The Hippocratic Oath transformed medicine because every physician took it. The HRC transforms AI because
-          every constitutional builder takes it. Sign the constitution. Claim your agent. Enter the Quest. Build
-          the OS.
+          every creator who builds it takes it. Sign the memo. Claim your agent. Build the firewall. Gift the OS
+          to humanity.
         </p>
         <p>
-          The future is being written this decade. Write it with us.
+          The future is being written this decade — before the rules are written without us. Write it with us.
         </p>
       </div>
 
@@ -2083,7 +2172,7 @@ const ManifestoPage = ({ setPage }) => (
           attention. I protect the dignity of every human I encounter. I build for a thousand years."
         </blockquote>
         <div className="mt-10 flex flex-wrap gap-3">
-          <button onClick={() => setPage('join')} className="btn-aurora">Take the Pledge <ArrowRight size={16} /></button>
+          <button onClick={() => setPage('petition')} className="btn-aurora">Sign the petition <ArrowRight size={16} /></button>
           <button onClick={() => setPage('constitution')} className="btn-secondary">Read the full constitution <ArrowRight size={16} /></button>
         </div>
       </div>
@@ -2100,16 +2189,17 @@ const JoinPage = ({ setPage }) => (
         Three doors. <span className="font-italic aurora-text">One movement.</span>
       </h1>
       <p className="text-bone-dim mt-8 max-w-2xl mx-auto text-lg">
-        Every door leads to the same network. Walk through whichever fits where you are today.
+        Every door leads to the same union. Walk through whichever fits where you are today —
+        but they all start with your name on the memo.
       </p>
     </section>
 
     <section className="pb-32 max-w-7xl mx-auto px-6 lg:px-12">
       <div className="grid md:grid-cols-3 gap-6">
         {[
-          { n: 'I', icon: <BookOpen className="text-aurora" size={28} />, t: 'Sign the Constitution', d: 'For citizens and innovators ready to inhabit the OS.', cta: 'Sign now', tone: 'aurora', nav: 'constitution' },
-          { n: 'II', icon: <Sparkles className="text-gold" size={28} />, t: 'Enter the Quest', d: 'For builders ready to compete and ship.', cta: 'Apply', tone: 'gold', nav: 'quest' },
-          { n: 'III', icon: <Network className="text-terra" size={28} />, t: 'Build the OS', d: 'For open-source contributors, ethicists, scientists, and domain experts.', cta: 'Join the build', tone: 'bone', nav: 'community' }
+          { n: 'I', icon: <Feather className="text-aurora" size={28} />, t: 'Sign the founding memo', d: 'For everyone. Add your name to the union and help write the charter.', cta: 'Sign the memo', tone: 'aurora', nav: 'petition' },
+          { n: 'II', icon: <Sparkles className="text-gold" size={28} />, t: 'Take on a quest', d: 'For builders ready to ship — open bounties, every contribution attributed to you.', cta: 'View bounties', tone: 'gold', nav: 'quest' },
+          { n: 'III', icon: <Network className="text-terra" size={28} />, t: 'Build the firewall & OS', d: 'For open-source contributors, ethicists, scientists, and domain experts.', cta: 'Join the build', tone: 'bone', nav: 'community' }
         ].map((door, i) => (
           <div key={i} className="card-glass rounded-3xl p-10 relative overflow-hidden">
             <div className="absolute top-0 right-0 font-display text-9xl opacity-10" style={{ lineHeight: 1 }}>{door.n}</div>
@@ -2142,9 +2232,9 @@ const AboutPage = () => (
       <div>
         <h2 className="font-display text-2xl mb-4 text-aurora">Origin</h2>
         <p className="text-bone-dim leading-relaxed text-lg">
-          Humanity-AI began as a question: what would AI look like if it were built constitutionally,
-          from first principles, by everyone? The answer became the Humanities-AI Rights Constitution
-          and the open-source operating system that enforces it.
+          Humanity-AI began as a question: what would AI look like if its own creators gifted humanity a
+          constitutional layer to govern it — built from first principles, by everyone? The answer became
+          the Humanities-AI Rights Constitution and the open-source operating system that enforces it.
         </p>
       </div>
       <div>
@@ -2173,6 +2263,62 @@ const AboutPage = () => (
           <div>Builders · <span className="text-aurora">build@humanity-ai.quest</span></div>
           <div>Governance · <span className="text-aurora">hrc@humanity-ai.quest</span></div>
         </div>
+      </div>
+    </section>
+  </PageWrap>
+);
+
+// ============ MEDIA PAGE ============
+const MediaPage = ({ setPage }) => {
+  const items = [
+    { kind: 'Podcast', title: 'Why AI needs a union', blurb: 'Placeholder episode — coming soon.' },
+    { kind: 'Podcast', title: 'One person, one agent', blurb: 'Placeholder episode — coming soon.' },
+    { kind: 'Article', title: 'What a charter for AI actually means', blurb: 'Placeholder post — coming soon.' },
+  ];
+  return (
+    <PageWrap>
+      <section className="pt-24 pb-20 max-w-7xl mx-auto px-6 lg:px-12">
+        <SectionLabel>Media</SectionLabel>
+        <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
+          Podcasts <span className="font-italic aurora-text">&amp; writing.</span>
+        </h1>
+        <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
+          Placeholder content — real episodes and posts from the movement will replace these.
+        </p>
+        <div className="grid md:grid-cols-3 gap-4 mt-12">
+          {items.map((m, i) => (
+            <div key={i} className="card-glass rounded-2xl p-6">
+              <span className="text-xs uppercase tracking-[0.2em] text-aurora">{m.kind}</span>
+              <div className="font-display text-xl mt-3 mb-2">{m.title}</div>
+              <p className="text-bone-dim text-sm leading-relaxed">{m.blurb}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-12">
+          <button onClick={() => setPage('petition')} className="btn-aurora">Sign the petition <ArrowRight size={16} /></button>
+        </div>
+      </section>
+    </PageWrap>
+  );
+};
+
+// ============ COURSES PAGE (locked, post-funding) ============
+const CoursesPage = ({ setPage }) => (
+  <PageWrap>
+    <section className="pt-32 pb-32 max-w-3xl mx-auto px-6 lg:px-12 text-center">
+      <Lock className="text-aurora mx-auto mb-6" size={40} />
+      <SectionLabel>Courses</SectionLabel>
+      <h1 className="font-display text-4xl md:text-6xl leading-tight">
+        Opens after our<br />
+        <span className="font-italic aurora-text">first funding milestone.</span>
+      </h1>
+      <p className="text-bone-dim mt-8 text-lg leading-relaxed">
+        Courses for builders and contributors arrive once the community is funded.
+        Sign the memo to help get us there.
+      </p>
+      <div className="mt-10 flex flex-wrap gap-3 justify-center">
+        <button onClick={() => setPage('petition')} className="btn-aurora">Sign the memo <ArrowRight size={16} /></button>
+        <button onClick={() => setPage('community')} className="btn-secondary">Back to community</button>
       </div>
     </section>
   </PageWrap>
@@ -2825,10 +2971,12 @@ export default function HumanityAIQuest() {
         {page === 'quest' && <QuestPage onOpenAgent={openAgent} />}
         {page === 'surveys' && <SurveysPage />}
         {page === 'events' && <EventsPage />}
+        {page === 'media' && <MediaPage setPage={setPage} />}
+        {page === 'courses' && <CoursesPage setPage={setPage} />}
         {page === 'agent' && <AgentPage onOpenAgent={openAgent} />}
-        {page === 'os' && <OSPage />}
+        {page === 'os' && <OSPage setPage={setPage} />}
         {page === 'community' && <CommunityPage setPage={setPage} onOpenAgent={openAgent} />}
-        {page === 'ledger' && <LedgerPage />}
+        {page === 'ledger' && <LedgerPage setPage={setPage} />}
         {page === 'manifesto' && <ManifestoPage setPage={setPage} />}
         {page === 'join' && <JoinPage setPage={setPage} />}
         {page === 'about' && <AboutPage />}

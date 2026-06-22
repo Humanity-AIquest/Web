@@ -337,21 +337,21 @@ const GlobalStyles = () => (
     @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Manrope:wght@300;400;500;600;700&display=swap');
 
     :root {
-      --void: #07101F;
-      --void-2: #0C1828;
-      --cosmos: #131F32;
-      --bone: #F2EAD3;
-      --bone-dim: #C9C2AE;
-      --aurora: #5BE9DD;
-      --aurora-deep: #2DA89E;
-      --gold: #E8B14F;
-      --bronze: #A57845;
-      --terra: #C97B5B;
-      --forest: #1B3B2F;
-      --forest-2: #2A5A47;
-      --dust: #6B7593;
-      --line: rgba(232, 234, 222, 0.08);
-      --line-2: rgba(232, 234, 222, 0.16);
+      --void: #0F1F3A;
+      --void-2: #16284A;
+      --cosmos: #1E3358;
+      --bone: #FFFFFF;
+      --bone-dim: #C5CDDD;
+      --aurora: #FFD60A;
+      --aurora-deep: #E0B800;
+      --gold: #FFD60A;
+      --bronze: #CC9000;
+      --terra: #E0A458;
+      --forest: #234555;
+      --forest-2: #2E5A6E;
+      --dust: #8693AD;
+      --line: rgba(255, 255, 255, 0.09);
+      --line-2: rgba(255, 255, 255, 0.18);
     }
 
     * { box-sizing: border-box; }

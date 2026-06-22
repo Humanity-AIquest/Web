@@ -665,7 +665,7 @@ const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
 // Grouped menu — two primary CTAs (Sign the Memo, Join the Community) plus a
 // Vision group, replacing the old flat overflowing nav.
 const NAV_GROUPS = {
-  community: [
+  developers: [
     { id: 'quest', name: 'Innovation Quests', desc: 'Open bounties — pitch a solution' },
     { id: 'surveys', name: 'Surveys', desc: 'Vote on what the union stands for' },
     { id: 'events', name: 'Pitch & networking events', desc: 'Meet builders, pitch live' },
@@ -673,7 +673,7 @@ const NAV_GROUPS = {
     { id: 'courses', name: 'Courses', desc: 'Opens after our first funding' },
     { id: 'constitution', name: 'Define the HRC', desc: 'Read the draft, give feedback' },
   ],
-  vision: [
+  constitution: [
     { id: 'constitution', name: 'The Constitution', desc: 'The 52 living clauses' },
     { id: 'os', name: 'The OS', desc: 'How the system runs' },
     { id: 'ledger', name: 'The Ledger', desc: 'Attribution, forever' },
@@ -741,10 +741,10 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
             <button onClick={() => go('petition')}
               className="px-3 py-1.5 text-sm tracking-wide transition-colors"
               style={{ color: page === 'petition' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
-              The Memo
+              Sign Petition
             </button>
-            <NavDropdown label="Community" items={NAV_GROUPS.community} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
-            <NavDropdown label="The Vision" items={NAV_GROUPS.vision} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
+            <NavDropdown label="Developers" items={NAV_GROUPS.developers} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
+            <NavDropdown label="Constitution" items={NAV_GROUPS.constitution} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -791,8 +791,8 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
         {open && (
           <div className="lg:hidden border-t" style={{ borderColor: 'var(--line)', maxHeight: '80vh', overflowY: 'auto' }}>
             <div className="px-6 py-4 space-y-1">
-              <button onClick={() => go('petition')} className="btn-aurora w-full justify-center mb-2">Sign the Memo <ArrowRight size={14} /></button>
-              {[['Community', 'community'], ['The Vision', 'vision']].map(([label, key]) => (
+              <button onClick={() => go('petition')} className="btn-aurora w-full justify-center mb-2">Sign Petition <ArrowRight size={14} /></button>
+              {[['Developers', 'developers'], ['Constitution', 'constitution']].map(([label, key]) => (
                 <div key={key}>
                   <button onClick={() => setMobileGroup(mobileGroup === key ? null : key)}
                     className="w-full flex items-center justify-between px-2 py-3 text-sm font-display"
@@ -879,7 +879,7 @@ const useAnimatedCount = (target, duration = 2400) => {
 
 // ============ HOME PAGE ============
 const HomePage = ({ setPage, onOpenAgent }) => {
-  const [stats, setStats] = useState({ count: 1000, nations: 0 });
+  const [stats, setStats] = useState({ count: 1, nations: 0 });
   useEffect(() => {
     fetch('/api/count').then(r => r.json()).then(d => {
       if (d && typeof d.count === 'number') setStats({ count: d.count, nations: d.nations || 0 });
@@ -905,26 +905,22 @@ const HomePage = ({ setPage, onOpenAgent }) => {
 
             <h1 className="font-display text-4xl md:text-6xl lg:text-7xl leading-[0.98] mt-8 animate-fade-up"
               style={{ animationDelay: '0.15s' }}>
-              <span className="text-bone">AI creators building humanity's </span>
-              <span className="aurora-text font-italic">Human Rights Constitutional</span>
-              <span className="text-bone"> layer for AI.</span>
+              <span className="aurora-text font-italic">AI Leaders Are Sounding The Alarm.</span>
             </h1>
 
-            <p className="font-display text-xl md:text-2xl mt-6 max-w-2xl leading-snug text-bone font-italic animate-fade-up"
+            <p className="font-display text-xl md:text-2xl mt-6 max-w-3xl leading-snug text-bone font-italic animate-fade-up"
               style={{ animationDelay: '0.25s' }}>
-              Built for humans, by humans — gifted to our children's generation to build on.
+              We're Building Humanities Rights Constitution Governing AI.
             </p>
 
-            <p className="text-lg mt-6 max-w-2xl leading-relaxed text-bone-dim animate-fade-up font-body"
+            <p className="text-lg mt-6 max-w-3xl leading-relaxed text-bone animate-fade-up font-body"
               style={{ animationDelay: '0.35s' }}>
-              Tech builders are writing the firewall. You can gift humanity a constitutional OS that
-              puts people first — 52 human rights clauses, in the open, enforced by code. Sign the memo
-              and architect the system.
+              If you are Human, join our petition for Humanity-Centric AI regulation. We are an open-innovation tech community, gifting humanity a constitution, firewall &amp; regulatory OS to ensure AI leads to a utopian future.
             </p>
 
             <div className="mt-10 flex flex-wrap gap-3 animate-fade-up" style={{ animationDelay: '0.45s' }}>
               <button onClick={() => setPage('petition')} className="btn-aurora">
-                Sign the petition <ArrowRight size={16} />
+                Sign Petition <ArrowRight size={16} />
               </button>
               <button onClick={() => setPage('community')} className="btn-secondary">
                 Back this project <ArrowRight size={16} />
@@ -1003,7 +999,7 @@ const HomePage = ({ setPage, onOpenAgent }) => {
           </p>
           <div className="mt-10 flex flex-wrap gap-3 justify-center">
             <button onClick={() => setPage('petition')} className="btn-aurora">
-              Sign the petition <ArrowRight size={16} />
+              Sign Petition <ArrowRight size={16} />
             </button>
             <button onClick={() => setPage('community')} className="btn-secondary">
               Back this project <ArrowRight size={16} />
@@ -1016,7 +1012,7 @@ const HomePage = ({ setPage, onOpenAgent }) => {
         <SectionLabel>How to get started</SectionLabel>
         <div className="grid md:grid-cols-4 gap-4 mt-12">
           {[
-            { n: '1', t: 'Sign the memo', s: 'Add your name to the union', first: true },
+            { n: '1', t: 'Sign Petition', s: 'Add your name to the union', first: true },
             { n: '2', t: 'Read the draft', s: '52 clauses, open for feedback' },
             { n: '3', t: 'Build or contribute', s: 'Open-source quests & governance' },
             { n: '4', t: 'Gift to humanity', s: 'The OS becomes the standard' }
@@ -1083,11 +1079,11 @@ const HomePage = ({ setPage, onOpenAgent }) => {
             written by humanity, for humanity, AI becomes the greatest amplifier of human flourishing ever known.
           </p>
           <p className="font-display text-2xl mt-10 text-aurora font-italic">
-            Sign the petition. Architect the system. Gift it to humanity.
+            Sign Petition. Architect the system. Gift it to humanity.
           </p>
           <div className="mt-8">
             <button onClick={() => setPage('petition')} className="btn-aurora">
-              Sign the petition <ArrowRight size={16} />
+              Sign Petition <ArrowRight size={16} />
             </button>
           </div>
         </div>
@@ -1941,7 +1937,7 @@ const OSPage = ({ setPage }) => (
         The OS is gifted to humanity. <span className="font-italic text-aurora">Help architect it.</span>
       </h2>
       <div className="mt-8 flex flex-wrap gap-3 justify-center">
-        <button onClick={() => setPage('petition')} className="btn-aurora">Sign the petition <ArrowRight size={16} /></button>
+        <button onClick={() => setPage('petition')} className="btn-aurora">Sign Petition <ArrowRight size={16} /></button>
         <button onClick={() => setPage('community')} className="btn-secondary">Build with us <ArrowRight size={16} /></button>
       </div>
     </section>
@@ -1964,7 +1960,7 @@ const CommunityPage = ({ setPage, onOpenAgent }) => (
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
         {[
-          { t: 'Sign the memo', d: 'Add your name to the founding union.', nav: 'petition', icon: <Feather className="text-aurora" /> },
+          { t: 'Sign Petition', d: 'Add your name to the founding union.', nav: 'petition', icon: <Feather className="text-aurora" /> },
           { t: 'Innovation quests', d: 'Open bounties — register to pitch a solution.', nav: 'quest', icon: <Sparkles className="text-aurora" /> },
           { t: 'Surveys', d: 'Vote on what the union should stand for.', nav: 'surveys', icon: <Users className="text-gold" /> },
           { t: 'Define the HRC', d: 'Read the live draft and give feedback to the agent.', nav: 'constitution', icon: <BookOpen className="text-terra" /> },
@@ -2108,7 +2104,7 @@ const LedgerPage = ({ setPage }) => {
             Resources flow to humans who steward ideas — but the ideas themselves belong to humanity.
           </p>
           <div className="mt-10 flex flex-wrap gap-3 justify-center">
-            <button onClick={() => setPage('petition')} className="btn-aurora">Sign the petition <ArrowRight size={16} /></button>
+            <button onClick={() => setPage('petition')} className="btn-aurora">Sign Petition <ArrowRight size={16} /></button>
             <button onClick={() => setPage('quest')} className="btn-secondary">See the quests <ArrowRight size={16} /></button>
           </div>
         </div>
@@ -2155,7 +2151,7 @@ const ManifestoPage = ({ setPage }) => (
         </p>
         <p>
           The Hippocratic Oath transformed medicine because every physician took it. The HRC transforms AI because
-          every creator who builds it takes it. Sign the memo. Claim your agent. Build the firewall. Gift the OS
+          every creator who builds it takes it. Sign Petition. Claim your agent. Build the firewall. Gift the OS
           to humanity.
         </p>
         <p>
@@ -2172,7 +2168,7 @@ const ManifestoPage = ({ setPage }) => (
           attention. I protect the dignity of every human I encounter. I build for a thousand years."
         </blockquote>
         <div className="mt-10 flex flex-wrap gap-3">
-          <button onClick={() => setPage('petition')} className="btn-aurora">Sign the petition <ArrowRight size={16} /></button>
+          <button onClick={() => setPage('petition')} className="btn-aurora">Sign Petition <ArrowRight size={16} /></button>
           <button onClick={() => setPage('constitution')} className="btn-secondary">Read the full constitution <ArrowRight size={16} /></button>
         </div>
       </div>
@@ -2197,7 +2193,7 @@ const JoinPage = ({ setPage }) => (
     <section className="pb-32 max-w-7xl mx-auto px-6 lg:px-12">
       <div className="grid md:grid-cols-3 gap-6">
         {[
-          { n: 'I', icon: <Feather className="text-aurora" size={28} />, t: 'Sign the founding memo', d: 'For everyone. Add your name to the union and help write the charter.', cta: 'Sign the memo', tone: 'aurora', nav: 'petition' },
+          { n: 'I', icon: <Feather className="text-aurora" size={28} />, t: 'Sign the founding memo', d: 'For everyone. Add your name to the union and help write the charter.', cta: 'Sign Petition', tone: 'aurora', nav: 'petition' },
           { n: 'II', icon: <Sparkles className="text-gold" size={28} />, t: 'Take on a quest', d: 'For builders ready to ship — open bounties, every contribution attributed to you.', cta: 'View bounties', tone: 'gold', nav: 'quest' },
           { n: 'III', icon: <Network className="text-terra" size={28} />, t: 'Build the firewall & OS', d: 'For open-source contributors, ethicists, scientists, and domain experts.', cta: 'Join the build', tone: 'bone', nav: 'community' }
         ].map((door, i) => (
@@ -2295,7 +2291,7 @@ const MediaPage = ({ setPage }) => {
           ))}
         </div>
         <div className="mt-12">
-          <button onClick={() => setPage('petition')} className="btn-aurora">Sign the petition <ArrowRight size={16} /></button>
+          <button onClick={() => setPage('petition')} className="btn-aurora">Sign Petition <ArrowRight size={16} /></button>
         </div>
       </section>
     </PageWrap>
@@ -2314,10 +2310,10 @@ const CoursesPage = ({ setPage }) => (
       </h1>
       <p className="text-bone-dim mt-8 text-lg leading-relaxed">
         Courses for builders and contributors arrive once the community is funded.
-        Sign the memo to help get us there.
+        Sign Petition to help get us there.
       </p>
       <div className="mt-10 flex flex-wrap gap-3 justify-center">
-        <button onClick={() => setPage('petition')} className="btn-aurora">Sign the memo <ArrowRight size={16} /></button>
+        <button onClick={() => setPage('petition')} className="btn-aurora">Sign Petition <ArrowRight size={16} /></button>
         <button onClick={() => setPage('community')} className="btn-secondary">Back to community</button>
       </div>
     </section>

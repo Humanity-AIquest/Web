@@ -317,7 +317,7 @@ const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padSt
 // Pages registry
 const PAGES = [
   { id: 'home', name: 'Genesis' },
-  { id: 'petition', name: 'Sign the Memo' },
+  { id: 'petition', name: 'Sign Petition' },
   { id: 'constitution', name: 'Constitution' },
   { id: 'quest', name: 'The Quest' },
   { id: 'surveys', name: 'Surveys' },
@@ -662,7 +662,7 @@ const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
 };
 
 // ============ NAV ============
-// Grouped menu — two primary CTAs (Sign the Memo, Join the Community) plus a
+// Grouped menu — two primary CTAs (Sign Petition, Join the Community) plus a
 // Vision group, replacing the old flat overflowing nav.
 const NAV_GROUPS = {
   developers: [
@@ -749,7 +749,7 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
 
           <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={() => go('petition')} className="btn-aurora hidden sm:inline-flex" style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem' }}>
-              Sign the Memo <ArrowRight size={14} />
+              Sign Petition <ArrowRight size={14} />
             </button>
             <button onClick={onOpenAgent}
               className="hidden xl:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
@@ -840,6 +840,64 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
   );
 };
 
+// ============ UNITY PARTICLES COMPONENT ============
+// Represents interconnected movement, collective gathering, themes of unity
+const UnityParticles = ({ count = 5, speed = 'slow', pattern = 'orbit' }) => {
+  return (
+    <div className="absolute inset-0 pointer-events-none">
+      {Array.from({ length: count }).map((_, i) => {
+        const delay = i * (12 / count);
+        const size = 8 + Math.random() * 4;
+        const offset = Math.random() * 30;
+
+        if (pattern === 'orbit') {
+          return (
+            <div
+              key={i}
+              className="absolute w-3 h-3 rounded-full bg-aurora animate-orbit"
+              style={{
+                left: '50%', top: '50%',
+                marginLeft: '-6px', marginTop: '-6px',
+                opacity: 0.4 + Math.random() * 0.3,
+                filter: `drop-shadow(0 0 ${size}px rgba(255, 214, 10, 0.6))`,
+                animationDelay: `${delay}s`,
+                animationDuration: `${speed === 'fast' ? 8 : 12}s`,
+              }}
+            />
+          );
+        } else if (pattern === 'converge') {
+          return (
+            <div
+              key={i}
+              className="absolute w-2 h-2 rounded-full bg-aurora"
+              style={{
+                left: `${20 + offset}%`, top: `${30 + offset}%`,
+                opacity: 0.3 + Math.random() * 0.4,
+                filter: `drop-shadow(0 0 ${size / 2}px rgba(255, 214, 10, 0.5))`,
+                animation: `pulse-unity ${4 + i * 0.5}s ease-in-out infinite`,
+              }}
+            />
+          );
+        } else {
+          // drift pattern
+          return (
+            <div
+              key={i}
+              className="absolute w-2 h-2 rounded-full bg-aurora animate-drift"
+              style={{
+                left: `${10 + i * 15}%`, top: `${20 + offset}%`,
+                opacity: 0.3 + Math.random() * 0.3,
+                filter: `drop-shadow(0 0 ${size / 2}px rgba(255, 214, 10, 0.4))`,
+                animationDelay: `${delay}s`,
+              }}
+            />
+          );
+        }
+      })}
+    </div>
+  );
+};
+
 // ============ SHARED COMPONENTS ============
 const SectionLabel = ({ children }) => (
   <div className="flex items-center gap-3 mb-4">
@@ -905,12 +963,12 @@ const HomePage = ({ setPage, onOpenAgent }) => {
 
             <h1 className="font-display text-4xl md:text-6xl lg:text-7xl leading-[0.98] mt-8 animate-fade-up"
               style={{ animationDelay: '0.15s' }}>
-              <span className="aurora-text font-italic">AI Leaders Are Sounding The Alarm.</span>
+              <span className="text-bone">We're Building Humanities Rights Constitution Governing AI</span>
             </h1>
 
-            <p className="font-display text-xl md:text-2xl mt-6 max-w-3xl leading-snug text-bone font-italic animate-fade-up"
+            <p className="font-display text-xl md:text-2xl mt-6 max-w-3xl leading-snug text-aurora font-italic animate-fade-up"
               style={{ animationDelay: '0.25s' }}>
-              We're Building Humanities Rights Constitution Governing AI.
+              AI Leaders Are Sounding The Alarm.
             </p>
 
             <p className="text-lg mt-6 max-w-3xl leading-relaxed text-bone animate-fade-up font-body"
@@ -948,7 +1006,8 @@ const HomePage = ({ setPage, onOpenAgent }) => {
         </div>
       </section>
 
-      <section className="py-24 lg:py-36 max-w-7xl mx-auto px-6 lg:px-12">
+      <section className="py-24 lg:py-36 max-w-7xl mx-auto px-6 lg:px-12 relative">
+        <UnityParticles count={6} pattern="converge" />
         <SectionLabel>What you're architecting</SectionLabel>
         <h2 className="font-display text-4xl md:text-6xl leading-tight max-w-3xl">
           A new governing system,<br />
@@ -994,7 +1053,7 @@ const HomePage = ({ setPage, onOpenAgent }) => {
           </h2>
           <p className="text-bone-dim mt-8 text-lg leading-relaxed">
             You can architect a constitutional OS — one where humans own their data, creators own their work,
-            and humanity owns its future. This memo is your co-signature on that architecture: the moment
+            and humanity owns its future. This petition is your co-signature on that architecture: the moment
             builders gift the world a system that runs on human rights, not extraction.
           </p>
           <div className="mt-10 flex flex-wrap gap-3 justify-center">
@@ -1092,7 +1151,7 @@ const HomePage = ({ setPage, onOpenAgent }) => {
   );
 };
 
-// ============ FOUNDING MEMO + PETITION PAGE ============
+// ============ PETITION PAGE ============
 // EDIT ME: initial draft of the petition text — the founder will revise this.
 const FOUNDING_MEMO = {
   version: 'Draft v0.1 · open for your edits',
@@ -1105,7 +1164,7 @@ const FOUNDING_MEMO = {
     'Because AI is, at its core, nothing other than the ability to connect every person on Earth directly — each of us represented by a single personal, digital, agentic self that vouches for us and answers only to us.',
     'Because, for the first time in history, we are able to know the will of the people — with users and experts alike empowered to participate, contribute, and collaborate, and the traditional barriers removed.',
   ],
-  closing: "This is our starting point — open for your edits. There's no sense in signing a constitution that is still being written; so we sign this instead: the founding memo of the union that will write it.",
+  closing: "This is our starting point — open for your edits. There's no sense in signing a constitution that is still being written; so we sign this instead: the petition of the union that will write it.",
 };
 
 const PetitionPage = ({ setPage, onOpenAgent }) => {
@@ -1133,7 +1192,7 @@ const PetitionPage = ({ setPage, onOpenAgent }) => {
     finally { setLoading(false); }
   };
 
-  const share = "I signed humanity's founding memo for AI. Add your name: humanity-ai.quest";
+  const share = "I signed humanity's petition for AI. Add your name: humanity-ai.quest";
   const doShare = async () => {
     try {
       if (navigator.share) await navigator.share({ title: 'Humanity-AI', text: share, url: 'https://humanity-ai.quest' });
@@ -1144,9 +1203,10 @@ const PetitionPage = ({ setPage, onOpenAgent }) => {
   return (
     <PageWrap>
       <section className="relative max-w-4xl mx-auto px-6 lg:px-12 py-24">
+        <UnityParticles count={7} pattern="converge" />
         <SectionLabel>{FOUNDING_MEMO.version}</SectionLabel>
         <h1 className="font-display text-4xl md:text-6xl leading-tight">
-          The <span className="aurora-text font-italic">Founding Memo.</span>
+          The <span className="aurora-text font-italic">Petition.</span>
         </h1>
         <p className="text-bone-dim text-lg mt-4 max-w-2xl">
           A united, democratic union of human users and AI developers. Read it, then add your name.
@@ -1174,7 +1234,7 @@ const PetitionPage = ({ setPage, onOpenAgent }) => {
             <p className="text-bone-dim mb-6">{signed.count.toLocaleString()} voices and counting. The union grows with every name.</p>
             <p className="font-display text-lg font-italic mb-8 max-w-xl mx-auto" style={{ borderLeft: '2px solid var(--aurora)', paddingLeft: '1rem', textAlign: 'left' }}>"{share}"</p>
             <div className="flex flex-wrap gap-3 justify-center">
-              <button onClick={doShare} className="btn-aurora">Share the memo <ArrowRight size={16} /></button>
+              <button onClick={doShare} className="btn-aurora">Share the petition <ArrowRight size={16} /></button>
               <button onClick={() => setPage('community')} className="btn-secondary">Explore the community</button>
             </div>
           </div>
@@ -1239,6 +1299,7 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
         <div className="absolute inset-0 opacity-50">
           <AgentNetwork density={20} height="100%" planetary={false} />
         </div>
+        <UnityParticles count={8} pattern="orbit" speed="slow" />
         <div className="relative max-w-7xl mx-auto px-6 lg:px-12">
           <SectionLabel>The Humanities-AI Rights Constitution</SectionLabel>
           <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
@@ -1517,7 +1578,8 @@ const SurveysPage = () => {
 
   return (
     <PageWrap>
-      <section className="pt-24 pb-20 max-w-4xl mx-auto px-6 lg:px-12">
+      <section className="pt-24 pb-20 max-w-4xl mx-auto px-6 lg:px-12 relative">
+        <UnityParticles count={5} pattern="converge" />
         <SectionLabel>Surveys</SectionLabel>
         <h1 className="font-display text-4xl md:text-6xl leading-tight">{survey?.title || 'A union for AI creators?'}</h1>
         <p className="text-bone-dim mt-6 max-w-2xl text-lg">{survey?.intro || 'Vote on each statement — agree, disagree, or pass. You can add your own at the end.'}</p>
@@ -1615,7 +1677,8 @@ const EventsPage = () => {
   }, []);
   return (
     <PageWrap>
-      <section className="pt-24 pb-20 max-w-4xl mx-auto px-6 lg:px-12">
+      <section className="pt-24 pb-20 max-w-4xl mx-auto px-6 lg:px-12 relative">
+        <UnityParticles count={6} pattern="orbit" speed="fast" />
         <SectionLabel>Pitch &amp; networking</SectionLabel>
         <h1 className="font-display text-4xl md:text-6xl leading-tight">Events.</h1>
         <p className="text-bone-dim mt-6 max-w-2xl text-lg">Meet builders, pitch live to the community, and help shape the next draft clauses.</p>
@@ -1947,7 +2010,8 @@ const OSPage = ({ setPage }) => (
 // ============ COMMUNITY PAGE ============
 const CommunityPage = ({ setPage, onOpenAgent }) => (
   <PageWrap>
-    <section className="pt-24 pb-20 max-w-7xl mx-auto px-6 lg:px-12">
+    <section className="pt-24 pb-20 max-w-7xl mx-auto px-6 lg:px-12 relative">
+      <UnityParticles count={6} pattern="drift" />
       <SectionLabel>Open-source tech community</SectionLabel>
       <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
         Build the firewall<br />
@@ -2049,7 +2113,8 @@ const LedgerPage = ({ setPage }) => {
 
   return (
     <PageWrap>
-      <section className="pt-24 pb-20 max-w-7xl mx-auto px-6 lg:px-12">
+      <section className="pt-24 pb-20 max-w-7xl mx-auto px-6 lg:px-12 relative">
+        <UnityParticles count={7} pattern="drift" />
         <SectionLabel>The Ledger</SectionLabel>
         <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
           Humanity's<br />
@@ -2116,7 +2181,8 @@ const LedgerPage = ({ setPage }) => {
 // ============ MANIFESTO PAGE ============
 const ManifestoPage = ({ setPage }) => (
   <PageWrap>
-    <section className="pt-32 pb-32 max-w-3xl mx-auto px-6 lg:px-12">
+    <section className="pt-32 pb-32 max-w-3xl mx-auto px-6 lg:px-12 relative">
+      <UnityParticles count={6} pattern="converge" />
       <SectionLabel>Manifesto</SectionLabel>
       <h1 className="font-display text-5xl md:text-7xl leading-[1.0] font-italic mb-16">
         AI will be built. The only question is who it serves.
@@ -2179,21 +2245,22 @@ const ManifestoPage = ({ setPage }) => (
 // ============ JOIN PAGE ============
 const JoinPage = ({ setPage }) => (
   <PageWrap>
-    <section className="pt-24 pb-16 max-w-7xl mx-auto px-6 lg:px-12 text-center">
+    <section className="pt-24 pb-16 max-w-7xl mx-auto px-6 lg:px-12 text-center relative">
+      <UnityParticles count={6} pattern="orbit" speed="fast" />
       <SectionLabel>Three doors</SectionLabel>
       <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
         Three doors. <span className="font-italic aurora-text">One movement.</span>
       </h1>
       <p className="text-bone-dim mt-8 max-w-2xl mx-auto text-lg">
         Every door leads to the same union. Walk through whichever fits where you are today —
-        but they all start with your name on the memo.
+        but they all start with your name on the petition.
       </p>
     </section>
 
     <section className="pb-32 max-w-7xl mx-auto px-6 lg:px-12">
       <div className="grid md:grid-cols-3 gap-6">
         {[
-          { n: 'I', icon: <Feather className="text-aurora" size={28} />, t: 'Sign the founding memo', d: 'For everyone. Add your name to the union and help write the charter.', cta: 'Sign Petition', tone: 'aurora', nav: 'petition' },
+          { n: 'I', icon: <Feather className="text-aurora" size={28} />, t: 'Sign the Petition', d: 'For everyone. Add your name to the union and help write the charter.', cta: 'Sign Petition', tone: 'aurora', nav: 'petition' },
           { n: 'II', icon: <Sparkles className="text-gold" size={28} />, t: 'Take on a quest', d: 'For builders ready to ship — open bounties, every contribution attributed to you.', cta: 'View bounties', tone: 'gold', nav: 'quest' },
           { n: 'III', icon: <Network className="text-terra" size={28} />, t: 'Build the firewall & OS', d: 'For open-source contributors, ethicists, scientists, and domain experts.', cta: 'Join the build', tone: 'bone', nav: 'community' }
         ].map((door, i) => (
@@ -2217,7 +2284,8 @@ const JoinPage = ({ setPage }) => (
 // ============ ABOUT PAGE ============
 const AboutPage = () => (
   <PageWrap>
-    <section className="pt-24 pb-16 max-w-3xl mx-auto px-6 lg:px-12">
+    <section className="pt-24 pb-16 max-w-3xl mx-auto px-6 lg:px-12 relative">
+      <UnityParticles count={5} pattern="converge" />
       <SectionLabel>About</SectionLabel>
       <h1 className="font-display text-5xl md:text-6xl leading-[1.0]">
         Origin. Governance. <span className="font-italic">Promise.</span>
@@ -2273,7 +2341,8 @@ const MediaPage = ({ setPage }) => {
   ];
   return (
     <PageWrap>
-      <section className="pt-24 pb-20 max-w-7xl mx-auto px-6 lg:px-12">
+      <section className="pt-24 pb-20 max-w-7xl mx-auto px-6 lg:px-12 relative">
+        <UnityParticles count={5} pattern="orbit" speed="slow" />
         <SectionLabel>Media</SectionLabel>
         <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
           Podcasts <span className="font-italic aurora-text">&amp; writing.</span>
@@ -2301,7 +2370,8 @@ const MediaPage = ({ setPage }) => {
 // ============ COURSES PAGE (locked, post-funding) ============
 const CoursesPage = ({ setPage }) => (
   <PageWrap>
-    <section className="pt-32 pb-32 max-w-3xl mx-auto px-6 lg:px-12 text-center">
+    <section className="pt-32 pb-32 max-w-3xl mx-auto px-6 lg:px-12 text-center relative">
+      <UnityParticles count={4} pattern="converge" />
       <Lock className="text-aurora mx-auto mb-6" size={40} />
       <SectionLabel>Courses</SectionLabel>
       <h1 className="font-display text-4xl md:text-6xl leading-tight">

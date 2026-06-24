@@ -1620,6 +1620,8 @@ const QuestsBoard = () => {
 // ============ SURVEYS PAGE (wired to /api/surveys) ============
 const SurveysPage = () => {
   const SURVEY_ID = 'union-for-creators';
+  const statementPh = useCmsField('surveys', 'statement_ph', 'Your statement…');
+  const addBtn = useCmsField('surveys', 'add_btn', 'Add');
   const [survey, setSurvey] = useState(null);
   const [idx, setIdx] = useState(0);
   const [results, setResults] = useState(null);
@@ -1672,8 +1674,8 @@ const SurveysPage = () => {
           </div>
         ) : (
           <div className="mt-10">
-            <h2 className="font-display text-3xl font-italic text-aurora mb-2">That's the union, taking shape.</h2>
-            <p className="text-bone-dim mb-8">Live tallies update as people vote.</p>
+            <E p="surveys" k="results_heading" as="h2" className="font-display text-3xl font-italic text-aurora mb-2">That's the union, taking shape.</E>
+            <E p="surveys" k="results_sub" as="p" className="text-bone-dim mb-8">Live tallies update as people vote.</E>
             <div className="space-y-3">
               {(results || []).map((r) => {
                 const total = r.agree + r.disagree + r.pass || 1;
@@ -1694,11 +1696,11 @@ const SurveysPage = () => {
               })}
             </div>
             <div className="mt-8 max-w-lg">
-              <div className="text-xs uppercase tracking-[0.2em] text-dust mb-3">Add a statement for others to vote on</div>
+              <E p="surveys" k="add_label" as="div" className="text-xs uppercase tracking-[0.2em] text-dust mb-3">Add a statement for others to vote on</E>
               <div className="flex gap-2">
-                <input value={newStatement} onChange={e => setNewStatement(e.target.value)} placeholder="Your statement…"
+                <input value={newStatement} onChange={e => setNewStatement(e.target.value)} placeholder={statementPh}
                   className="flex-1 px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
-                <button onClick={addStatement} className="btn-aurora">Add</button>
+                <button onClick={addStatement} className="btn-aurora">{addBtn}</button>
               </div>
               {addMsg && <p className="text-sm text-aurora mt-2">{addMsg}</p>}
             </div>
@@ -1714,6 +1716,10 @@ const EventCard = ({ ev }) => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', email: '' });
   const [msg, setMsg] = useState('');
+  const rsvpBtn = useCmsField('events', 'rsvp_btn', 'RSVP');
+  const confirmBtn = useCmsField('events', 'confirm_btn', 'Confirm');
+  const rsvpNamePh = useCmsField('events', 'rsvp_name_ph', 'Your name');
+  const rsvpEmailPh = useCmsField('events', 'rsvp_email_ph', 'you@email.com');
   const rsvp = async () => {
     const d = await postJSON(`/api/events/${ev.id}/rsvp`, form);
     setMsg(d.error || d.message || "You're on the list.");
@@ -1728,15 +1734,15 @@ const EventCard = ({ ev }) => {
           <div className="text-sm text-dust mt-1">{ev.when_text}</div>
           <p className="text-bone-dim text-sm mt-2 leading-relaxed">{ev.blurb}</p>
         </div>
-        <button onClick={() => setOpen(v => !v)} className="btn-secondary whitespace-nowrap">RSVP</button>
+        <button onClick={() => setOpen(v => !v)} className="btn-secondary whitespace-nowrap">{rsvpBtn}</button>
       </div>
       {open && (
         <div className="mt-4 flex flex-col sm:flex-row gap-2">
-          <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Your name"
+          <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={rsvpNamePh}
             className="px-4 py-3 rounded-xl outline-none sm:flex-1" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
-          <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="you@email.com"
+          <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder={rsvpEmailPh}
             className="px-4 py-3 rounded-xl outline-none sm:flex-1" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
-          <button onClick={rsvp} className="btn-aurora">Confirm</button>
+          <button onClick={rsvp} className="btn-aurora">{confirmBtn}</button>
         </div>
       )}
       {msg && <p className="text-sm text-aurora mt-2">{msg}</p>}
@@ -1994,8 +2000,8 @@ const OSPage = ({ setPage }) => (
           <div key={i} className="card-glass rounded-xl p-6 flex items-start gap-6">
             <div className="font-display text-3xl flex-shrink-0 w-16" style={{ color: row.color, opacity: 0.7 }}>{row.n}</div>
             <div className="flex-1">
-              <div className="font-display text-xl mb-1">{row.t}</div>
-              <p className="text-bone-dim text-sm leading-relaxed">{row.d}</p>
+              <E p="os" k={`layer${i}_t`} as="div" className="font-display text-xl mb-1">{row.t}</E>
+              <E p="os" k={`layer${i}_d`} as="p" className="text-bone-dim text-sm leading-relaxed">{row.d}</E>
             </div>
             <div className="hidden md:block w-2 h-16 rounded-full" style={{ background: row.color, opacity: 0.4 }} />
           </div>
@@ -2013,8 +2019,8 @@ const OSPage = ({ setPage }) => (
         ].map((p, i) => (
           <div key={i} className="card-glass rounded-2xl p-8">
             <div className="mb-4">{p.icon}</div>
-            <div className="font-display text-2xl mb-3">{p.t}</div>
-            <p className="text-bone-dim leading-relaxed">{p.d}</p>
+            <E p="os" k={`principle${i}_t`} as="div" className="font-display text-2xl mb-3">{p.t}</E>
+            <E p="os" k={`principle${i}_d`} as="p" className="text-bone-dim leading-relaxed">{p.d}</E>
           </div>
         ))}
       </div>
@@ -2025,24 +2031,20 @@ const OSPage = ({ setPage }) => (
       <div className="grid lg:grid-cols-2 gap-16 items-start">
         <div>
           <h2 className="font-display text-4xl md:text-5xl leading-tight">
-            A right to truthful media.<br />
-            <span className="font-italic text-aurora">A covenant, not a censor.</span>
+            <E p="os" k="truth_h2a" as="span">A right to truthful media.</E><br />
+            <E p="os" k="truth_h2b" as="span" className="font-italic text-aurora">A covenant, not a censor.</E>
           </h2>
-          <p className="text-bone-dim mt-8 text-lg leading-relaxed">
-            The newest clause in the Constitution establishes truth as a positive human right.
-            Every contributor — human, agent, or service — operates under a transparent reputational
-            layer. The HRC itself governs it, as a covenant binding all signatories. No truth czar.
-            No deletion. Just radical transparency.
-          </p>
+          <E p="os" k="truth_body" as="p" className="text-bone-dim mt-8 text-lg leading-relaxed">
+            The newest clause in the Constitution establishes truth as a positive human right. Every contributor — human, agent, or service — operates under a transparent reputational layer. The HRC itself governs it, as a covenant binding all signatories. No truth czar. No deletion. Just radical transparency.
+          </E>
           <div className="mt-8 p-6 rounded-2xl" style={{
             background: 'rgba(232, 177, 79, 0.05)',
             border: '1px solid rgba(232, 177, 79, 0.25)'
           }}>
             <div className="text-xs uppercase tracking-[0.25em] text-gold mb-3">The Pledge</div>
-            <p className="font-display italic text-lg leading-relaxed">
-              "Every party — human, agent, or service — commits to further humanity's evolution and
-              autonomy through truthful, ethical, pro-humanity content."
-            </p>
+            <E p="os" k="truth_pledge" as="p" className="font-display italic text-lg leading-relaxed">
+              "Every party — human, agent, or service — commits to further humanity's evolution and autonomy through truthful, ethical, pro-humanity content."
+            </E>
           </div>
         </div>
 
@@ -2056,8 +2058,8 @@ const OSPage = ({ setPage }) => (
             <div key={i} className="card-glass rounded-xl p-6 flex gap-5">
               <div className="font-display text-3xl flex-shrink-0" style={{ color: row.color }}>{row.n}</div>
               <div>
-                <div className="font-display text-xl mb-2">{row.t}</div>
-                <p className="text-bone-dim text-sm leading-relaxed">{row.d}</p>
+                <E p="os" k={`conseq${i}_t`} as="div" className="font-display text-xl mb-2">{row.t}</E>
+                <E p="os" k={`conseq${i}_d`} as="p" className="text-bone-dim text-sm leading-relaxed">{row.d}</E>
               </div>
             </div>
           ))}
@@ -2067,7 +2069,7 @@ const OSPage = ({ setPage }) => (
 
     <section className="py-24 max-w-4xl mx-auto px-6 lg:px-12 text-center">
       <h2 className="font-display text-3xl md:text-4xl leading-tight">
-        The OS is gifted to humanity. <span className="font-italic text-aurora">Help architect it.</span>
+        <E p="os" k="cta_h2a" as="span">The OS is gifted to humanity. </E><E p="os" k="cta_h2b" as="span" className="font-italic text-aurora">Help architect it.</E>
       </h2>
       <div className="mt-8 flex flex-wrap gap-3 justify-center">
         <button onClick={() => setPage('petition')} className="btn-aurora">Sign Petition <ArrowRight size={16} /></button>
@@ -2105,8 +2107,8 @@ const CommunityPage = ({ setPage, onOpenAgent }) => (
           <button key={i} onClick={() => tile.action ? onOpenAgent() : setPage(tile.nav)}
             className="card-glass rounded-2xl p-6 text-left group">
             <div className="mb-4">{tile.icon}</div>
-            <div className="font-display text-xl mb-2 flex items-center gap-2">{tile.t} <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" /></div>
-            <p className="text-bone-dim text-sm leading-relaxed">{tile.d}</p>
+            <div className="font-display text-xl mb-2 flex items-center gap-2"><E p="community" k={`tile${i}_t`} as="span">{tile.t}</E> <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" /></div>
+            <E p="community" k={`tile${i}_d`} as="p" className="text-bone-dim text-sm leading-relaxed">{tile.d}</E>
           </button>
         ))}
       </div>
@@ -2145,7 +2147,7 @@ const CommunityPage = ({ setPage, onOpenAgent }) => (
     <section className="py-24 grain" style={{ background: 'var(--cosmos)' }}>
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
         <SectionLabel>Where the community gathers</SectionLabel>
-        <h2 className="font-display text-4xl md:text-5xl leading-tight">Digital movement. <span className="font-italic">Physical embodiment.</span></h2>
+        <h2 className="font-display text-4xl md:text-5xl leading-tight"><E p="community" k="gather_h2a" as="span">Digital movement. </E><E p="community" k="gather_h2b" as="span" className="font-italic">Physical embodiment.</E></h2>
         <div className="grid md:grid-cols-3 gap-4 mt-12">
           {[
             { t: 'HRC Houses', d: 'Co-working spaces in 38 cities where verified builders gather, prototype, and pitch in person.', icon: <Trees className="text-aurora" /> },
@@ -2154,8 +2156,8 @@ const CommunityPage = ({ setPage, onOpenAgent }) => (
           ].map((p, i) => (
             <div key={i} className="card-glass rounded-2xl p-6">
               <div className="mb-4">{p.icon}</div>
-              <div className="font-display text-xl mb-3">{p.t}</div>
-              <p className="text-bone-dim text-sm leading-relaxed">{p.d}</p>
+              <E p="community" k={`gather${i}_t`} as="div" className="font-display text-xl mb-3">{p.t}</E>
+              <E p="community" k={`gather${i}_d`} as="p" className="text-bone-dim text-sm leading-relaxed">{p.d}</E>
             </div>
           ))}
         </div>
@@ -2209,7 +2211,7 @@ const LedgerPage = ({ setPage }) => {
 
       <section className="py-16 max-w-7xl mx-auto px-6 lg:px-12">
         <SectionLabel>Live Feed</SectionLabel>
-        <h2 className="font-display text-3xl md:text-4xl leading-tight mb-12">Recent contributions, attributed.</h2>
+        <E p="ledger" k="feed_h2" as="h2" className="font-display text-3xl md:text-4xl leading-tight mb-12">Recent contributions, attributed.</E>
         <div className="card-glass rounded-2xl overflow-hidden">
           {recent.map((r, i) => (
             <div key={i} className="flex items-center gap-4 px-6 py-4 border-b last:border-b-0 hover:bg-cosmos transition-colors"
@@ -2229,13 +2231,12 @@ const LedgerPage = ({ setPage }) => {
       <section className="py-24 grain" style={{ background: 'var(--cosmos)' }}>
         <div className="max-w-4xl mx-auto px-6 lg:px-12 text-center">
           <h2 className="font-display text-4xl md:text-5xl leading-tight">
-            No corporate ownership.<br />
-            <span className="font-italic text-aurora">No intellectual monopoly.</span>
+            <E p="ledger" k="close_h2a" as="span">No corporate ownership.</E><br />
+            <E p="ledger" k="close_h2b" as="span" className="font-italic text-aurora">No intellectual monopoly.</E>
           </h2>
-          <p className="text-bone-dim mt-6 text-lg leading-relaxed">
-            AI-generated innovations credit their human collaborators or enter the public domain.
-            Resources flow to humans who steward ideas — but the ideas themselves belong to humanity.
-          </p>
+          <E p="ledger" k="close_body" as="p" className="text-bone-dim mt-6 text-lg leading-relaxed">
+            AI-generated innovations credit their human collaborators or enter the public domain. Resources flow to humans who steward ideas — but the ideas themselves belong to humanity.
+          </E>
           <div className="mt-10 flex flex-wrap gap-3 justify-center">
             <button onClick={() => setPage('petition')} className="btn-aurora">Sign Petition <ArrowRight size={16} /></button>
             <button onClick={() => setPage('quest')} className="btn-secondary">See the quests <ArrowRight size={16} /></button>
@@ -2369,7 +2370,7 @@ const AboutPage = () => (
       <div className="pt-8 border-t" style={{ borderColor: 'var(--line)' }}>
         <h2 className="font-display text-2xl mb-4">Contact</h2>
         <p className="text-bone-dim leading-relaxed text-lg mb-4">
-          For collaborators, journalists, governments, and citizens.
+<E p="about" k="contact_line" as="span">For collaborators, journalists, governments, and citizens.</E>
         </p>
         <div className="space-y-2 text-bone">
           <div>Press · <span className="text-aurora">press@humanity-ai.quest</span></div>
@@ -2495,7 +2496,7 @@ const Footer = ({ setPage }) => (
       <div className="pt-8 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-xs text-dust"
         style={{ borderColor: 'var(--line)' }}>
         <div>© Humanity-AI · Open source · Constitutional license · {new Date().getFullYear()}</div>
-        <div className="font-display italic">"The Hippocratic Oath, for AI."</div>
+        <E p="global" k="footer_motto" as="div" className="font-display italic">"The Hippocratic Oath, for AI."</E>
       </div>
     </div>
   </footer>

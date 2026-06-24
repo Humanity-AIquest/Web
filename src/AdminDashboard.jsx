@@ -1168,6 +1168,12 @@ const CMS_FIELDS = [
   { group: 'Forms', page: 'petition', key: 'form_email_ph', label: 'Petition · email placeholder', default: 'you@email.com' },
   { group: 'Forms', page: 'petition', key: 'form_submit', label: 'Petition · submit button', default: 'Add my name' },
   { group: 'Forms', page: 'petition', key: 'form_heading', label: 'Petition · form heading', default: 'Add your name — ten seconds, no cost' },
+  { group: 'Forms', page: 'surveys', key: 'statement_ph', label: 'Surveys · statement placeholder', default: 'Your statement…' },
+  { group: 'Forms', page: 'surveys', key: 'add_btn', label: 'Surveys · add button', default: 'Add' },
+  { group: 'Forms', page: 'events', key: 'rsvp_btn', label: 'Events · RSVP button', default: 'RSVP' },
+  { group: 'Forms', page: 'events', key: 'confirm_btn', label: 'Events · confirm button', default: 'Confirm' },
+  { group: 'Forms', page: 'events', key: 'rsvp_name_ph', label: 'Events · RSVP name placeholder', default: 'Your name' },
+  { group: 'Forms', page: 'events', key: 'rsvp_email_ph', label: 'Events · RSVP email placeholder', default: 'you@email.com' },
   // Agent & dialog
   { group: 'Agent & dialog', page: 'agent', key: 'greeting', label: 'HRC Agent · greeting message', default: "I am the HRC Agent. I carry humanity's constitution for AI.\n\nAsk me anything about the 52 clauses, or share an idea you'd like to develop and I'll help refine it through the lens of the constitution. Every conversation is yours alone." },
   { group: 'Agent & dialog', page: 'agent', key: 'input_ph', label: 'HRC Agent · input placeholder', default: 'Ask the constitution. Share your idea.' },

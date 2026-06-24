@@ -286,21 +286,74 @@ const AccountPage = ({ auth, onLogout }) => {
   );
 };
 
-// ============ CMS HOOK ============
-function useCMS(pageKey) {
-  const [sections, setSections] = useState({});
+// ============ CMS (live editable text) ============
+// Single source of truth for editable site copy. Every <E> node reads its text
+// from published /api/content (falling back to the hardcoded default), so admin
+// edits actually appear on the live site. In edit mode (?cms=1, used by the
+// Admin CMS iframe) nodes become clickable and talk to the parent via postMessage.
+const CMSContext = React.createContext({ get: (p, k, fb) => fb, editMode: false });
+
+const CMS_EDIT_MODE = typeof window !== 'undefined'
+  && new URLSearchParams(window.location.search).get('cms') === '1';
+
+function CMSProvider({ children }) {
+  const [map, setMap] = useState({});
+  const [overrides, setOverrides] = useState({});
+
   useEffect(() => {
-    fetch(`/api/content?page=${pageKey}`)
+    fetch('/api/content')
       .then(r => r.json())
       .then(d => {
-        const map = {};
-        (d.content || []).forEach(s => { map[s.section_key] = s.content; });
-        setSections(map);
+        const m = {};
+        (d.content || []).forEach(s => { m[`${s.page_key}__${s.section_key}`] = s.content; });
+        setMap(m);
       })
       .catch(() => {});
-  }, [pageKey]);
-  return sections;
+  }, []);
+
+  useEffect(() => {
+    if (!CMS_EDIT_MODE) return;
+    const onMsg = (e) => {
+      const d = e.data;
+      if (!d || d.source !== 'hai-cms-admin') return;
+      if (d.type === 'update') setOverrides(prev => ({ ...prev, [`${d.page}__${d.key}`]: d.text }));
+    };
+    window.addEventListener('message', onMsg);
+    try { window.parent.postMessage({ source: 'hai-cms', type: 'ready' }, '*'); } catch {}
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const get = React.useCallback((page, key, fb) => {
+    const k = `${page}__${key}`;
+    return overrides[k] ?? map[k] ?? fb;
+  }, [map, overrides]);
+
+  return <CMSContext.Provider value={{ get, editMode: CMS_EDIT_MODE }}>{children}</CMSContext.Provider>;
 }
+
+// Editable text node. Usage: <E p="home" k="hero_title" as="span" className="...">Default text</E>
+const E = ({ p, k, as: Tag = 'span', children, className, style }) => {
+  const { get, editMode } = React.useContext(CMSContext);
+  const fallback = typeof children === 'string'
+    ? children
+    : (Array.isArray(children) ? children.filter(c => typeof c === 'string').join('') : '');
+  const value = get(p, k, fallback);
+  const onClick = editMode ? (e) => {
+    e.preventDefault(); e.stopPropagation();
+    try { window.parent.postMessage({ source: 'hai-cms', type: 'edit', page: p, key: k, text: value }, '*'); } catch {}
+  } : undefined;
+  return (
+    <Tag
+      className={className}
+      data-cms-page={p}
+      data-cms-key={k}
+      onClick={onClick}
+      style={editMode
+        ? { ...style, outline: '1.5px dashed rgba(255,214,10,0.55)', outlineOffset: 3, cursor: 'pointer', borderRadius: 4 }
+        : style}
+    >{value}</Tag>
+  );
+};
 
 // ============ AGENT MODES ============
 const MODES = [
@@ -948,7 +1001,7 @@ const HomePage = ({ setPage, onOpenAgent }) => {
   return (
     <PageWrap>
       <div className="w-full text-center py-2 text-xs tracking-wide" style={{ background: 'rgba(232,177,79,0.1)', color: 'var(--gold)', borderBottom: '1px solid rgba(232,177,79,0.15)' }}>
-        Beta Preview &mdash; This platform is in early development. Some features are not yet available.
+        <E p="home" k="beta_notice" as="span">Beta Preview — This platform is in early development. Some features are not yet available.</E>
       </div>
       <section className="relative min-h-[88vh] flex items-center grain">
         <AgentNetwork density={42} height="100%" />
@@ -957,24 +1010,26 @@ const HomePage = ({ setPage, onOpenAgent }) => {
             <div className="animate-fade-up" style={{ animationDelay: '0.05s' }}>
               <HeroPill>
                 <span className="w-1.5 h-1.5 rounded-full bg-aurora animate-pulse-soft" />
-                Before the rules are written without us
+                <E p="home" k="hero_pill" as="span">Before the rules are written without us</E>
               </HeroPill>
             </div>
 
             <h1 className="font-display text-4xl md:text-6xl lg:text-7xl leading-[0.98] mt-8 animate-fade-up"
               style={{ animationDelay: '0.15s' }}>
-              <span className="text-bone">We're Building Humanities Rights Constitution Governing AI</span>
+              <E p="home" k="hero_title" as="span" className="text-bone">We're Building Humanities Rights Constitution Governing AI</E>
             </h1>
 
-            <p className="font-display text-xl md:text-2xl mt-6 max-w-3xl leading-snug text-aurora font-italic animate-fade-up"
+            <E p="home" k="hero_subtitle" as="p"
+              className="font-display text-xl md:text-2xl mt-6 max-w-3xl leading-snug text-aurora font-italic animate-fade-up"
               style={{ animationDelay: '0.25s' }}>
               AI Leaders Are Sounding The Alarm.
-            </p>
+            </E>
 
-            <p className="text-lg mt-6 max-w-3xl leading-relaxed text-bone animate-fade-up font-body"
+            <E p="home" k="hero_body" as="p"
+              className="text-lg mt-6 max-w-3xl leading-relaxed text-bone animate-fade-up font-body"
               style={{ animationDelay: '0.35s' }}>
-              If you are Human, join our petition for Humanity-Centric AI regulation. We are an open-innovation tech community, gifting humanity a constitution, firewall &amp; regulatory OS to ensure AI leads to a utopian future.
-            </p>
+              If you are Human, join our petition for Humanity-Centric AI regulation. We are an open-innovation tech community, gifting humanity a constitution, firewall & regulatory OS to ensure AI leads to a utopian future.
+            </E>
 
             <div className="mt-10 flex flex-wrap gap-3 animate-fade-up" style={{ animationDelay: '0.45s' }}>
               <button onClick={() => setPage('petition')} className="btn-aurora">
@@ -3012,6 +3067,19 @@ export default function HumanityAIQuest() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [page]);
 
+  // CMS edit mode (inside the Admin CMS iframe): start on the hash page and let
+  // the admin parent drive navigation between pages.
+  useEffect(() => {
+    if (!CMS_EDIT_MODE) return;
+    const fromHash = window.location.hash.replace('#', '');
+    if (fromHash) setPage(fromHash);
+    const onMsg = (e) => {
+      if (e.data?.source === 'hai-cms-admin' && e.data.type === 'navigate') setPage(e.data.page);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
   const openAgent = () => setAgentOpen(true);
   const seedAgent = (text) => { setAgentSeed(text); setAgentOpen(true); };
   const openAuthModal = (mode = 'login') => { setAuthModalMode(mode); setAuthModalOpen(true); };
@@ -3026,6 +3094,7 @@ export default function HumanityAIQuest() {
   };
 
   return (
+    <CMSProvider>
     <div className="bg-void text-bone min-h-screen font-body">
       <GlobalStyles />
       <Nav page={page} setPage={setPage} onOpenAgent={openAgent} auth={auth} onOpenAuth={openAuthModal} onLogout={handleLogout} />
@@ -3067,5 +3136,6 @@ export default function HumanityAIQuest() {
         defaultMode={authModalMode}
       />
     </div>
+    </CMSProvider>
   );
 }

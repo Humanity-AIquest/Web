@@ -1152,28 +1152,85 @@ const ActionsTab = ({ auth, level }) => (
    highlighted <E> text posts an "edit" message here; saving writes to
    /api/admin/content and pushes the new text back into the iframe live.
    ============================================================ */
-const CMS_PAGES = [
-  { id: 'home', label: 'Home' },
-  { id: 'petition', label: 'Petition' },
-  { id: 'about', label: 'About' },
-  { id: 'join', label: 'Join' },
-  { id: 'os', label: 'The OS' },
-  { id: 'ledger', label: 'Ledger' },
-  { id: 'manifesto', label: 'Manifesto' },
-  { id: 'community', label: 'Community' },
+// Registry of editable text that is NOT directly clickable in the live preview
+// (form placeholders, button labels, agent/modal copy, banners). Each must be
+// wired in App.jsx via <E> or useCmsField with the same page/key.
+const CMS_FIELDS = [
+  // Banners & footer
+  { group: 'Banners & footer', page: 'home', key: 'beta_notice', label: 'Beta banner (top of home)', default: 'Beta Preview — This platform is in early development. Some features are not yet available.' },
+  { group: 'Banners & footer', page: 'global', key: 'footer_tagline', label: 'Footer tagline', default: 'Gifted to humanity. Owned by no one. Protected by all of us.' },
+  // Buttons & CTAs
+  { group: 'Buttons & CTAs', page: 'home', key: 'cta_primary', label: 'Home · primary button', default: 'Sign Petition' },
+  { group: 'Buttons & CTAs', page: 'home', key: 'cta_secondary', label: 'Home · secondary button', default: 'Back this project' },
+  { group: 'Buttons & CTAs', page: 'home', key: 'cta_agent', label: 'Home · agent button', default: 'Ask the agent' },
+  // Forms
+  { group: 'Forms', page: 'petition', key: 'form_name_ph', label: 'Petition · name placeholder', default: 'Your name' },
+  { group: 'Forms', page: 'petition', key: 'form_email_ph', label: 'Petition · email placeholder', default: 'you@email.com' },
+  { group: 'Forms', page: 'petition', key: 'form_submit', label: 'Petition · submit button', default: 'Add my name' },
+  { group: 'Forms', page: 'petition', key: 'form_heading', label: 'Petition · form heading', default: 'Add your name — ten seconds, no cost' },
+  // Agent & dialog
+  { group: 'Agent & dialog', page: 'agent', key: 'greeting', label: 'HRC Agent · greeting message', default: "I am the HRC Agent. I carry humanity's constitution for AI.\n\nAsk me anything about the 52 clauses, or share an idea you'd like to develop and I'll help refine it through the lens of the constitution. Every conversation is yours alone." },
+  { group: 'Agent & dialog', page: 'agent', key: 'input_ph', label: 'HRC Agent · input placeholder', default: 'Ask the constitution. Share your idea.' },
 ];
+const CMS_GROUPS = ['Forms', 'Agent & dialog', 'Buttons & CTAs', 'Banners & footer'];
+
+// One editable field row in a category panel — manages its own draft.
+const CmsFieldRow = ({ auth, field, value, onSaved }) => {
+  const [draft, setDraft] = useState(value ?? field.default);
+  const [saving, setSaving] = useState(false);
+  const [ok, setOk] = useState(false);
+  useEffect(() => { setDraft(value ?? field.default); }, [value, field.default]);
+  const dirty = draft !== (value ?? field.default);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await apiCall('/api/admin/content', 'PUT', { page_key: field.page, section_key: field.key, content: draft, content_type: 'text' }, auth.token);
+      setOk(true); setTimeout(() => setOk(false), 1800);
+      onSaved(field.page, field.key, draft);
+    } catch (e) { alert('Save failed: ' + e.message); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div style={{ ...cardStyle, padding: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 8 }}>
+        <span style={{ fontSize: 12, color: 'var(--bone)', fontWeight: 600 }}>{field.label}</span>
+        <code style={{ fontSize: 10, color: 'var(--dust)', whiteSpace: 'nowrap' }}>{field.page}/{field.key}</code>
+      </div>
+      <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={2}
+        style={{ ...inputStyle, width: '100%', resize: 'vertical', fontSize: 13, lineHeight: 1.5 }} />
+      <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center' }}>
+        <button onClick={save} disabled={saving || !dirty} style={btnStyle('primary', true)}>
+          {saving ? <Spinner /> : <Save size={11} />} Save
+        </button>
+        {ok && <span style={{ fontSize: 11, color: 'var(--aurora)' }}>Saved to live site</span>}
+      </div>
+    </div>
+  );
+};
 
 const CmsTab = ({ auth, level }) => {
   const iframeRef = useRef(null);
-  const [selectedPage, setSelectedPage] = useState('home');
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [activeGroup, setActiveGroup] = useState(null);
+  const [saved, setSaved] = useState({});
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  const loadSaved = useCallback(async () => {
+    try {
+      const data = await apiCall('/api/admin/content', 'GET', null, auth.token);
+      const rows = Array.isArray(data.sections) ? data.sections : (data.content || []);
+      const m = {};
+      rows.forEach(s => { m[`${s.page_key}__${s.section_key}`] = s.content; });
+      setSaved(m);
+    } catch { /* empty is fine — defaults show */ }
+  }, [auth.token]);
+  useEffect(() => { loadSaved(); }, [loadSaved]);
 
   useEffect(() => {
     const onMsg = (e) => {
@@ -1191,54 +1248,65 @@ const CmsTab = ({ auth, level }) => {
     try { iframeRef.current?.contentWindow?.postMessage({ source: 'hai-cms-admin', ...msg }, origin); } catch {}
   };
 
-  // Switch preview page by remounting the iframe at that page's hash — reliable
-  // regardless of iframe ready-state (postMessage navigation can be lost on load).
-  const goPage = (id) => {
-    setSelectedPage(id);
-    setEditing(null);
-    setReady(false);
-    setReloadNonce(n => n + 1);
+  const onFieldSaved = (page, key, text) => {
+    setSaved(prev => ({ ...prev, [`${page}__${key}`]: text }));
+    postToFrame({ type: 'update', page, key, text });
+    setSavedMsg(`Saved ${page}/${key}`); setTimeout(() => setSavedMsg(''), 2200);
   };
 
   const save = async () => {
     if (!editing) return;
     setSaving(true);
     try {
-      await apiCall('/api/admin/content', 'PUT', {
-        page_key: editing.page, section_key: editing.key, content: draft, content_type: 'text',
-      }, auth.token);
-      postToFrame({ type: 'update', page: editing.page, key: editing.key, text: draft });
-      setSavedMsg(`Saved ${editing.page}/${editing.key}`);
-      setTimeout(() => setSavedMsg(''), 2500);
+      await apiCall('/api/admin/content', 'PUT', { page_key: editing.page, section_key: editing.key, content: draft, content_type: 'text' }, auth.token);
+      onFieldSaved(editing.page, editing.key, draft);
       setEditing(null);
-    } catch (e) {
-      alert('Save failed: ' + e.message);
-    } finally { setSaving(false); }
+    } catch (e) { alert('Save failed: ' + e.message); }
+    finally { setSaving(false); }
   };
 
   if (level < 3) {
     return <div style={{ padding: 40, textAlign: 'center', color: 'var(--dust)' }}>L3+ (editor) access required to use the CMS.</div>;
   }
 
+  const groupFields = activeGroup ? CMS_FIELDS.filter(f => f.group === activeGroup) : [];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Category buttons — surface text that isn't directly clickable in the preview */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 2, background: 'rgba(7,16,31,0.5)', borderRadius: 8, padding: 3, border: '1px solid var(--line)', flexWrap: 'wrap' }}>
-          {CMS_PAGES.map(p => (
-            <button key={p.id} onClick={() => goPage(p.id)} style={{
+          {CMS_GROUPS.map(g => (
+            <button key={g} onClick={() => setActiveGroup(activeGroup === g ? null : g)} style={{
               padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12,
-              fontWeight: selectedPage === p.id ? 600 : 400,
-              background: selectedPage === p.id ? 'rgba(255,214,10,0.15)' : 'transparent',
-              color: selectedPage === p.id ? 'var(--aurora)' : 'var(--dust)',
-            }}>{p.label}</button>
+              fontWeight: activeGroup === g ? 600 : 400,
+              background: activeGroup === g ? 'rgba(255,214,10,0.15)' : 'transparent',
+              color: activeGroup === g ? 'var(--aurora)' : 'var(--dust)',
+            }}>{g}</button>
           ))}
         </div>
-        <button onClick={() => goPage(selectedPage)} style={btnStyle('ghost', true)} title="Reload preview"><RefreshCw size={13} /></button>
+        <button onClick={() => setReloadNonce(n => n + 1)} style={btnStyle('ghost', true)} title="Reload preview"><RefreshCw size={13} /></button>
         <span style={{ fontSize: 11, color: 'var(--dust)', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-          {savedMsg ? <span style={{ color: 'var(--aurora)' }}>{savedMsg}</span> : '✏ Click any highlighted text in the preview to edit it'}
+          {savedMsg ? <span style={{ color: 'var(--aurora)' }}>{savedMsg}</span> : '✏ Click highlighted text in the preview, or pick a category to edit forms & buttons'}
         </span>
       </div>
 
+      {/* Category field list */}
+      {activeGroup && (
+        <div style={{ ...cardStyle, padding: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--bone)' }}>{activeGroup}</span>
+            <button onClick={() => setActiveGroup(null)} style={btnStyle('ghost', true)}><X size={12} /> Close</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+            {groupFields.map(f => (
+              <CmsFieldRow key={`${f.page}__${f.key}`} auth={auth} field={f} value={saved[`${f.page}__${f.key}`]} onSaved={onFieldSaved} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Live site preview (navigate with the site's own menu; click highlighted text to edit) */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <div style={{ flex: 1, border: '1px solid var(--line-2)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
           <div style={{ background: 'rgba(7,16,31,0.9)', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--line)' }}>
@@ -1248,17 +1316,17 @@ const CmsTab = ({ auth, level }) => {
               <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28c840' }} />
             </div>
             <div style={{ flex: 1, background: 'var(--cosmos)', borderRadius: 6, padding: '3px 10px', fontSize: 11, color: 'var(--bone-dim)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Globe size={11} /> humanity-ai.quest/{selectedPage === 'home' ? '' : selectedPage}
+              <Globe size={11} /> humanity-ai.quest — use the site menu to change page
             </div>
             <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.08em', color: ready ? 'var(--aurora)' : 'var(--dust)' }}>
               {ready ? 'LIVE' : 'LOADING…'}
             </span>
           </div>
           <iframe
-            key={`${selectedPage}-${reloadNonce}`}
+            key={reloadNonce}
             ref={iframeRef}
             title="Live site preview"
-            src={`${origin}/?cms=1#${selectedPage}`}
+            src={`${origin}/?cms=1`}
             style={{ width: '100%', height: '70vh', border: 'none', background: 'var(--void)', display: 'block' }}
           />
         </div>
@@ -1269,22 +1337,14 @@ const CmsTab = ({ auth, level }) => {
             <code style={{ color: 'var(--aurora)', background: 'var(--cosmos)', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>
               {editing.page} / {editing.key}
             </code>
-            <textarea
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              autoFocus
-              rows={6}
-              style={{ ...inputStyle, width: '100%', resize: 'vertical', marginTop: 10, fontSize: 13, lineHeight: 1.5 }}
-            />
+            <textarea value={draft} onChange={e => setDraft(e.target.value)} autoFocus rows={6}
+              style={{ ...inputStyle, width: '100%', resize: 'vertical', marginTop: 10, fontSize: 13, lineHeight: 1.5 }} />
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
               <button onClick={save} disabled={saving || draft === editing.original} style={btnStyle('primary', true)}>
                 {saving ? <Spinner /> : <Save size={12} />} Save to live site
               </button>
               <button onClick={() => setEditing(null)} style={btnStyle('ghost', true)}><X size={12} /> Cancel</button>
             </div>
-            <p style={{ fontSize: 10, color: 'var(--dust)', marginTop: 10, lineHeight: 1.5 }}>
-              Saves immediately. Visitors see the new text on next load; the preview updates instantly.
-            </p>
           </div>
         )}
       </div>

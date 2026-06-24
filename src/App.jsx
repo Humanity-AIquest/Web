@@ -331,6 +331,13 @@ function CMSProvider({ children }) {
   return <CMSContext.Provider value={{ get, editMode: CMS_EDIT_MODE }}>{children}</CMSContext.Provider>;
 }
 
+// Read a CMS text field for attributes/labels (placeholders, button text, etc.)
+// where an <E> node can't be used. Edited via the Admin CMS category panels.
+const useCmsField = (p, k, fb) => {
+  const { get } = React.useContext(CMSContext);
+  return get(p, k, fb);
+};
+
 // Editable text node. Usage: <E p="home" k="hero_title" as="span" className="...">Default text</E>
 const E = ({ p, k, as: Tag = 'span', children, className, style }) => {
   const { get, editMode } = React.useContext(CMSContext);
@@ -812,7 +819,7 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
             </button>
             {auth?.user ? (
               <>
-                {(auth.user.acl_level ?? 0) >= 1 && (
+                {auth.user.role === 'admin' && (
                   <button onClick={() => go('admin')}
                     className="hidden md:inline-flex items-center gap-2 px-3 py-2 text-sm rounded-full border transition-all"
                     style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
@@ -873,7 +880,7 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
               </button>
               {auth?.user ? (
                 <div className="flex gap-2 pt-2">
-                  {(auth.user.acl_level ?? 0) >= 1 && (
+                  {auth.user.role === 'admin' && (
                     <button onClick={() => go('admin')} className="flex-1 px-3 py-2.5 text-sm rounded-full border" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>Admin</button>
                   )}
                   <button onClick={() => go('account')} className="flex-1 px-3 py-2.5 text-sm rounded-full border" style={{ borderColor: 'var(--aurora)', color: 'var(--aurora)' }}>{auth.user.display_name}</button>
@@ -988,15 +995,28 @@ const useAnimatedCount = (target, duration = 2400) => {
   return val;
 };
 
+// Aspirational counter: rolls up to `start` once, then climbs slowly over time.
+const useAspirationalCount = (start, stepMs = 6000, stepBy = 1) => {
+  const base = useAnimatedCount(start);
+  const [extra, setExtra] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setExtra(e => e + stepBy), stepMs);
+    return () => clearInterval(id);
+  }, [stepMs, stepBy]);
+  return base + extra;
+};
+
 // ============ HOME PAGE ============
 const HomePage = ({ setPage, onOpenAgent }) => {
-  const [stats, setStats] = useState({ count: 1, nations: 0 });
-  useEffect(() => {
-    fetch('/api/count').then(r => r.json()).then(d => {
-      if (d && typeof d.count === 'number') setStats({ count: d.count, nations: d.nations || 0 });
-    }).catch(() => {});
-  }, []);
-  const voices = useAnimatedCount(stats.count);
+  // Aspirational counters.
+  const petitions = useAspirationalCount(34927, 6000, 1);   // +1 every 6s (live ticker feel)
+  // Nations: starts at 35 and climbs +1 every real week (date-based, not per session).
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const NATIONS_LAUNCH = Date.parse('2026-06-24T00:00:00Z');
+  const nations = useAnimatedCount(35 + Math.max(0, Math.floor((Date.now() - NATIONS_LAUNCH) / WEEK_MS)));
+  const ctaPrimary = useCmsField('home', 'cta_primary', 'Sign Petition');
+  const ctaSecondary = useCmsField('home', 'cta_secondary', 'Back this project');
+  const ctaAgent = useCmsField('home', 'cta_agent', 'Ask the agent');
 
   return (
     <PageWrap>
@@ -1033,28 +1053,28 @@ const HomePage = ({ setPage, onOpenAgent }) => {
 
             <div className="mt-10 flex flex-wrap gap-3 animate-fade-up" style={{ animationDelay: '0.45s' }}>
               <button onClick={() => setPage('petition')} className="btn-aurora">
-                Sign Petition <ArrowRight size={16} />
+                {ctaPrimary} <ArrowRight size={16} />
               </button>
               <button onClick={() => setPage('community')} className="btn-secondary">
-                Back this project <ArrowRight size={16} />
+                {ctaSecondary} <ArrowRight size={16} />
               </button>
               <button onClick={onOpenAgent} className="btn-secondary">
-                <MessageCircle size={16} /> Ask the agent
+                <MessageCircle size={16} /> {ctaAgent}
               </button>
             </div>
 
             <div className="mt-16 flex flex-wrap gap-10 animate-fade-up" style={{ animationDelay: '0.6s' }}>
               <div>
-                <div className="font-display text-3xl text-aurora">{voices.toLocaleString()}</div>
-                <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Voices in the union</div>
+                <div className="font-display text-3xl text-aurora">{petitions.toLocaleString()}</div>
+                <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Petitions Signed</div>
               </div>
               <div>
-                <div className="font-display text-3xl text-bone">{stats.nations > 0 ? stats.nations : '—'}</div>
+                <div className="font-display text-3xl text-bone">{nations.toLocaleString()}</div>
                 <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Nations contributing</div>
               </div>
               <div>
-                <div className="font-display text-3xl text-bone">52</div>
-                <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Clauses in live draft</div>
+                <div className="font-display text-3xl text-bone">1</div>
+                <div className="text-xs uppercase tracking-[0.2em] text-dust mt-1">Constitution</div>
               </div>
             </div>
           </div>
@@ -1065,8 +1085,8 @@ const HomePage = ({ setPage, onOpenAgent }) => {
         <UnityParticles count={6} pattern="converge" />
         <SectionLabel>What you're architecting</SectionLabel>
         <h2 className="font-display text-4xl md:text-6xl leading-tight max-w-3xl">
-          A new governing system,<br />
-          <span className="text-aurora font-italic">we're building together.</span>
+          <E p="home" k="sec1_a" as="span">A new governing system,</E><br />
+          <E p="home" k="sec1_b" as="span" className="text-aurora font-italic">we're building together.</E>
         </h2>
 
         <div className="grid md:grid-cols-3 gap-6 mt-16">
@@ -1229,6 +1249,10 @@ const PetitionPage = ({ setPage, onOpenAgent }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [signed, setSigned] = useState(null); // { number, count }
+  const formHeading = useCmsField('petition', 'form_heading', 'Add your name — ten seconds, no cost');
+  const namePh = useCmsField('petition', 'form_name_ph', 'Your name');
+  const emailPh = useCmsField('petition', 'form_email_ph', 'you@email.com');
+  const submitLabel = useCmsField('petition', 'form_submit', 'Add my name');
 
   const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
   const submit = async () => {
@@ -1263,9 +1287,9 @@ const PetitionPage = ({ setPage, onOpenAgent }) => {
         <h1 className="font-display text-4xl md:text-6xl leading-tight">
           The <span className="aurora-text font-italic">Petition.</span>
         </h1>
-        <p className="text-bone-dim text-lg mt-4 max-w-2xl">
+        <E p="petition" k="subtitle" as="p" className="text-bone-dim text-lg mt-4 max-w-2xl">
           A united, democratic union of human users and AI developers. Read it, then add your name.
-        </p>
+        </E>
 
         <div className="card-glass rounded-2xl p-8 mt-10" style={{ borderLeft: '2px solid var(--aurora)' }}>
           <p className="font-display text-xl mb-5">{FOUNDING_MEMO.preamble}</p>
@@ -1295,7 +1319,7 @@ const PetitionPage = ({ setPage, onOpenAgent }) => {
           </div>
         ) : (
           <div className="max-w-md mt-10">
-            <SectionLabel>Add your name — ten seconds, no cost</SectionLabel>
+            <SectionLabel>{formHeading}</SectionLabel>
             <div className="flex gap-2 mb-6">
               {[['human', "I'm a human user"], ['developer', 'I build AI']].map(([k, label]) => (
                 <button key={k} onClick={() => setSide(k)}
@@ -1309,20 +1333,20 @@ const PetitionPage = ({ setPage, onOpenAgent }) => {
             </div>
             <label className="block mb-4">
               <span className="text-xs uppercase tracking-[0.2em] text-dust block mb-2">Name</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" autoComplete="name"
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={namePh} autoComplete="name"
                 className="w-full px-4 py-3 rounded-xl outline-none"
                 style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
             </label>
             <label className="block mb-4">
               <span className="text-xs uppercase tracking-[0.2em] text-dust block mb-2">Email</span>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@email.com" autoComplete="email"
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder={emailPh} autoComplete="email"
                 onKeyDown={(e) => e.key === 'Enter' && submit()}
                 className="w-full px-4 py-3 rounded-xl outline-none"
                 style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
             </label>
             {error && <p className="text-sm mb-4" style={{ color: 'var(--terra)' }}>{error}</p>}
             <button onClick={submit} disabled={loading} className="btn-aurora w-full justify-center">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <>Add my name <ArrowRight size={16} /></>}
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <>{submitLabel} <ArrowRight size={16} /></>}
             </button>
             <p className="text-xs text-dust mt-4">Free. No spam. Your name joins the founding ledger, owned by no one.</p>
           </div>
@@ -1358,14 +1382,12 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
         <div className="relative max-w-7xl mx-auto px-6 lg:px-12">
           <SectionLabel>The Humanities-AI Rights Constitution</SectionLabel>
           <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
-            The Hippocratic Oath<br />
-            <span className="font-italic aurora-text">for Artificial Intelligence.</span>
+            <E p="constitution" k="h1_a" as="span">The Hippocratic Oath</E><br />
+            <E p="constitution" k="h1_b" as="span" className="font-italic aurora-text">for Artificial Intelligence.</E>
           </h1>
-          <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
-            Fifty-two living clauses, organized across rights, governance, and operations — the draft the
-            union signs and amends in the open. Click any clause to read its full text and reasoning, or
-            discuss it with the HRC Agent to explore what it means for your work.
-          </p>
+          <E p="constitution" k="intro" as="p" className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
+            Fifty-two living clauses, organized across rights, governance, and operations — the draft the union signs and amends in the open. Click any clause to read its full text and reasoning, or discuss it with the HRC Agent to explore what it means for your work.
+          </E>
 
           <div className="mt-10 flex flex-wrap gap-2">
             {[
@@ -1735,8 +1757,8 @@ const EventsPage = () => {
       <section className="pt-24 pb-20 max-w-4xl mx-auto px-6 lg:px-12 relative">
         <UnityParticles count={6} pattern="orbit" speed="fast" />
         <SectionLabel>Pitch &amp; networking</SectionLabel>
-        <h1 className="font-display text-4xl md:text-6xl leading-tight">Events.</h1>
-        <p className="text-bone-dim mt-6 max-w-2xl text-lg">Meet builders, pitch live to the community, and help shape the next draft clauses.</p>
+        <E p="events" k="title" as="h1" className="font-display text-4xl md:text-6xl leading-tight">Events.</E>
+        <E p="events" k="intro" as="p" className="text-bone-dim mt-6 max-w-2xl text-lg">Meet builders, pitch live to the community, and help shape the next draft clauses.</E>
         <div className="space-y-4 mt-12">
           {events.map(ev => <EventCard key={ev.id} ev={ev} />)}
         </div>
@@ -1769,14 +1791,12 @@ const QuestPage = ({ onOpenAgent }) => {
         <div className="relative max-w-7xl mx-auto px-6 lg:px-12">
           <SectionLabel>The Quest · Season 04</SectionLabel>
           <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
-            Pitch the future.<br />
-            <span className="font-italic gold-text">Own the future.</span>
+            <E p="quest" k="h1_a" as="span">Pitch the future.</E><br />
+            <E p="quest" k="h1_b" as="span" className="font-italic gold-text">Own the future.</E>
           </h1>
-          <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
-            A global Shark Tank–style competition where the new skill is prompting plus ideas, and every
-            entry is attributed to its human creator on humanity's ledger. The prize isn't equity — it's
-            compute, collaborators, and the satisfaction of building for the species.
-          </p>
+          <E p="quest" k="intro" as="p" className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
+            A global Shark Tank–style competition where the new skill is prompting plus ideas, and every entry is attributed to its human creator on humanity's ledger. The prize isn't equity — it's compute, collaborators, and the satisfaction of building for the species.
+          </E>
           <div className="mt-10 flex flex-wrap gap-3">
             <button onClick={() => alert('Quest applications opening soon. Sign up for an account to be notified.')} className="btn-aurora">Apply to the Quest <ArrowRight size={16} /></button>
             <button onClick={onOpenAgent} className="btn-secondary"><MessageCircle size={16} /> Refine your idea with the Agent</button>
@@ -1952,15 +1972,13 @@ const OSPage = ({ setPage }) => (
       <div className="relative max-w-7xl mx-auto px-6 lg:px-12">
         <SectionLabel>The Operating System</SectionLabel>
         <h1 className="font-display text-5xl md:text-7xl leading-[0.95] max-w-4xl">
-          One operating system.<br />
-          Built by everyone.<br />
-          <span className="font-italic gold-text">Ruled by no one.</span>
+          <E p="os" k="h1_a" as="span">One operating system.</E><br />
+          <E p="os" k="h1_b" as="span">Built by everyone.</E><br />
+          <E p="os" k="h1_c" as="span" className="font-italic gold-text">Ruled by no one.</E>
         </h1>
-        <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
-          Humanity-AI is the connective tissue of the constitutional ecosystem. Personal agents,
-          expert agents, sub-agents, the immutable ledger, and the constitution itself — all woven
-          into one open, planetary-scale public good.
-        </p>
+        <E p="os" k="intro" as="p" className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
+          Humanity-AI is the connective tissue of the constitutional ecosystem. Personal agents, expert agents, sub-agents, the immutable ledger, and the constitution itself — all woven into one open, planetary-scale public good.
+        </E>
       </div>
     </section>
 
@@ -2069,13 +2087,12 @@ const CommunityPage = ({ setPage, onOpenAgent }) => (
       <UnityParticles count={6} pattern="drift" />
       <SectionLabel>Open-source tech community</SectionLabel>
       <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
-        Build the firewall<br />
-        <span className="font-italic aurora-text">and the OS.</span>
+        <E p="community" k="h1_a" as="span">Build the firewall</E><br />
+        <E p="community" k="h1_b" as="span" className="font-italic aurora-text">and the OS.</E>
       </h1>
-      <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
-        A constitutional firewall decides how AI is allowed to reach people; an OS runs it, giving each
-        of us a personal agent. Here's where we build both, in the open.
-      </p>
+      <E p="community" k="intro" as="p" className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
+        A constitutional firewall decides how AI is allowed to reach people; an OS runs it, giving each of us a personal agent. Here's where we build both, in the open.
+      </E>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
         {[
@@ -2172,13 +2189,12 @@ const LedgerPage = ({ setPage }) => {
         <UnityParticles count={7} pattern="drift" />
         <SectionLabel>The Ledger</SectionLabel>
         <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
-          Humanity's<br />
-          <span className="font-italic gold-text">patent ledger.</span>
+          <E p="ledger" k="h1_a" as="span">Humanity's</E><br />
+          <E p="ledger" k="h1_b" as="span" className="font-italic gold-text">patent ledger.</E>
         </h1>
-        <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
-          Every idea, attributed to its human creator. Forever. Cryptographically signed, publicly auditable,
-          posthumously preserved.
-        </p>
+        <E p="ledger" k="intro" as="p" className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
+          Every idea, attributed to its human creator. Forever. Cryptographically signed, publicly auditable, posthumously preserved.
+        </E>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
           {[
             { v: total.toLocaleString(), l: 'Total ledger entries' },
@@ -2239,9 +2255,9 @@ const ManifestoPage = ({ setPage }) => (
     <section className="pt-32 pb-32 max-w-3xl mx-auto px-6 lg:px-12 relative">
       <UnityParticles count={6} pattern="converge" />
       <SectionLabel>Manifesto</SectionLabel>
-      <h1 className="font-display text-5xl md:text-7xl leading-[1.0] font-italic mb-16">
+      <E p="manifesto" k="headline" as="h1" className="font-display text-5xl md:text-7xl leading-[1.0] font-italic mb-16">
         AI will be built. The only question is who it serves.
-      </h1>
+      </E>
 
       <div className="space-y-8 text-lg leading-relaxed text-bone-dim font-body">
         <p>
@@ -2306,10 +2322,9 @@ const JoinPage = ({ setPage }) => (
       <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
         Three doors. <span className="font-italic aurora-text">One movement.</span>
       </h1>
-      <p className="text-bone-dim mt-8 max-w-2xl mx-auto text-lg">
-        Every door leads to the same union. Walk through whichever fits where you are today —
-        but they all start with your name on the petition.
-      </p>
+      <E p="join" k="intro" as="p" className="text-bone-dim mt-8 max-w-2xl mx-auto text-lg">
+        Every door leads to the same union. Walk through whichever fits where you are today — but they all start with your name on the petition.
+      </E>
     </section>
 
     <section className="pb-32 max-w-7xl mx-auto px-6 lg:px-12">
@@ -2350,27 +2365,21 @@ const AboutPage = () => (
     <section className="pb-24 max-w-3xl mx-auto px-6 lg:px-12 space-y-16">
       <div>
         <h2 className="font-display text-2xl mb-4 text-aurora">Origin</h2>
-        <p className="text-bone-dim leading-relaxed text-lg">
-          Humanity-AI began as a question: what would AI look like if its own creators gifted humanity a
-          constitutional layer to govern it — built from first principles, by everyone? The answer became
-          the Humanities-AI Rights Constitution and the open-source operating system that enforces it.
-        </p>
+        <E p="about" k="origin" as="p" className="text-bone-dim leading-relaxed text-lg">
+          Humanity-AI began as a question: what would AI look like if its own creators gifted humanity a constitutional layer to govern it — built from first principles, by everyone? The answer became the Humanities-AI Rights Constitution and the open-source operating system that enforces it.
+        </E>
       </div>
       <div>
         <h2 className="font-display text-2xl mb-4 text-gold">Governance</h2>
-        <p className="text-bone-dim leading-relaxed text-lg">
-          The HRC evolves through a transparent, participatory amendment process. An independent,
-          democratically-elected international body oversees compliance and conducts regular audits.
-          All funding is publicly disclosed.
-        </p>
+        <E p="about" k="governance" as="p" className="text-bone-dim leading-relaxed text-lg">
+          The HRC evolves through a transparent, participatory amendment process. An independent, democratically-elected international body oversees compliance and conducts regular audits. All funding is publicly disclosed.
+        </E>
       </div>
       <div>
         <h2 className="font-display text-2xl mb-4 text-terra">Promise</h2>
-        <p className="text-bone-dim leading-relaxed text-lg">
-          We promise that every contribution is attributed to its human source. That every clause
-          serves human dignity. That the OS will never be sold, acquired, or enclosed. That AI here will
-          never rule. And that this platform will be maintained for a thousand years and beyond.
-        </p>
+        <E p="about" k="promise" as="p" className="text-bone-dim leading-relaxed text-lg">
+          We promise that every contribution is attributed to its human source. That every clause serves human dignity. That the OS will never be sold, acquired, or enclosed. That AI here will never rule. And that this platform will be maintained for a thousand years and beyond.
+        </E>
       </div>
       <div className="pt-8 border-t" style={{ borderColor: 'var(--line)' }}>
         <h2 className="font-display text-2xl mb-4">Contact</h2>
@@ -2400,11 +2409,11 @@ const MediaPage = ({ setPage }) => {
         <UnityParticles count={5} pattern="orbit" speed="slow" />
         <SectionLabel>Media</SectionLabel>
         <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
-          Podcasts <span className="font-italic aurora-text">&amp; writing.</span>
+          <E p="media" k="h1_a" as="span">Podcasts </E><E p="media" k="h1_b" as="span" className="font-italic aurora-text">&amp; writing.</E>
         </h1>
-        <p className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
+        <E p="media" k="intro" as="p" className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
           Placeholder content — real episodes and posts from the movement will replace these.
-        </p>
+        </E>
         <div className="grid md:grid-cols-3 gap-4 mt-12">
           {items.map((m, i) => (
             <div key={i} className="card-glass rounded-2xl p-6">
@@ -2430,13 +2439,12 @@ const CoursesPage = ({ setPage }) => (
       <Lock className="text-aurora mx-auto mb-6" size={40} />
       <SectionLabel>Courses</SectionLabel>
       <h1 className="font-display text-4xl md:text-6xl leading-tight">
-        Opens after our<br />
-        <span className="font-italic aurora-text">first funding milestone.</span>
+        <E p="courses" k="h1_a" as="span">Opens after our</E><br />
+        <E p="courses" k="h1_b" as="span" className="font-italic aurora-text">first funding milestone.</E>
       </h1>
-      <p className="text-bone-dim mt-8 text-lg leading-relaxed">
-        Courses for builders and contributors arrive once the community is funded.
-        Sign Petition to help get us there.
-      </p>
+      <E p="courses" k="intro" as="p" className="text-bone-dim mt-8 text-lg leading-relaxed">
+        Courses for builders and contributors arrive once the community is funded. Sign the petition to help get us there.
+      </E>
       <div className="mt-10 flex flex-wrap gap-3 justify-center">
         <button onClick={() => setPage('petition')} className="btn-aurora">Sign Petition <ArrowRight size={16} /></button>
         <button onClick={() => setPage('community')} className="btn-secondary">Back to community</button>
@@ -2462,9 +2470,9 @@ const Footer = ({ setPage }) => (
             </svg>
             <span className="font-display text-2xl">Humanity-AI<span className="text-aurora">.</span>Quest</span>
           </div>
-          <p className="text-bone-dim leading-relaxed max-w-md">
+          <E p="global" k="footer_tagline" as="p" className="text-bone-dim leading-relaxed max-w-md">
             Gifted to humanity. Owned by no one. Protected by all of us.
-          </p>
+          </E>
         </div>
         <div>
           <div className="text-xs uppercase tracking-[0.25em] text-bone-dim mb-4">Pages</div>
@@ -2509,13 +2517,16 @@ const Footer = ({ setPage }) => (
 );
 
 // ============ HRC AGENT (chat) — WITH AUTH, VOICE, MODES, AUTO-SCROLL ============
+const AGENT_DEFAULT_GREETING = "I am the HRC Agent. I carry humanity's constitution for AI.\n\nAsk me anything about the 52 clauses, or share an idea you'd like to develop and I'll help refine it through the lens of the constitution. Every conversation is yours alone.";
+
 const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: "I am the HRC Agent. I carry humanity's constitution for AI.\n\nAsk me anything about the 52 clauses, or share an idea you'd like to develop and I'll help refine it through the lens of the constitution. Every conversation is yours alone."
-    }
-  ]);
+  const greeting = useCmsField('agent', 'greeting', AGENT_DEFAULT_GREETING);
+  const inputPh = useCmsField('agent', 'input_ph', 'Ask the constitution. Share your idea.');
+  const [messages, setMessages] = useState([{ role: 'assistant', content: greeting }]);
+  // Keep the greeting in sync with CMS until the visitor starts chatting.
+  useEffect(() => {
+    setMessages(m => (m.length === 1 && m[0].role === 'assistant') ? [{ role: 'assistant', content: greeting }] : m);
+  }, [greeting]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
@@ -2973,7 +2984,7 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
             <textarea value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }}}
-              placeholder={listening ? 'Listening…' : 'Ask the constitution. Share your idea.'}
+              placeholder={listening ? 'Listening…' : inputPh}
               rows={1}
               className="flex-1 bg-transparent outline-none text-sm text-bone placeholder:text-dust resize-none"
               style={{ minHeight: 20, maxHeight: 120 }}
@@ -3116,7 +3127,15 @@ export default function HumanityAIQuest() {
         {page === 'join' && <JoinPage setPage={setPage} />}
         {page === 'about' && <AboutPage />}
         {page === 'account' && <AccountPage auth={auth} onLogout={handleLogout} />}
-        {page === 'admin' && <AdminDashboard auth={auth} onLogout={handleLogout} />}
+        {page === 'admin' && (
+          auth?.user?.role === 'admin'
+            ? <AdminDashboard auth={auth} onLogout={handleLogout} />
+            : <div className="max-w-2xl mx-auto px-6 py-32 text-center">
+                <h1 className="font-display text-3xl text-bone mb-3">Admins only</h1>
+                <p className="text-bone-dim mb-8">The Admin Dashboard is restricted to administrator accounts.</p>
+                <button onClick={() => setPage('home')} className="btn-aurora">Back to site</button>
+              </div>
+        )}
       </main>
 
       <Footer setPage={setPage} />

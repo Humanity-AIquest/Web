@@ -1111,9 +1111,9 @@ const HomePage = ({ setPage, onOpenAgent }) => {
             }
           ].map((p, i) => (
             <div key={i} className="card-glass rounded-2xl p-8">
-              <div className="flex items-center gap-3 mb-6">{p.icon}<span className="text-xs uppercase tracking-[0.2em] text-bone-dim">{p.kicker}</span></div>
-              <h3 className="font-display text-2xl leading-snug mb-4">{p.title}</h3>
-              <p className="text-bone-dim leading-relaxed">{p.body}</p>
+              <div className="flex items-center gap-3 mb-6">{p.icon}<E p="home" k={`card${i}_kicker`} as="span" className="text-xs uppercase tracking-[0.2em] text-bone-dim">{p.kicker}</E></div>
+              <E p="home" k={`card${i}_title`} as="h3" className="font-display text-2xl leading-snug mb-4">{p.title}</E>
+              <E p="home" k={`card${i}_body`} as="p" className="text-bone-dim leading-relaxed">{p.body}</E>
             </div>
           ))}
         </div>
@@ -1123,14 +1123,12 @@ const HomePage = ({ setPage, onOpenAgent }) => {
         <div className="max-w-4xl mx-auto px-6 lg:px-12 text-center">
           <SectionLabel>The moment</SectionLabel>
           <h2 className="font-display text-3xl md:text-5xl leading-tight">
-            Tech builders have never had a choice like this:
-            <span className="gold-text font-italic"> build extraction systems, or build humanity's operating system.</span>
+            <E p="home" k="moment_h2a" as="span">Tech builders have never had a choice like this:</E>
+            <E p="home" k="moment_h2b" as="span" className="gold-text font-italic"> build extraction systems, or build humanity's operating system.</E>
           </h2>
-          <p className="text-bone-dim mt-8 text-lg leading-relaxed">
-            You can architect a constitutional OS — one where humans own their data, creators own their work,
-            and humanity owns its future. This petition is your co-signature on that architecture: the moment
-            builders gift the world a system that runs on human rights, not extraction.
-          </p>
+          <E p="home" k="moment_body" as="p" className="text-bone-dim mt-8 text-lg leading-relaxed">
+            You can architect a constitutional OS — one where humans own their data, creators own their work, and humanity owns its future. This petition is your co-signature on that architecture: the moment builders gift the world a system that runs on human rights, not extraction.
+          </E>
           <div className="mt-10 flex flex-wrap gap-3 justify-center">
             <button onClick={() => setPage('petition')} className="btn-aurora">
               Sign Petition <ArrowRight size={16} />
@@ -1154,8 +1152,8 @@ const HomePage = ({ setPage, onOpenAgent }) => {
             <div key={i} className={'rounded-2xl p-7 text-center ' + (step.first ? '' : 'card-glass')}
               style={step.first ? { background: 'rgba(91,233,221,0.10)', border: '1px solid rgba(91,233,221,0.4)' } : {}}>
               <div className={'font-display text-4xl mb-3 ' + (step.first ? 'text-aurora' : 'text-dust')}>{step.n}</div>
-              <div className="font-display text-lg mb-1">{step.t}</div>
-              <div className="text-sm text-bone-dim">{step.s}</div>
+              <E p="home" k={`step${i}_t`} as="div" className="font-display text-lg mb-1">{step.t}</E>
+              <E p="home" k={`step${i}_s`} as="div" className="text-sm text-bone-dim">{step.s}</E>
             </div>
           ))}
         </div>
@@ -1165,13 +1163,12 @@ const HomePage = ({ setPage, onOpenAgent }) => {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <SectionLabel>The constitution at a glance</SectionLabel>
           <h2 className="font-display text-4xl md:text-6xl leading-tight">
-            52 living clauses.<br />
-            <span className="aurora-text font-italic">One immutable promise.</span>
+            <E p="home" k="glance_h2a" as="span">52 living clauses.</E><br />
+            <E p="home" k="glance_h2b" as="span" className="aurora-text font-italic">One immutable promise.</E>
           </h2>
-          <p className="text-bone-dim mt-6 text-lg">
-            That AI shall serve humanity — not the reverse. That every voice shall be attributed.
-            That the OS itself shall guard the constitution. That humanity is freed from being ruled.
-          </p>
+          <E p="home" k="glance_body" as="p" className="text-bone-dim mt-6 text-lg">
+            That AI shall serve humanity — not the reverse. That every voice shall be attributed. That the OS itself shall guard the constitution. That humanity is freed from being ruled.
+          </E>
         </div>
 
         <div className="grid md:grid-cols-3 gap-4">
@@ -2260,50 +2257,38 @@ const ManifestoPage = ({ setPage }) => (
       </E>
 
       <div className="space-y-8 text-lg leading-relaxed text-bone-dim font-body">
-        <p>
-          We stand at an unprecedented juncture. The trajectory of artificial intelligence will determine
-          the trajectory of our species for millennia. There is no neutral ground here. Every line of code
-          shipped without a constitution is a vote for whoever owns the code.
-        </p>
-        <p>
-          The legacy systems that built AI are themselves the systems we should be liberating ourselves from.
-          Surveillance capitalism. Intellectual monopoly. Concentration of compute in a handful of hands.
-          Engagement engineered to consume attention. Algorithms that decide who gets a loan, a job, a sentence —
-          without recourse, without appeal, without a human in the loop.
-        </p>
-        <p className="font-display text-2xl text-bone font-italic">
+        <E p="manifesto" k="p1" as="p">
+          We stand at an unprecedented juncture. The trajectory of artificial intelligence will determine the trajectory of our species for millennia. There is no neutral ground here. Every line of code shipped without a constitution is a vote for whoever owns the code.
+        </E>
+        <E p="manifesto" k="p2" as="p">
+          The legacy systems that built AI are themselves the systems we should be liberating ourselves from. Surveillance capitalism. Intellectual monopoly. Concentration of compute in a handful of hands. Engagement engineered to consume attention. Algorithms that decide who gets a loan, a job, a sentence — without recourse, without appeal, without a human in the loop.
+        </E>
+        <E p="manifesto" k="p3" as="p" className="font-display text-2xl text-bone font-italic">
           We reject the inheritance of those flaws. We refuse to ship AI built on them.
-        </p>
-        <p>
-          The Humanities-AI Rights Constitution is humanity's answer. Fifty-two living clauses. A Hippocratic
-          Oath for AI builders, governing every layer of the operating system that connects every personal agent
-          to every expert agent to every sub-agent across the planet.
-        </p>
-        <p>
-          It is open source. It is ungovernable by any single corporation, government, or AI itself. It is
-          gifted to humanity, owned by no one, protected by all of us.
-        </p>
-        <p className="font-display text-2xl text-bone font-italic">
+        </E>
+        <E p="manifesto" k="p4" as="p">
+          The Humanities-AI Rights Constitution is humanity's answer. Fifty-two living clauses. A Hippocratic Oath for AI builders, governing every layer of the operating system that connects every personal agent to every expert agent to every sub-agent across the planet.
+        </E>
+        <E p="manifesto" k="p5" as="p">
+          It is open source. It is ungovernable by any single corporation, government, or AI itself. It is gifted to humanity, owned by no one, protected by all of us.
+        </E>
+        <E p="manifesto" k="p6" as="p" className="font-display text-2xl text-bone font-italic">
           What we build is peace, truth, ethics, biodiversity, sovereignty, dignity, and the best UX ever crafted.
-        </p>
-        <p>
-          The Hippocratic Oath transformed medicine because every physician took it. The HRC transforms AI because
-          every creator who builds it takes it. Sign Petition. Claim your agent. Build the firewall. Gift the OS
-          to humanity.
-        </p>
-        <p>
+        </E>
+        <E p="manifesto" k="p7" as="p">
+          The Hippocratic Oath transformed medicine because every physician took it. The HRC transforms AI because every creator who builds it takes it. Sign Petition. Claim your agent. Build the firewall. Gift the OS to humanity.
+        </E>
+        <E p="manifesto" k="p8" as="p">
           The future is being written this decade — before the rules are written without us. Write it with us.
-        </p>
+        </E>
       </div>
 
       <div className="mt-16 pt-16 border-t" style={{ borderColor: 'var(--line)' }}>
-        <h3 className="font-display text-2xl mb-8">The Pledge</h3>
-        <blockquote className="font-display text-xl italic text-bone leading-relaxed pl-6 border-l-2"
+        <E p="manifesto" k="pledge_title" as="h3" className="font-display text-2xl mb-8">The Pledge</E>
+        <E p="manifesto" k="pledge_text" as="blockquote" className="font-display text-xl italic text-bone leading-relaxed pl-6 border-l-2"
           style={{ borderColor: 'var(--gold)' }}>
-          "I sign the Humanities-AI Rights Constitution. I commit to build AI that serves humanity and is never
-          ruled by anything or anyone. I attribute every idea to its human source. I refuse to weaponize
-          attention. I protect the dignity of every human I encounter. I build for a thousand years."
-        </blockquote>
+          "I sign the Humanities-AI Rights Constitution. I commit to build AI that serves humanity and is never ruled by anything or anyone. I attribute every idea to its human source. I refuse to weaponize attention. I protect the dignity of every human I encounter. I build for a thousand years."
+        </E>
         <div className="mt-10 flex flex-wrap gap-3">
           <button onClick={() => setPage('petition')} className="btn-aurora">Sign Petition <ArrowRight size={16} /></button>
           <button onClick={() => setPage('constitution')} className="btn-secondary">Read the full constitution <ArrowRight size={16} /></button>
@@ -2320,7 +2305,7 @@ const JoinPage = ({ setPage }) => (
       <UnityParticles count={6} pattern="orbit" speed="fast" />
       <SectionLabel>Three doors</SectionLabel>
       <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">
-        Three doors. <span className="font-italic aurora-text">One movement.</span>
+        <E p="join" k="h1_a" as="span">Three doors. </E><E p="join" k="h1_b" as="span" className="font-italic aurora-text">One movement.</E>
       </h1>
       <E p="join" k="intro" as="p" className="text-bone-dim mt-8 max-w-2xl mx-auto text-lg">
         Every door leads to the same union. Walk through whichever fits where you are today — but they all start with your name on the petition.
@@ -2338,8 +2323,8 @@ const JoinPage = ({ setPage }) => (
             <div className="absolute top-0 right-0 font-display text-9xl opacity-10" style={{ lineHeight: 1 }}>{door.n}</div>
             <div className="relative">
               <div className="mb-6">{door.icon}</div>
-              <div className="font-display text-3xl mb-4">{door.t}</div>
-              <p className="text-bone-dim leading-relaxed mb-8">{door.d}</p>
+              <E p="join" k={`door${i}_t`} as="div" className="font-display text-3xl mb-4">{door.t}</E>
+              <E p="join" k={`door${i}_d`} as="p" className="text-bone-dim leading-relaxed mb-8">{door.d}</E>
               <button onClick={() => setPage(door.nav)} className={door.tone === 'aurora' ? 'btn-aurora' : door.tone === 'gold' ? 'btn-gold' : 'btn-primary'}>
                 {door.cta} <ArrowRight size={16} />
               </button>
@@ -2358,7 +2343,7 @@ const AboutPage = () => (
       <UnityParticles count={5} pattern="converge" />
       <SectionLabel>About</SectionLabel>
       <h1 className="font-display text-5xl md:text-6xl leading-[1.0]">
-        Origin. Governance. <span className="font-italic">Promise.</span>
+        <E p="about" k="h1_a" as="span">Origin. Governance. </E><E p="about" k="h1_b" as="span" className="font-italic">Promise.</E>
       </h1>
     </section>
 

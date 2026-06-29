@@ -11,6 +11,7 @@
  * - All 52 HRC clauses injected server-side
  */
 import { CORS_HEADERS, getUser, newId } from "./_shared.js";
+import { ensureConversationSchema, logInteraction } from "./_conversations.js";
 
 // ─── CANONICAL MODEL ─────────────────────────────────────────────────────────
 const CANONICAL_MODEL = "claude-sonnet-4-6";
@@ -324,6 +325,12 @@ export async function onRequestPost(context) {
       return errorResponse("Your message was empty. Please type a question about the constitution.");
     }
 
+    // ─── ENSURE CONVERSATION TABLES EXIST (self-migrating) ─────────────
+    // Without this, every INSERT below throws "no such table" and is lost.
+    if (env.DB) {
+      try { await ensureConversationSchema(env); } catch (e) { /* schema best-effort */ }
+    }
+
     // ─── GUARDRAILS ────────────────────────────────────────────────────
     const guardrailResult = await checkGuardrails(userMessage, env);
     if (guardrailResult.blocked) {
@@ -333,11 +340,16 @@ export async function onRequestPost(context) {
           const convId = newId();
           const user = await getUser(request, env);
           await env.DB.prepare(
-            "INSERT INTO conversations (id, user_id, user_type, flagged) VALUES (?, ?, ?, 1)"
-          ).bind(convId, user?.id || null, user ? "registered" : "anon").run();
+            "INSERT INTO conversations (id, user_id, user_type, kind, mode, flagged, flag_category) VALUES (?, ?, ?, 'agent', ?, 1, 'blocked')"
+          ).bind(convId, user?.id || null, user ? "registered" : "anon", mode || null).run();
           await env.DB.prepare(
             "INSERT INTO messages (id, conversation_id, role, content, flagged, flag_reason) VALUES (?, ?, 'user', ?, 1, ?)"
           ).bind(newId(), convId, userMessage, guardrailResult.reason).run();
+          await logInteraction(env, {
+            kind: "agent", user_id: user?.id || null,
+            participant: user?.id || "anon", ref_type: "conversation", ref_id: convId,
+            summary: "Blocked message: " + userMessage,
+          });
         } catch (e) { /* don't fail on logging */ }
       }
       return errorResponse(guardrailResult.message);
@@ -357,19 +369,40 @@ export async function onRequestPost(context) {
       } catch (e) { /* anonymous is fine */ }
     }
 
-    // ─── LOG CONVERSATION START ────────────────────────────────────────
-    let conversationId = null;
+    // ─── LOG CONVERSATION + MESSAGE ────────────────────────────────────
+    // Reuse the client-supplied conversation_id so a multi-turn chat stays a
+    // single thread; only create a new conversation on the first turn.
+    let conversationId = (typeof body.conversation_id === "string" && body.conversation_id) || null;
     if (env.DB) {
       try {
-        conversationId = newId();
-        await env.DB.prepare(
-          "INSERT INTO conversations (id, user_id, user_type) VALUES (?, ?, ?)"
-        ).bind(conversationId, user?.id || null, user ? "registered" : "anon").run();
+        let isNew = false;
+        if (conversationId) {
+          const existing = await env.DB.prepare(
+            "SELECT id FROM conversations WHERE id = ?"
+          ).bind(conversationId).first();
+          if (!existing) { conversationId = null; }
+        }
+        if (!conversationId) {
+          conversationId = newId();
+          isNew = true;
+          await env.DB.prepare(
+            "INSERT INTO conversations (id, user_id, user_type, kind, mode) VALUES (?, ?, ?, 'agent', ?)"
+          ).bind(conversationId, user?.id || null, user ? "registered" : "anon", mode || null).run();
+        }
 
         // Log user message
         await env.DB.prepare(
           "INSERT INTO messages (id, conversation_id, role, content) VALUES (?, ?, 'user', ?)"
         ).bind(newId(), conversationId, userMessage).run();
+
+        // Index the start of a new conversation for the unified Interactions view
+        if (isNew) {
+          await logInteraction(env, {
+            kind: "agent", user_id: user?.id || null,
+            participant: user?.id || "anon", ref_type: "conversation", ref_id: conversationId,
+            summary: (mode ? "[" + mode + "] " : "") + userMessage,
+          });
+        }
       } catch (e) { /* don't fail on logging */ }
     }
 
@@ -430,9 +463,10 @@ export async function onRequestPost(context) {
       } catch (e) { /* don't fail on logging */ }
     }
 
-    // ─── RETURN { message } for frontend ───────────────────────────────
+    // ─── RETURN { message, conversationId } for frontend ────────────────
+    // conversationId lets the client keep follow-up turns in one thread.
     return new Response(
-      JSON.stringify({ message: replyText }),
+      JSON.stringify({ message: replyText, conversationId }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...CORS_HEADERS },

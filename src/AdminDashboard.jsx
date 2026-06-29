@@ -1754,6 +1754,227 @@ const VoicePickerPanel = ({ tts }) => {
 };
 
 /* ============================================================
+   SURVEYS MANAGER — create / edit / archive surveys + question types
+   Backend: /api/admin/surveys. Question types: vote | crowdfunding | signature.
+   ============================================================ */
+const SURVEY_LOCS = { surveys_page: 'Surveys page', petition: 'Petition', community: 'Community', standalone: 'Standalone' };
+const SURVEY_STATUS_COLOR = { draft: 'gold', live: 'green', open: 'green', analysis: 'aurora', archived: 'dust' };
+const QTYPE_LABEL = { vote: 'Vote statement', crowdfunding: 'Crowdfunding step', signature: 'Signature step' };
+const QTYPE_COLOR = { vote: 'aurora', crowdfunding: 'gold', signature: 'green' };
+
+const SurveysTab = ({ auth, level }) => {
+  const [surveys, setSurveys] = useState(null);
+  const [detail, setDetail] = useState(null);      // null = list view; object = editor
+  const [isNew, setIsNew] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [newStmt, setNewStmt] = useState({ text: '', type: 'vote' });
+  const canEdit = level >= 3;
+
+  const load = useCallback(async () => {
+    try { const d = await apiCall('/api/admin/surveys', 'GET', null, auth.token); setSurveys(d.surveys || []); }
+    catch (e) { setSurveys([]); setMsg({ error: e.message }); }
+  }, [auth.token]);
+  useEffect(() => { load(); }, [load]);
+
+  const flash = (m) => { setMsg(m); setTimeout(() => setMsg(null), 3500); };
+
+  const openEdit = async (id) => {
+    setMsg(null);
+    try { const d = await apiCall(`/api/admin/surveys?id=${id}`, 'GET', null, auth.token); setDetail(d.survey); setIsNew(false); }
+    catch (e) { flash({ error: e.message }); }
+  };
+  const openNew = () => {
+    setDetail({ id: null, title: '', intro: '', description: '', status: 'draft', location: 'surveys_page', statements: [] });
+    setIsNew(true); setMsg(null);
+  };
+  const closeEdit = () => { setDetail(null); setIsNew(false); setNewStmt({ text: '', type: 'vote' }); };
+
+  const field = (k, v) => setDetail(d => ({ ...d, [k]: v }));
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      if (isNew) {
+        const d = await apiCall('/api/admin/surveys', 'POST', { action: 'create', ...detail }, auth.token);
+        await openEdit(d.id); flash({ success: 'Survey created.' });
+      } else {
+        await apiCall('/api/admin/surveys', 'POST', { action: 'update', ...detail }, auth.token);
+        flash({ success: 'Saved.' });
+      }
+      load();
+    } catch (e) { flash({ error: e.message }); } finally { setBusy(false); }
+  };
+
+  const setStatus = async (id, status) => {
+    try {
+      await apiCall('/api/admin/surveys', 'POST', { action: 'set_status', id, status }, auth.token);
+      if (detail && detail.id === id) field('status', status);
+      load(); flash({ success: `Status set to ${status}.` });
+    } catch (e) { flash({ error: e.message }); }
+  };
+
+  const removeSurvey = async (id) => {
+    if (!window.confirm('Delete this survey and ALL its statements and votes? This cannot be undone.')) return;
+    try { await apiCall('/api/admin/surveys', 'POST', { action: 'delete', id }, auth.token); closeEdit(); load(); flash({ success: 'Survey deleted.' }); }
+    catch (e) { flash({ error: e.message }); }
+  };
+
+  const addStatement = async () => {
+    if (!newStmt.text.trim()) return;
+    try {
+      await apiCall('/api/admin/surveys', 'POST',
+        { action: 'add_statement', survey_id: detail.id, text: newStmt.text.trim(), type: newStmt.type, sort_order: detail.statements.length },
+        auth.token);
+      setNewStmt({ text: '', type: 'vote' });
+      openEdit(detail.id);
+    } catch (e) { flash({ error: e.message }); }
+  };
+  const removeStatement = async (sid) => {
+    try { await apiCall('/api/admin/surveys', 'POST', { action: 'delete_statement', statement_id: sid }, auth.token); openEdit(detail.id); }
+    catch (e) { flash({ error: e.message }); }
+  };
+
+  const notice = msg && (
+    <div style={{
+      margin: '0 0 14px', padding: '9px 14px', borderRadius: 8, fontSize: 13,
+      background: msg.error ? 'rgba(220,60,60,0.12)' : 'rgba(52,211,153,0.12)',
+      color: msg.error ? '#f87171' : '#34d399',
+    }}>{msg.error || msg.success}</div>
+  );
+
+  const inputStyle = {
+    width: '100%', boxSizing: 'border-box', padding: '8px 11px', fontSize: 13,
+    background: 'var(--void)', color: 'var(--bone)', border: '1px solid var(--line-2)', borderRadius: 8,
+  };
+  const labelStyle = { display: 'block', fontSize: 12, color: 'var(--dust)', marginBottom: 4 };
+
+  // ── EDITOR ──
+  if (detail) {
+    return (
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+          <button onClick={closeEdit} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--dust)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+            <ChevronRight size={13} style={{ transform: 'rotate(180deg)' }} /> Surveys
+          </button>
+          <h2 style={{ margin: 0, fontSize: 16, color: 'var(--bone)' }}>{isNew ? 'Create survey' : detail.title || 'Edit survey'}</h2>
+          {!isNew && <Badge label={detail.status} color={SURVEY_STATUS_COLOR[detail.status] || 'dust'} />}
+        </div>
+
+        {notice}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
+          {/* Details */}
+          <div style={{ background: 'var(--void-2)', border: '1px solid var(--line)', borderRadius: 12, padding: 18 }}>
+            <p style={{ margin: '0 0 14px', fontSize: 11, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Survey details</p>
+            <div style={{ marginBottom: 12 }}><label style={labelStyle}>Title</label>
+              <input style={inputStyle} value={detail.title} onChange={e => field('title', e.target.value)} placeholder="Survey title…" /></div>
+            <div style={{ marginBottom: 12 }}><label style={labelStyle}>Intro text</label>
+              <textarea style={{ ...inputStyle, minHeight: 64, resize: 'vertical' }} value={detail.intro} onChange={e => field('intro', e.target.value)} placeholder="Shown above the questions…" /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+              <div><label style={labelStyle}>Location</label>
+                <select style={inputStyle} value={detail.location} onChange={e => field('location', e.target.value)} disabled={!canEdit}>
+                  {Object.keys(SURVEY_LOCS).map(k => <option key={k} value={k}>{SURVEY_LOCS[k]}</option>)}
+                </select></div>
+              <div><label style={labelStyle}>Status</label>
+                <select style={inputStyle} value={detail.status} onChange={e => field('status', e.target.value)} disabled={!canEdit}>
+                  {['draft', 'live', 'analysis', 'archived'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select></div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid var(--line)' }}>
+              {!isNew
+                ? <button onClick={() => removeSurvey(detail.id)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', border: '1px solid rgba(220,60,60,0.3)', background: 'transparent', color: '#f87171', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}><Trash2 size={13} /> Delete</button>
+                : <span />}
+              <button onClick={save} disabled={busy || !canEdit} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', border: 'none', background: 'var(--aurora)', color: 'var(--void)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: (busy || !canEdit) ? 0.5 : 1 }}>
+                {busy ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} {isNew ? 'Create' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+
+          {/* Questions */}
+          <div style={{ background: 'var(--void-2)', border: '1px solid var(--line)', borderRadius: 12, padding: 18 }}>
+            <p style={{ margin: '0 0 14px', fontSize: 11, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Questions ({(detail.statements || []).length})
+            </p>
+            {isNew ? (
+              <p style={{ fontSize: 13, color: 'var(--dust)' }}>Create the survey first, then add questions.</p>
+            ) : (
+              <>
+                {(detail.statements || []).length === 0 && <p style={{ fontSize: 13, color: 'var(--dust)', textAlign: 'center', padding: '14px 0' }}>No questions yet.</p>}
+                {(detail.statements || []).map(q => (
+                  <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
+                    <Badge label={QTYPE_LABEL[q.type] || q.type} color={QTYPE_COLOR[q.type] || 'dust'} />
+                    <span style={{ flex: 1, fontSize: 13, color: 'var(--bone)', minWidth: 0, wordBreak: 'break-word' }}>{q.text}</span>
+                    {q.type === 'vote' && <span style={{ fontSize: 11, color: 'var(--dust)', whiteSpace: 'nowrap' }}>▲{q.agree} ▼{q.disagree} ◦{q.pass}</span>}
+                    {canEdit && <button onClick={() => removeStatement(q.id)} title="Remove" style={{ padding: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--dust)' }}><X size={15} /></button>}
+                  </div>
+                ))}
+                {canEdit && (
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
+                    <label style={labelStyle}>Add question</label>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <select style={{ ...inputStyle, width: 'auto', flexShrink: 0 }} value={newStmt.type} onChange={e => setNewStmt(s => ({ ...s, type: e.target.value }))}>
+                        {Object.keys(QTYPE_LABEL).map(k => <option key={k} value={k}>{QTYPE_LABEL[k]}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input style={inputStyle} value={newStmt.text} onChange={e => setNewStmt(s => ({ ...s, text: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') addStatement(); }} placeholder="Question text…" />
+                      <button onClick={addStatement} style={{ padding: '8px 14px', border: 'none', background: 'rgba(91,233,221,0.15)', color: 'var(--aurora)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Add</button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── LIST ──
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 16, color: 'var(--bone)' }}>Surveys</h2>
+          <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--dust)' }}>Manage all surveys — vote, petition, crowdfunding and signature steps</p>
+        </div>
+        {canEdit && <button onClick={openNew} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', border: 'none', background: 'var(--aurora)', color: 'var(--void)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}><Plus size={14} /> Create survey</button>}
+      </div>
+
+      {notice}
+
+      {surveys === null ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--dust)', padding: 20 }}><Spinner /> Loading surveys…</div>
+      ) : surveys.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--dust)' }}>No surveys yet.</div>
+      ) : (
+        <div style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+          {surveys.map(s => (
+            <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                  <span style={{ fontSize: 14, color: 'var(--bone)', fontWeight: 600 }}>{s.title}</span>
+                  <Badge label={SURVEY_LOCS[s.location] || s.location || 'surveys_page'} color="bone" />
+                  <Badge label={s.status} color={SURVEY_STATUS_COLOR[s.status] || 'dust'} />
+                </div>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--dust)' }}>{s.statement_count} question{s.statement_count !== 1 ? 's' : ''} · {s.respondent_count} respondent{s.respondent_count !== 1 ? 's' : ''}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <button onClick={() => openEdit(s.id)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--bone)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}><Edit2 size={13} /> Edit</button>
+                {canEdit && s.status !== 'archived' && <button onClick={() => setStatus(s.id, 'archived')} style={{ padding: '6px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--dust)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Archive</button>}
+                {canEdit && s.status === 'archived' && <button onClick={() => setStatus(s.id, 'live')} style={{ padding: '6px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--dust)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Restore</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ============================================================
    INTERACTIONS HUB — all frontend interactions in one place
    Interactions
      ├── HRC Agent      → Conversations · Comments · Actions
@@ -1829,6 +2050,7 @@ export const AdminDashboard = ({ auth }) => {
   const tabs = [
     { id: 'users',         label: 'Users',          icon: Users,         minLevel: 1 },
     { id: 'interactions',  label: 'Interactions',    icon: MessageCircle, minLevel: 1 },
+    { id: 'surveys',       label: 'Surveys',         icon: FileText,      minLevel: 1 },
     { id: 'cms',           label: 'CMS',             icon: FileText,      minLevel: 3 },
     { id: 'tts',           label: 'TTS Plugins',     icon: Mic,           minLevel: 3 },
   ].filter(t => level >= t.minLevel);
@@ -1880,6 +2102,7 @@ export const AdminDashboard = ({ auth }) => {
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 0' }}>
         {activeTab === 'users'         && <UsersTab           auth={auth} level={level} />}
         {activeTab === 'interactions'  && <InteractionsTab   auth={auth} level={level} />}
+        {activeTab === 'surveys'       && <SurveysTab        auth={auth} level={level} />}
         {activeTab === 'cms'           && <CmsTab            auth={auth} level={level} />}
         {activeTab === 'tts'           && <TtsPluginManager  auth={auth} level={level} />}
       </div>

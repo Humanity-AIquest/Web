@@ -1754,6 +1754,63 @@ const VoicePickerPanel = ({ tts }) => {
 };
 
 /* ============================================================
+   INTERACTIONS HUB — all frontend interactions in one place
+   Interactions
+     ├── HRC Agent      → Conversations · Comments · Actions
+     └── IP Dev Agent   → Ideas
+   Reuses the existing tab components (no rewrite).
+   ============================================================ */
+const InteractionsTab = ({ auth, level }) => {
+  const [view, setView] = useState('hrc');            // 'hrc' | 'ideas'
+  const [hrcSub, setHrcSub] = useState('conversations'); // 'conversations' | 'comments' | 'actions'
+
+  const SegBtn = ({ active, onClick, icon: Icon, label, small }) => (
+    <button onClick={onClick} style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      padding: small ? '5px 12px' : '8px 16px',
+      border: `1px solid ${active ? 'var(--line-2)' : 'transparent'}`,
+      background: active ? 'var(--void-2)' : 'transparent',
+      color: active ? 'var(--aurora)' : 'var(--dust)',
+      borderRadius: 9999, fontSize: small ? 12 : 13,
+      fontWeight: active ? 600 : 400, cursor: 'pointer',
+      whiteSpace: 'nowrap', transition: 'all 0.15s',
+    }}>
+      <Icon size={small ? 12 : 14} /> {label}
+    </button>
+  );
+
+  return (
+    <div>
+      {/* Primary sub-nav: HRC Agent | IP Dev Agent */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+        <SegBtn active={view === 'hrc'}   onClick={() => setView('hrc')}   icon={MessageCircle} label="HRC Agent" />
+        <SegBtn active={view === 'ideas'} onClick={() => setView('ideas')} icon={Lightbulb}     label="IP Dev Agent" />
+      </div>
+
+      {view === 'hrc' && (
+        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+          {/* Tertiary sub-nav within HRC Agent */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
+            <SegBtn small active={hrcSub === 'conversations'} onClick={() => setHrcSub('conversations')} icon={MessageCircle} label="Conversations" />
+            <SegBtn small active={hrcSub === 'comments'}      onClick={() => setHrcSub('comments')}      icon={MessageCircle} label="Comments" />
+            <SegBtn small active={hrcSub === 'actions'}       onClick={() => setHrcSub('actions')}       icon={Zap}           label="Actions" />
+          </div>
+          {hrcSub === 'conversations' && <ConversationsTab auth={auth} level={level} />}
+          {hrcSub === 'comments'      && <CommentsTab      auth={auth} level={level} />}
+          {hrcSub === 'actions'       && <ActionsTab       auth={auth} level={level} />}
+        </div>
+      )}
+
+      {view === 'ideas' && (
+        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+          <IdeasTab auth={auth} level={level} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ============================================================
    MAIN EXPORT — AdminDashboard
    ============================================================ */
 export const AdminDashboard = ({ auth }) => {
@@ -1771,10 +1828,7 @@ export const AdminDashboard = ({ auth }) => {
 
   const tabs = [
     { id: 'users',         label: 'Users',          icon: Users,         minLevel: 1 },
-    { id: 'conversations', label: 'Conversations',   icon: MessageCircle, minLevel: 1 },
-    { id: 'ideas',         label: 'IP Dev Agent',    icon: Lightbulb,     minLevel: 1 },
-    { id: 'comments',      label: 'Comments',        icon: MessageCircle, minLevel: 1 },
-    { id: 'actions',       label: 'Actions',         icon: Zap,           minLevel: 1 },
+    { id: 'interactions',  label: 'Interactions',    icon: MessageCircle, minLevel: 1 },
     { id: 'cms',           label: 'CMS',             icon: FileText,      minLevel: 3 },
     { id: 'tts',           label: 'TTS Plugins',     icon: Mic,           minLevel: 3 },
   ].filter(t => level >= t.minLevel);
@@ -1825,10 +1879,7 @@ export const AdminDashboard = ({ auth }) => {
       {/* Tab content */}
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 0' }}>
         {activeTab === 'users'         && <UsersTab           auth={auth} level={level} />}
-        {activeTab === 'conversations' && <ConversationsTab  auth={auth} level={level} />}
-        {activeTab === 'ideas'         && <IdeasTab          auth={auth} level={level} />}
-        {activeTab === 'comments'      && <CommentsTab       auth={auth} level={level} />}
-        {activeTab === 'actions'       && <ActionsTab        auth={auth} level={level} />}
+        {activeTab === 'interactions'  && <InteractionsTab   auth={auth} level={level} />}
         {activeTab === 'cms'           && <CmsTab            auth={auth} level={level} />}
         {activeTab === 'tts'           && <TtsPluginManager  auth={auth} level={level} />}
       </div>

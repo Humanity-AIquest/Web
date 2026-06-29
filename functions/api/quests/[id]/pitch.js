@@ -4,6 +4,7 @@
  */
 import { json, jsonError, optionsResponse, newId } from "../../_shared.js";
 import { ensureMovementSchema } from "../../_movement.js";
+import { ensureConversationSchema, logInteraction } from "../../_conversations.js";
 
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || "");
 
@@ -22,6 +23,15 @@ export async function onRequestPost(context) {
     await env.DB.prepare(
       `INSERT INTO quest_pitches (id, quest_id, name, email, approach) VALUES (?,?,?,?,?)`
     ).bind(newId(), params.id, name.trim(), email.trim().toLowerCase(), (approach || "").trim()).run();
+
+    try {
+      await ensureConversationSchema(env);
+      await logInteraction(env, {
+        kind: "quest_pitch", participant: email.trim().toLowerCase(),
+        ref_type: "quest", ref_id: params.id,
+        summary: `${name.trim()} pitched a solution`,
+      });
+    } catch (e) { /* index write is best-effort */ }
 
     return json({ success: true, message: "Your pitch is registered. We'll be in touch about the next pitch night." });
   } catch (err) {

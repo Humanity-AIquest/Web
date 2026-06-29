@@ -4,6 +4,7 @@
  */
 import { json, jsonError, optionsResponse, newId } from "../../_shared.js";
 import { ensureMovementSchema } from "../../_movement.js";
+import { ensureConversationSchema, logInteraction } from "../../_conversations.js";
 
 export async function onRequestPost(context) {
   const { request, env, params } = context;
@@ -19,6 +20,15 @@ export async function onRequestPost(context) {
     await env.DB.prepare(
       `INSERT INTO quest_questions (id, quest_id, author, question) VALUES (?,?,?,?)`
     ).bind(id, params.id, (author || "Anonymous").trim(), question.trim()).run();
+
+    try {
+      await ensureConversationSchema(env);
+      await logInteraction(env, {
+        kind: "quest_question", participant: (author || "Anonymous").trim(),
+        ref_type: "quest", ref_id: params.id,
+        summary: `Question: ${question.trim()}`,
+      });
+    } catch (e) { /* index write is best-effort */ }
 
     return json({ success: true, id });
   } catch (err) {

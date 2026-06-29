@@ -97,9 +97,59 @@ export async function ensureMovementSchema(env) {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`).run();
 
+  // ── Migrations: columns added after the original bootstrap (idempotent) ──────
+  for (const sql of [
+    "ALTER TABLE surveys ADD COLUMN location TEXT DEFAULT 'surveys_page'",
+    "ALTER TABLE surveys ADD COLUMN slug TEXT",
+    "ALTER TABLE surveys ADD COLUMN description TEXT",
+    "ALTER TABLE surveys ADD COLUMN settings TEXT",
+    "ALTER TABLE surveys ADD COLUMN sort_order INTEGER DEFAULT 0",
+    "ALTER TABLE survey_statements ADD COLUMN type TEXT DEFAULT 'vote'",
+    "ALTER TABLE survey_statements ADD COLUMN sort_order INTEGER DEFAULT 0",
+  ]) {
+    try { await env.DB.prepare(sql).run(); } catch (e) { /* column already exists */ }
+  }
+
   if (!_seeded) {
     await seedIfEmpty(env);
     _seeded = true;
+  }
+  if (!_petitionSeeded) {
+    await seedPetitionStance(env);
+    _petitionSeeded = true;
+  }
+}
+
+// Second live survey — the stance questions shown on the petition page wizard.
+// Idempotent: only inserts if 'petition-stance' doesn't already exist (so it
+// seeds even though 'union-for-creators' already populated the surveys table).
+let _petitionSeeded = false;
+async function seedPetitionStance(env) {
+  const exists = await env.DB.prepare("SELECT id FROM surveys WHERE id = ?").bind("petition-stance").first();
+  if (exists) return;
+  await env.DB.prepare(
+    `INSERT INTO surveys (id, title, intro, status, location, description)
+     VALUES (?,?,?,?,?,?)`
+  ).bind(
+    "petition-stance",
+    "Where do you stand on AI?",
+    "Answer each question before you sign. Your positions are recorded with your signature.",
+    "live", "petition",
+    "Stance questions shown on the petition page wizard."
+  ).run();
+  const stmts = [
+    ["AI development is moving faster than society can adapt.", "vote"],
+    ["Humans should retain meaningful control over critical AI systems.", "vote"],
+    ["AI companies should be publicly accountable, not just to shareholders.", "vote"],
+    ["A global constitutional framework is the right approach to governing AI.", "vote"],
+    ["Support the Humanity AI constitution project", "crowdfunding"],
+    ["Sign the Humanity AI constitution", "signature"],
+  ];
+  let i = 0;
+  for (const [text, type] of stmts) {
+    await env.DB.prepare(
+      `INSERT INTO survey_statements (id, survey_id, text, author, type, sort_order) VALUES (?,?,?,NULL,?,?)`
+    ).bind(newId(), "petition-stance", text, type, i++).run();
   }
 }
 

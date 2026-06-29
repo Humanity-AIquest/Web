@@ -4,6 +4,7 @@
  */
 import { json, jsonError, optionsResponse, newId } from "../../_shared.js";
 import { ensureMovementSchema } from "../../_movement.js";
+import { ensureConversationSchema, logInteraction } from "../../_conversations.js";
 
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || "");
 
@@ -21,6 +22,15 @@ export async function onRequestPost(context) {
     await env.DB.prepare(
       `INSERT INTO event_rsvps (id, event_id, name, email) VALUES (?,?,?,?)`
     ).bind(newId(), params.id, name.trim(), email.trim().toLowerCase()).run();
+
+    try {
+      await ensureConversationSchema(env);
+      await logInteraction(env, {
+        kind: "event_rsvp", participant: email.trim().toLowerCase(),
+        ref_type: "event", ref_id: params.id,
+        summary: `${name.trim()} RSVP'd to an event`,
+      });
+    } catch (e) { /* index write is best-effort */ }
 
     return json({ success: true, message: "You're on the list. We'll send details by email." });
   } catch (err) {

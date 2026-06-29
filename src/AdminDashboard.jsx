@@ -1754,6 +1754,258 @@ const VoicePickerPanel = ({ tts }) => {
 };
 
 /* ============================================================
+   MOVEMENT HUB — petition signatures · quests · events
+   Manages the remaining frontend user inputs (sign / pitch / RSVP).
+   ============================================================ */
+const adminInput = {
+  width: '100%', boxSizing: 'border-box', padding: '8px 11px', fontSize: 13,
+  background: 'var(--void)', color: 'var(--bone)', border: '1px solid var(--line-2)', borderRadius: 8,
+};
+
+const SignaturesTab = ({ auth, level }) => {
+  const [data, setData] = useState(null);
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [msg, setMsg] = useState(null);
+  const canDelete = level >= 4;
+
+  const load = useCallback(async () => {
+    try { const d = await apiCall(`/api/admin/signatures?q=${encodeURIComponent(q)}&page=${page}`, 'GET', null, auth.token); setData(d); }
+    catch (e) { setData({ signatures: [], total: 0 }); setMsg({ error: e.message }); }
+  }, [auth.token, q, page]);
+  useEffect(() => { load(); }, [load]);
+
+  const exportCsv = async () => {
+    try {
+      const res = await fetch(`/api/admin/signatures?format=csv&q=${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${auth.token}` } });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'signatures.csv'; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) { setMsg({ error: 'Export failed.' }); }
+  };
+
+  const del = async (id) => {
+    if (!window.confirm('Delete this signature? This cannot be undone.')) return;
+    try { await apiCall('/api/admin/signatures', 'POST', { action: 'delete', id }, auth.token); load(); }
+    catch (e) { setMsg({ error: e.message }); }
+  };
+
+  const sigs = data?.signatures || [];
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+          <Search size={14} style={{ position: 'absolute', left: 11, top: 11, color: 'var(--dust)' }} />
+          <input style={{ ...adminInput, paddingLeft: 32 }} value={q} onChange={e => { setPage(1); setQ(e.target.value); }} placeholder="Search name, email, country…" />
+        </div>
+        <span style={{ fontSize: 13, color: 'var(--dust)' }}>{data?.total ?? 0} total</span>
+        <button onClick={exportCsv} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--bone)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}><ExternalLink size={13} /> Export CSV</button>
+      </div>
+      {msg && <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, fontSize: 13, background: 'rgba(220,60,60,0.12)', color: '#f87171' }}>{msg.error}</div>}
+      {data === null ? <div style={{ display: 'flex', gap: 8, color: 'var(--dust)', padding: 20 }}><Spinner /> Loading…</div>
+        : sigs.length === 0 ? <div style={{ textAlign: 'center', padding: 36, color: 'var(--dust)' }}>No signatures{q ? ' match your search' : ' yet'}.</div>
+        : (
+          <div style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+            {sigs.map(s => (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--line)' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 14, color: 'var(--bone)', fontWeight: 600 }}>{s.name}</span>
+                    <Badge label={s.side} color={s.side === 'developer' ? 'gold' : 'aurora'} />
+                  </div>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--dust)' }}>{s.email}{s.country ? ` · ${s.country}` : ''} · {(s.created_at || '').slice(0, 10)}</p>
+                </div>
+                {canDelete && <button onClick={() => del(s.id)} title="Delete" style={{ padding: 6, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--dust)', flexShrink: 0 }}><Trash2 size={15} /></button>}
+              </div>
+            ))}
+          </div>
+        )}
+      {data && data.pages > 1 && (
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 14, alignItems: 'center' }}>
+          <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} style={{ padding: '5px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--bone)', borderRadius: 8, fontSize: 13, cursor: 'pointer', opacity: page <= 1 ? 0.4 : 1 }}>Prev</button>
+          <span style={{ fontSize: 13, color: 'var(--dust)' }}>Page {page} / {data.pages}</span>
+          <button disabled={page >= data.pages} onClick={() => setPage(p => p + 1)} style={{ padding: '5px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--bone)', borderRadius: 8, fontSize: 13, cursor: 'pointer', opacity: page >= data.pages ? 0.4 : 1 }}>Next</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const QuestsAdminTab = ({ auth, level }) => {
+  const [quests, setQuests] = useState(null);
+  const [open, setOpen] = useState({});
+  const [answers, setAnswers] = useState({});
+  const [msg, setMsg] = useState(null);
+  const canEdit = level >= 3;
+
+  const load = useCallback(async () => {
+    try { const d = await apiCall('/api/admin/quests', 'GET', null, auth.token); setQuests(d.quests || []); }
+    catch (e) { setQuests([]); setMsg({ error: e.message }); }
+  }, [auth.token]);
+  useEffect(() => { load(); }, [load]);
+
+  const answer = async (qid) => {
+    try { await apiCall('/api/admin/quests', 'POST', { action: 'answer_question', question_id: qid, answer: answers[qid] || '' }, auth.token); load(); }
+    catch (e) { setMsg({ error: e.message }); }
+  };
+  const setStatus = async (quest_id, status) => {
+    try { await apiCall('/api/admin/quests', 'POST', { action: 'set_status', quest_id, status }, auth.token); load(); }
+    catch (e) { setMsg({ error: e.message }); }
+  };
+  const delPitch = async (pitch_id) => { try { await apiCall('/api/admin/quests', 'POST', { action: 'delete_pitch', pitch_id }, auth.token); load(); } catch (e) { setMsg({ error: e.message }); } };
+  const delQ = async (question_id) => { try { await apiCall('/api/admin/quests', 'POST', { action: 'delete_question', question_id }, auth.token); load(); } catch (e) { setMsg({ error: e.message }); } };
+
+  if (quests === null) return <div style={{ display: 'flex', gap: 8, color: 'var(--dust)', padding: 20 }}><Spinner /> Loading quests…</div>;
+  return (
+    <div>
+      {msg && <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, fontSize: 13, background: 'rgba(220,60,60,0.12)', color: '#f87171' }}>{msg.error}</div>}
+      {quests.length === 0 ? <div style={{ textAlign: 'center', padding: 36, color: 'var(--dust)' }}>No quests.</div> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {quests.map(q => {
+            const isOpen = open[q.id];
+            return (
+              <div key={q.id} style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', cursor: 'pointer' }} onClick={() => setOpen(o => ({ ...o, [q.id]: !o[q.id] }))}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    {isOpen ? <ChevronDown size={15} color="var(--dust)" /> : <ChevronRight size={15} color="var(--dust)" />}
+                    <span style={{ fontSize: 14, color: 'var(--bone)', fontWeight: 600 }}>{q.title}</span>
+                    <Badge label={q.status} color={q.status === 'Open' ? 'green' : 'dust'} />
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--dust)', flexShrink: 0 }}>{q.pitches.length} pitch{q.pitches.length !== 1 ? 'es' : ''} · {q.questions.length} Q</span>
+                </div>
+                {isOpen && (
+                  <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--line)' }}>
+                    {canEdit && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0' }}>
+                        <span style={{ fontSize: 12, color: 'var(--dust)' }}>Status:</span>
+                        <select style={{ ...adminInput, width: 'auto' }} value={q.status} onChange={e => setStatus(q.id, e.target.value)}>
+                          {['Open', 'In Review', 'Awarded', 'Closed'].map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    <p style={{ fontSize: 11, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '14px 0 8px' }}>Pitches ({q.pitches.length})</p>
+                    {q.pitches.length === 0 ? <p style={{ fontSize: 13, color: 'var(--dust)' }}>No pitches yet.</p> : q.pitches.map(p => (
+                      <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <span style={{ fontSize: 13, color: 'var(--bone)' }}>{p.name}</span>
+                          <span style={{ fontSize: 12, color: 'var(--dust)' }}> · {p.email}</span>
+                          {p.approach && <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--bone-dim)' }}>{p.approach}</p>}
+                        </div>
+                        {canEdit && <button onClick={() => delPitch(p.id)} title="Delete" style={{ padding: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--dust)', flexShrink: 0 }}><Trash2 size={14} /></button>}
+                      </div>
+                    ))}
+                    <p style={{ fontSize: 11, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '16px 0 8px' }}>Questions ({q.questions.length})</p>
+                    {q.questions.length === 0 ? <p style={{ fontSize: 13, color: 'var(--dust)' }}>No questions yet.</p> : q.questions.map(qq => (
+                      <div key={qq.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                          <span style={{ fontSize: 13, color: 'var(--bone)' }}><strong style={{ color: 'var(--bone-dim)' }}>{qq.author}:</strong> {qq.question}</span>
+                          {canEdit && <button onClick={() => delQ(qq.id)} title="Delete" style={{ padding: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--dust)', flexShrink: 0 }}><X size={14} /></button>}
+                        </div>
+                        {canEdit && (
+                          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                            <input style={adminInput} defaultValue={qq.answer || ''} onChange={e => setAnswers(a => ({ ...a, [qq.id]: e.target.value }))} placeholder="Write an answer…" />
+                            <button onClick={() => answer(qq.id)} style={{ padding: '8px 14px', border: 'none', background: 'rgba(91,233,221,0.15)', color: 'var(--aurora)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{qq.answer ? 'Update' : 'Answer'}</button>
+                          </div>
+                        )}
+                        {!canEdit && qq.answer && <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--aurora)' }}>↳ {qq.answer}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const EventsAdminTab = ({ auth, level }) => {
+  const [events, setEvents] = useState(null);
+  const [open, setOpen] = useState({});
+  const [msg, setMsg] = useState(null);
+  const canEdit = level >= 3;
+
+  const load = useCallback(async () => {
+    try { const d = await apiCall('/api/admin/events', 'GET', null, auth.token); setEvents(d.events || []); }
+    catch (e) { setEvents([]); setMsg({ error: e.message }); }
+  }, [auth.token]);
+  useEffect(() => { load(); }, [load]);
+
+  const delRsvp = async (rsvp_id) => { try { await apiCall('/api/admin/events', 'POST', { action: 'delete_rsvp', rsvp_id }, auth.token); load(); } catch (e) { setMsg({ error: e.message }); } };
+
+  if (events === null) return <div style={{ display: 'flex', gap: 8, color: 'var(--dust)', padding: 20 }}><Spinner /> Loading events…</div>;
+  return (
+    <div>
+      {msg && <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, fontSize: 13, background: 'rgba(220,60,60,0.12)', color: '#f87171' }}>{msg.error}</div>}
+      {events.length === 0 ? <div style={{ textAlign: 'center', padding: 36, color: 'var(--dust)' }}>No events.</div> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {events.map(ev => {
+            const isOpen = open[ev.id];
+            return (
+              <div key={ev.id} style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', cursor: 'pointer' }} onClick={() => setOpen(o => ({ ...o, [ev.id]: !o[ev.id] }))}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    {isOpen ? <ChevronDown size={15} color="var(--dust)" /> : <ChevronRight size={15} color="var(--dust)" />}
+                    <span style={{ fontSize: 14, color: 'var(--bone)', fontWeight: 600 }}>{ev.title}</span>
+                    {ev.type && <Badge label={ev.type} color="aurora" />}
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--dust)', flexShrink: 0 }}>{ev.rsvps.length} RSVP{ev.rsvps.length !== 1 ? 's' : ''}</span>
+                </div>
+                {isOpen && (
+                  <div style={{ padding: '12px 16px 16px', borderTop: '1px solid var(--line)' }}>
+                    <p style={{ fontSize: 12, color: 'var(--dust)', margin: '0 0 10px' }}>{ev.when_text}{ev.blurb ? ` — ${ev.blurb}` : ''}</p>
+                    {ev.rsvps.length === 0 ? <p style={{ fontSize: 13, color: 'var(--dust)' }}>No RSVPs yet.</p> : ev.rsvps.map(r => (
+                      <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+                        <span style={{ fontSize: 13, color: 'var(--bone)' }}>{r.name} <span style={{ color: 'var(--dust)' }}>· {r.email}</span></span>
+                        {canEdit && <button onClick={() => delRsvp(r.id)} title="Remove" style={{ padding: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--dust)', flexShrink: 0 }}><X size={14} /></button>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MovementTab = ({ auth, level }) => {
+  const [view, setView] = useState('signatures');
+  const Btn = ({ id, icon: Icon, label }) => {
+    const active = view === id;
+    return (
+      <button onClick={() => setView(id)} style={{
+        display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
+        border: `1px solid ${active ? 'var(--line-2)' : 'transparent'}`,
+        background: active ? 'var(--void-2)' : 'transparent',
+        color: active ? 'var(--aurora)' : 'var(--dust)',
+        borderRadius: 9999, fontSize: 13, fontWeight: active ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap',
+      }}><Icon size={14} /> {label}</button>
+    );
+  };
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+        <Btn id="signatures" icon={CheckCircle} label="Signatures" />
+        <Btn id="quests" icon={Lightbulb} label="Quests" />
+        <Btn id="events" icon={Clock} label="Events" />
+      </div>
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+        {view === 'signatures' && <SignaturesTab auth={auth} level={level} />}
+        {view === 'quests' && <QuestsAdminTab auth={auth} level={level} />}
+        {view === 'events' && <EventsAdminTab auth={auth} level={level} />}
+      </div>
+    </div>
+  );
+};
+
+/* ============================================================
    SURVEYS MANAGER — create / edit / archive surveys + question types
    Backend: /api/admin/surveys. Question types: vote | crowdfunding | signature.
    ============================================================ */
@@ -2051,6 +2303,7 @@ export const AdminDashboard = ({ auth }) => {
     { id: 'users',         label: 'Users',          icon: Users,         minLevel: 1 },
     { id: 'interactions',  label: 'Interactions',    icon: MessageCircle, minLevel: 1 },
     { id: 'surveys',       label: 'Surveys',         icon: FileText,      minLevel: 1 },
+    { id: 'movement',      label: 'Movement',        icon: Globe,         minLevel: 1 },
     { id: 'cms',           label: 'CMS',             icon: FileText,      minLevel: 3 },
     { id: 'tts',           label: 'TTS Plugins',     icon: Mic,           minLevel: 3 },
   ].filter(t => level >= t.minLevel);
@@ -2103,6 +2356,7 @@ export const AdminDashboard = ({ auth }) => {
         {activeTab === 'users'         && <UsersTab           auth={auth} level={level} />}
         {activeTab === 'interactions'  && <InteractionsTab   auth={auth} level={level} />}
         {activeTab === 'surveys'       && <SurveysTab        auth={auth} level={level} />}
+        {activeTab === 'movement'      && <MovementTab       auth={auth} level={level} />}
         {activeTab === 'cms'           && <CmsTab            auth={auth} level={level} />}
         {activeTab === 'tts'           && <TtsPluginManager  auth={auth} level={level} />}
       </div>

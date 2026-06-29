@@ -2516,6 +2516,7 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
   const [mode, setMode] = useState('dialogue');
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [activeSectionIdx, setActiveSectionIdx] = useState(-1);
@@ -2636,8 +2637,11 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
       if (auth?.token) headers['Authorization'] = `Bearer ${auth.token}`;
       const body = { message: text };
       if (mode !== 'dialogue') body.mode = mode;
+      if (conversationId) body.conversation_id = conversationId;
       const response = await fetch('/api/chat', { method: 'POST', headers, body: JSON.stringify(body) });
       const data = await response.json();
+      // Keep follow-up turns in the same backend conversation thread.
+      if (data.conversationId) setConversationId(data.conversationId);
       const reply = data.message || "I couldn't get a response. Please try again.";
       const replyIdx = newMessages.length;
       setMessages([...newMessages, { role: 'assistant', content: reply }]);
@@ -2661,6 +2665,7 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
         title: ideaTitle.trim(),
         content: ideaContent.trim(),
         clause_refs: ideaClauses.trim() || null,
+        conversation_id: conversationId || null,
       }, auth.token);
       if (data.success) {
         setIdeaStatus({ success: 'Your idea has been recorded on the immutable ledger! Track it in your account.' });
@@ -2670,6 +2675,18 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
         setIdeaStatus({ error: data.error || 'Failed to submit.' });
       }
     } catch { setIdeaStatus({ error: 'Connection failed.' }); }
+  };
+
+  // Turn the current agent conversation (e.g. a Co-Ideator session) into an idea.
+  // Pre-fills the idea form from the chat so the user can review before submitting.
+  const saveAsIdea = () => {
+    if (!auth?.token) { onOpenAuth(); return; }
+    const firstUser = messages.find(m => m.role === 'user');
+    const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
+    if (firstUser) setIdeaTitle(firstUser.content.trim().slice(0, 120));
+    if (lastAssistant) setIdeaContent(lastAssistant.content.trim().slice(0, 5000));
+    setIdeaStatus(null);
+    setShowIdeaForm(true);
   };
 
   if (!open) return null;
@@ -2921,6 +2938,16 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
                     {q}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {messages.length > 1 && !loading && (
+              <div className="px-5 pb-3">
+                <button onClick={saveAsIdea}
+                  className="text-xs px-3 py-1.5 rounded-full border transition-all flex items-center gap-1.5"
+                  style={{ borderColor: 'rgba(255,214,10,0.4)', color: 'var(--aurora)' }}>
+                  <Lightbulb size={12} /> Save this as an idea
+                </button>
               </div>
             )}
           </>

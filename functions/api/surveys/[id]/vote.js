@@ -5,6 +5,7 @@
  */
 import { jsonError, optionsResponse, newId, generateToken, CORS_HEADERS } from "../../_shared.js";
 import { ensureMovementSchema } from "../../_movement.js";
+import { ensureConversationSchema, logInteraction } from "../../_conversations.js";
 
 function readVoter(request) {
   const cookie = request.headers.get("Cookie") || "";
@@ -42,6 +43,16 @@ export async function onRequestPost(context) {
        VALUES (?,?,?,?,?)
        ON CONFLICT(statement_id, voter) DO UPDATE SET value = excluded.value`
     ).bind(newId(), params.id, statementId, value, voter).run();
+
+    // Index this input so it appears in the unified Interactions view (by survey / by participant).
+    try {
+      await ensureConversationSchema(env);
+      await logInteraction(env, {
+        kind: "survey_vote", participant: voter,
+        ref_type: "survey", ref_id: params.id,
+        summary: `Voted "${value}" on a survey statement`,
+      });
+    } catch (e) { /* index write is best-effort */ }
 
     return jsonWithCookie({ success: true }, voter, isNew);
   } catch (err) {

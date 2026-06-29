@@ -4,24 +4,18 @@
  * POST — Flag/unflag/delete a conversation, add admin notes (L2+)
  */
 import { json, jsonError, optionsResponse, getUser, requireACL, newId } from "../_shared.js";
+import { ensureConversationSchema } from "../_conversations.js";
 
-// Auto-migrate: add flag_category and conversation_notes if missing
+// Auto-migrate: guarantee conversations/messages/notes/interactions exist, then
+// backfill any columns added after the original bootstrap.
 async function ensureSchema(env) {
-  try {
-    await env.DB.prepare("ALTER TABLE conversations ADD COLUMN flag_category TEXT").run();
-  } catch (e) { /* column already exists */ }
-  try {
-    await env.DB.prepare(
-      `CREATE TABLE IF NOT EXISTS conversation_notes (
-        id TEXT PRIMARY KEY,
-        conversation_id TEXT NOT NULL,
-        admin_id TEXT NOT NULL,
-        note TEXT NOT NULL,
-        note_type TEXT DEFAULT 'comment',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`
-    ).run();
-  } catch (e) { /* table already exists */ }
+  // Base tables (idempotent). This is what stops the admin screen from erroring
+  // when the conversations table was never created.
+  try { await ensureConversationSchema(env); } catch (e) { /* best-effort */ }
+  // Backfill columns on pre-existing tables that the base CREATE won't add.
+  for (const col of ["flag_category TEXT", "kind TEXT DEFAULT 'agent'", "mode TEXT"]) {
+    try { await env.DB.prepare(`ALTER TABLE conversations ADD COLUMN ${col}`).run(); } catch (e) { /* exists */ }
+  }
 }
 
 // GET /api/admin/conversations?filter=all|flagged|anonymous|registered
@@ -70,7 +64,7 @@ export async function onRequestGet(context) {
     }
 
     // List conversations
-    let query = `SELECT c.id, c.user_id, c.user_type, c.started_at, c.flagged, c.flag_category,
+    let query = `SELECT c.id, c.user_id, c.user_type, c.kind, c.mode, c.started_at, c.flagged, c.flag_category,
                         u.email, u.display_name as user_name,
                         (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) as message_count,
                         (SELECT m.content FROM messages m WHERE m.conversation_id = c.id AND m.role = 'user' ORDER BY m.created_at ASC LIMIT 1) as first_message

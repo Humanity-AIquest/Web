@@ -2641,6 +2641,54 @@ const InteractionsTab = ({ auth, level }) => {
 };
 
 /* ============================================================
+   AUDIT LOG (UC30) — who did what, when (reads admin_actions)
+   ============================================================ */
+const AuditTab = ({ auth, level }) => {
+  const [data, setData] = useState(null);
+  const [page, setPage] = useState(1);
+
+  const load = useCallback(async () => {
+    try { const d = await apiCall(`/api/admin/audit?page=${page}`, 'GET', null, auth.token); setData(d); }
+    catch (e) { setData({ actions: [], error: e.message }); }
+  }, [auth.token, page]);
+  useEffect(() => { load(); }, [load]);
+
+  const actionColor = (t) => /delete|ban|suspend/.test(t || '') ? '#f87171' : /flag|warn/.test(t || '') ? '#fb923c' : 'var(--aurora)';
+
+  return (
+    <div>
+      <h2 style={{ margin: '0 0 4px', fontSize: 16, color: 'var(--bone)' }}>Audit log</h2>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--dust)' }}>Every admin action — moderation, member changes, survey edits — newest first.</p>
+      {data === null ? <div style={{ display: 'flex', gap: 8, color: 'var(--dust)', padding: 20 }}><Spinner /> Loading…</div>
+        : data.error ? <div style={{ padding: '8px 12px', borderRadius: 8, fontSize: 13, background: 'rgba(220,60,60,0.12)', color: '#f87171' }}>{data.error}</div>
+        : (data.actions || []).length === 0 ? <div style={{ textAlign: 'center', padding: 36, color: 'var(--dust)' }}>No admin actions recorded yet.</div>
+        : (
+          <div style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+            {data.actions.map(a => (
+              <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '11px 16px', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: actionColor(a.action_type), whiteSpace: 'nowrap', textTransform: 'uppercase', minWidth: 90 }}>{a.action_type}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: 'var(--bone)' }}>{a.details || `${a.action_type} ${a.target_type || ''}`}</div>
+                  <div style={{ fontSize: 11, color: 'var(--dust)' }}>
+                    {a.admin_name || a.admin_email || 'system'} · {a.target_type || ''}{a.target_id ? ` ${String(a.target_id).slice(0, 10)}` : ''} · {(a.created_at || '').slice(0, 16).replace('T', ' ')}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      {data && data.pages > 1 && (
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 14, alignItems: 'center' }}>
+          <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} style={{ padding: '5px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--bone)', borderRadius: 8, fontSize: 13, cursor: 'pointer', opacity: page <= 1 ? 0.4 : 1 }}>Prev</button>
+          <span style={{ fontSize: 13, color: 'var(--dust)' }}>Page {page} / {data.pages}</span>
+          <button disabled={page >= data.pages} onClick={() => setPage(p => p + 1)} style={{ padding: '5px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--bone)', borderRadius: 8, fontSize: 13, cursor: 'pointer', opacity: page >= data.pages ? 0.4 : 1 }}>Next</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ============================================================
    MAIN EXPORT — AdminDashboard
    ============================================================ */
 export const AdminDashboard = ({ auth }) => {
@@ -2663,6 +2711,7 @@ export const AdminDashboard = ({ auth }) => {
     { id: 'surveys',       label: 'Surveys',         icon: FileText,      minLevel: 1 },
     { id: 'movement',      label: 'Movement',        icon: Globe,         minLevel: 1 },
     { id: 'comms',         label: 'Comms',           icon: Mail,          minLevel: 2 },
+    { id: 'audit',         label: 'Audit',           icon: Shield,        minLevel: 4 },
     { id: 'cms',           label: 'CMS',             icon: FileText,      minLevel: 3 },
     { id: 'tts',           label: 'TTS Plugins',     icon: Mic,           minLevel: 3 },
   ].filter(t => level >= t.minLevel);
@@ -2718,6 +2767,7 @@ export const AdminDashboard = ({ auth }) => {
         {activeTab === 'surveys'       && <SurveysTab        auth={auth} level={level} />}
         {activeTab === 'movement'      && <MovementTab       auth={auth} level={level} />}
         {activeTab === 'comms'         && <CommsTab          auth={auth} level={level} />}
+        {activeTab === 'audit'         && <AuditTab          auth={auth} level={level} />}
         {activeTab === 'cms'           && <CmsTab            auth={auth} level={level} />}
         {activeTab === 'tts'           && <TtsPluginManager  auth={auth} level={level} />}
       </div>

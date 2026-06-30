@@ -1644,28 +1644,42 @@ const QuestsBoard = () => {
 };
 
 // ============ SURVEY RUNNER (one survey: vote → results, share/embed) ============
+const CROWDFUND_URL = 'https://gogetfunding.com/?p=9622734';
+
+// Multi-step survey runner. Renders each statement by its TYPE:
+//   vote        → agree / pass / disagree
+//   crowdfunding→ a support card linking to the crowdfunding page
+//   signature   → a sign form posting to /api/sign
 const SurveyRunner = ({ surveyId, embed }) => {
   const [survey, setSurvey] = useState(null);
   const [idx, setIdx] = useState(0);
   const [results, setResults] = useState(null);
   const [copied, setCopied] = useState('');
+  const [sign, setSign] = useState({ name: '', email: '', country: '' });
+  const [signMsg, setSignMsg] = useState('');
 
   useEffect(() => {
-    setSurvey(null); setIdx(0); setResults(null);
+    setSurvey(null); setIdx(0); setResults(null); setSign({ name: '', email: '', country: '' });
     fetch(`/api/surveys/${surveyId}`).then(r => r.json()).then(d => setSurvey(d.survey || null)).catch(() => {});
   }, [surveyId]);
 
-  const statements = (survey?.statements || []).filter(s => (s.type || 'vote') === 'vote');
-  const done = survey && idx >= statements.length;
+  const steps = survey?.statements || [];
+  const cur = steps[idx];
+  const done = survey && idx >= steps.length;
+  const voteIds = steps.filter(s => (s.type || 'vote') === 'vote').map(s => s.id);
 
-  const vote = async (value) => {
-    const s = statements[idx];
-    if (s) { try { await postJSON(`/api/surveys/${surveyId}/vote`, { statementId: s.id, value }); } catch {} }
-    const next = idx + 1;
-    setIdx(next);
-    if (next >= statements.length) {
-      try { const d = await (await fetch(`/api/surveys/${surveyId}/results`)).json(); setResults(d.results || []); } catch {}
-    }
+  const loadResults = async () => {
+    try {
+      const d = await (await fetch(`/api/surveys/${surveyId}/results`)).json();
+      setResults((d.results || []).filter(r => voteIds.includes(r.statementId)));
+    } catch {}
+  };
+  const next = async () => { const n = idx + 1; setIdx(n); if (n >= steps.length) await loadResults(); };
+  const vote = async (value) => { if (cur) { try { await postJSON(`/api/surveys/${surveyId}/vote`, { statementId: cur.id, value }); } catch {} } next(); };
+  const submitSign = async () => {
+    if (sign.name.trim().length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sign.email)) { setSignMsg('Add your name and a valid email.'); return; }
+    try { await postJSON('/api/sign', { name: sign.name, email: sign.email, country: sign.country, side: 'human' }); setSignMsg(''); next(); }
+    catch { setSignMsg('Something went wrong — please try again.'); }
   };
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -1675,6 +1689,8 @@ const SurveyRunner = ({ surveyId, embed }) => {
 
   if (!survey) return <div className="mt-10 text-bone-dim flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Loading…</div>;
 
+  const type = cur ? (cur.type || 'vote') : null;
+
   return (
     <>
       <h1 className="font-display text-4xl md:text-6xl leading-tight">{survey.title}</h1>
@@ -1682,13 +1698,45 @@ const SurveyRunner = ({ surveyId, embed }) => {
 
       {!done ? (
         <div className="card-glass rounded-2xl p-8 mt-10">
-          <div className="text-xs uppercase tracking-[0.2em] text-dust mb-6">Statement {idx + 1} of {statements.length}</div>
-          <p className="font-display text-2xl md:text-3xl leading-snug mb-8">{statements[idx]?.text}</p>
-          <div className="flex flex-wrap gap-3">
-            <button onClick={() => vote('agree')} className="btn-aurora flex-1 justify-center">Agree</button>
-            <button onClick={() => vote('pass')} className="btn-secondary flex-1 justify-center">Pass</button>
-            <button onClick={() => vote('disagree')} className="btn-secondary flex-1 justify-center">Disagree</button>
-          </div>
+          <div className="text-xs uppercase tracking-[0.2em] text-dust mb-6">Step {idx + 1} of {steps.length}</div>
+
+          {type === 'vote' && (
+            <>
+              <p className="font-display text-2xl md:text-3xl leading-snug mb-8">{cur.text}</p>
+              <div className="flex flex-wrap gap-3">
+                <button onClick={() => vote('agree')} className="btn-aurora flex-1 justify-center">Agree</button>
+                <button onClick={() => vote('pass')} className="btn-secondary flex-1 justify-center">Pass</button>
+                <button onClick={() => vote('disagree')} className="btn-secondary flex-1 justify-center">Disagree</button>
+              </div>
+            </>
+          )}
+
+          {type === 'crowdfunding' && (
+            <>
+              <p className="font-display text-2xl md:text-3xl leading-snug mb-3">{cur.text}</p>
+              <p className="text-bone-dim mb-8">Become a founding supporter — your contribution funds humanity's constitution for AI.</p>
+              <div className="flex flex-wrap gap-3">
+                <a href={CROWDFUND_URL} target="_blank" rel="noopener noreferrer" className="btn-aurora flex-1 justify-center">Support the campaign <ArrowRight size={16} /></a>
+                <button onClick={next} className="btn-secondary justify-center">Continue</button>
+              </div>
+            </>
+          )}
+
+          {type === 'signature' && (
+            <>
+              <p className="font-display text-2xl md:text-3xl leading-snug mb-6">{cur.text}</p>
+              <div className="space-y-3 max-w-md">
+                <input value={sign.name} onChange={e => setSign(s => ({ ...s, name: e.target.value }))} placeholder="Your name" autoComplete="name"
+                  className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+                <input value={sign.email} onChange={e => setSign(s => ({ ...s, email: e.target.value }))} type="email" placeholder="you@email.com" autoComplete="email"
+                  className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+                <input value={sign.country} onChange={e => setSign(s => ({ ...s, country: e.target.value }))} placeholder="Country (optional)"
+                  className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+                {signMsg && <p className="text-sm" style={{ color: 'var(--terra)' }}>{signMsg}</p>}
+                <button onClick={submitSign} className="btn-aurora w-full justify-center">Add my name <ArrowRight size={16} /></button>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="mt-10">

@@ -1935,7 +1935,7 @@ const MembersTab = ({ auth, level }) => {
                   {!!p.account?.newsletter && <Badge label="Newsletter" color="aurora" />}
                 </div>
                 <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--dust)' }}>
-                  <a href={`mailto:${p.email}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--aurora)', textDecoration: 'none' }}>{p.email}</a>
+                  <a href={`mailto:${p.email}`} style={{ color: 'var(--aurora)', textDecoration: 'none' }}>{p.email}</a>
                   {(p.account?.country || p.country) ? ` · ${p.account?.country || p.country}` : ''}
                   {p.account?.phone ? ` · ☎ ${p.account.phone}` : ''}
                   {p.signed ? ' · signed ✓' : ''}
@@ -1997,7 +1997,12 @@ const MembersTab = ({ auth, level }) => {
                     </div>
                   </div>
                 ))}
-                {canEdit && <input value={draft.note} onChange={e => setDraft(d => ({ ...d, note: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter' && draft.note.trim()) { act('add_note', { note: draft.note.trim() }); setDraft(d => ({ ...d, note: '' })); } }} placeholder="Add a note…" style={adminInput} />}
+                {canEdit && (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input value={draft.note} onChange={e => setDraft(d => ({ ...d, note: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter' && draft.note.trim()) { act('add_note', { note: draft.note.trim() }); setDraft(d => ({ ...d, note: '' })); } }} placeholder="Add a note…" style={adminInput} />
+                    <button onClick={() => { if (draft.note.trim()) { act('add_note', { note: draft.note.trim() }); setDraft(d => ({ ...d, note: '' })); } }} style={{ padding: '8px 14px', border: 'none', background: 'rgba(91,233,221,0.15)', color: 'var(--aurora)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Save</button>
+                  </div>
+                )}
               </div>
 
               {/* Contacts (9 + 27) */}
@@ -2042,7 +2047,7 @@ const MembersTab = ({ auth, level }) => {
                 {canEdit && (
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                     <input value={draft.fuTitle} onChange={e => setDraft(d => ({ ...d, fuTitle: e.target.value }))} placeholder="New follow-up…" style={adminInput} />
-                    <input type="date" value={draft.fuDue} onChange={e => setDraft(d => ({ ...d, fuDue: e.target.value }))} style={{ ...adminInput, width: 'auto' }} />
+                    <input type="date" value={draft.fuDue} onChange={e => setDraft(d => ({ ...d, fuDue: e.target.value }))} style={{ ...adminInput, width: 'auto', colorScheme: 'dark' }} />
                     <button onClick={() => { if (draft.fuTitle.trim()) { act('add_followup', { title: draft.fuTitle.trim(), due_date: draft.fuDue }); setDraft(d => ({ ...d, fuTitle: '', fuDue: '' })); } }} style={{ padding: '8px 12px', border: 'none', background: 'rgba(91,233,221,0.15)', color: 'var(--aurora)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Add</button>
                   </div>
                 )}

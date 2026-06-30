@@ -1658,11 +1658,11 @@ const SurveyRunner = ({ surveyId, embed }) => {
 
   return (
     <>
-      <h1 className="font-display text-4xl md:text-6xl leading-tight">{survey.title}</h1>
-      <p className="text-bone-dim mt-6 max-w-2xl text-lg">{survey.intro}</p>
+      <h2 className="font-display text-xl md:text-2xl text-bone mb-1">{survey.title}</h2>
+      <p className="text-bone-dim mt-1 max-w-2xl text-sm">{survey.intro}</p>
 
       {!done ? (
-        <div className="card-glass rounded-2xl p-8 mt-10">
+        <div className="card-glass rounded-2xl p-8 mt-6">
           <div className="text-xs uppercase tracking-[0.2em] text-dust mb-6">Step {idx + 1} of {steps.length}</div>
 
           {type === 'vote' && (
@@ -2465,25 +2465,25 @@ const AboutPage = () => (
 
     <section className="pb-24 max-w-3xl mx-auto px-6 lg:px-12 space-y-16">
       <div>
-        <h2 className="font-display text-2xl mb-4 text-aurora">Origin</h2>
+        <E p="about" k="origin_h" as="h2" className="font-display text-2xl mb-4 text-aurora">Origin</E>
         <E p="about" k="origin" as="p" className="text-bone-dim leading-relaxed text-lg">
           Humanity-AI began as a question: what would AI look like if its own creators gifted humanity a constitutional layer to govern it — built from first principles, by everyone? The answer became the Humanities-AI Rights Constitution and the open-source operating system that enforces it.
         </E>
       </div>
       <div>
-        <h2 className="font-display text-2xl mb-4 text-gold">Governance</h2>
+        <E p="about" k="governance_h" as="h2" className="font-display text-2xl mb-4 text-gold">Governance</E>
         <E p="about" k="governance" as="p" className="text-bone-dim leading-relaxed text-lg">
           The HRC evolves through a transparent, participatory amendment process. An independent, democratically-elected international body oversees compliance and conducts regular audits. All funding is publicly disclosed.
         </E>
       </div>
       <div>
-        <h2 className="font-display text-2xl mb-4 text-terra">Promise</h2>
+        <E p="about" k="promise_h" as="h2" className="font-display text-2xl mb-4 text-terra">Promise</E>
         <E p="about" k="promise" as="p" className="text-bone-dim leading-relaxed text-lg">
           We promise that every contribution is attributed to its human source. That every clause serves human dignity. That the OS will never be sold, acquired, or enclosed. That AI here will never rule. And that this platform will be maintained for a thousand years and beyond.
         </E>
       </div>
       <div className="pt-8 border-t" style={{ borderColor: 'var(--line)' }}>
-        <h2 className="font-display text-2xl mb-4">Contact</h2>
+        <E p="about" k="contact_h" as="h2" className="font-display text-2xl mb-4">Contact</E>
         <p className="text-bone-dim leading-relaxed text-lg mb-4">
 <E p="about" k="contact_line" as="span">For collaborators, journalists, governments, and citizens.</E>
         </p>

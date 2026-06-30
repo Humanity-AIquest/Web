@@ -114,6 +114,7 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('');
   const [newsletter, setNewsletter] = useState(true);
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -124,6 +125,7 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    if (mode === 'signup' && !agreed) { setError('Please accept the Terms & Conditions to continue.'); return; }
     setLoading(true);
     try {
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
@@ -197,10 +199,16 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
             style={{ border: '1px solid var(--line-2)' }} />
 
           {mode === 'signup' && (
-            <label className="flex items-center gap-2 text-sm text-bone-dim cursor-pointer">
-              <input type="checkbox" checked={newsletter} onChange={e => setNewsletter(e.target.checked)} />
-              Keep me updated by email about the movement
-            </label>
+            <>
+              <label className="flex items-center gap-2 text-sm text-bone-dim cursor-pointer">
+                <input type="checkbox" checked={newsletter} onChange={e => setNewsletter(e.target.checked)} />
+                Keep me updated by email about the movement
+              </label>
+              <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
+                <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="mt-1" />
+                <span>I agree to the <a href="/?page=terms" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">Terms &amp; Conditions</a>.</span>
+              </label>
+            </>
           )}
 
           {error && <div className="text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff6b6b' }}>{error}</div>}
@@ -1327,53 +1335,10 @@ const PetitionPage = ({ setPage, onOpenAgent }) => {
           <p className="text-bone-dim text-sm mt-6 pt-6 opacity-80" style={{ borderTop: '1px solid var(--line)' }}>{FOUNDING_MEMO.closing}</p>
         </div>
 
-        {signed ? (
-          <div className="card-glass rounded-2xl p-8 mt-8 text-center">
-            <CheckCircle className="text-aurora mx-auto mb-4" size={40} />
-            <h2 className="font-display text-3xl mb-2">
-              You're signatory <span className="text-aurora">#{signed.number.toLocaleString()}</span>.
-            </h2>
-            <p className="text-bone-dim mb-6">{signed.count.toLocaleString()} voices and counting. The union grows with every name.</p>
-            <p className="font-display text-lg font-italic mb-8 max-w-xl mx-auto" style={{ borderLeft: '2px solid var(--aurora)', paddingLeft: '1rem', textAlign: 'left' }}>"{share}"</p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <button onClick={doShare} className="btn-aurora">Share the petition <ArrowRight size={16} /></button>
-              <button onClick={() => setPage('community')} className="btn-secondary">Explore the community</button>
-            </div>
-          </div>
-        ) : (
-          <div className="max-w-md mt-10">
-            <SectionLabel>{formHeading}</SectionLabel>
-            <div className="flex gap-2 mb-6">
-              {[['human', "I'm a human user"], ['developer', 'I build AI']].map(([k, label]) => (
-                <button key={k} onClick={() => setSide(k)}
-                  className="flex-1 px-4 py-3 rounded-xl text-sm transition-all"
-                  style={side === k
-                    ? { border: '1px solid var(--aurora)', color: 'var(--bone)', background: 'rgba(91,233,221,0.08)' }
-                    : { border: '1px solid var(--line-2)', color: 'var(--bone-dim)', background: 'transparent' }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            <label className="block mb-4">
-              <span className="text-xs uppercase tracking-[0.2em] text-dust block mb-2">Name</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={namePh} autoComplete="name"
-                className="w-full px-4 py-3 rounded-xl outline-none"
-                style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
-            </label>
-            <label className="block mb-4">
-              <span className="text-xs uppercase tracking-[0.2em] text-dust block mb-2">Email</span>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder={emailPh} autoComplete="email"
-                onKeyDown={(e) => e.key === 'Enter' && submit()}
-                className="w-full px-4 py-3 rounded-xl outline-none"
-                style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
-            </label>
-            {error && <p className="text-sm mb-4" style={{ color: 'var(--terra)' }}>{error}</p>}
-            <button onClick={submit} disabled={loading} className="btn-aurora w-full justify-center">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <>{submitLabel} <ArrowRight size={16} /></>}
-            </button>
-            <p className="text-xs text-dust mt-4">Free. No spam. Your name joins the founding ledger, owned by no one.</p>
-          </div>
-        )}
+        {/* Petition wizard: stance questions → crowdfunding → sign (petition-stance survey) */}
+        <div className="mt-12">
+          <SurveyRunner surveyId="petition-stance" />
+        </div>
       </section>
     </PageWrap>
   );
@@ -2468,6 +2433,26 @@ const JoinPage = ({ setPage }) => (
 );
 
 // ============ ABOUT PAGE ============
+// ============ TERMS & CONDITIONS PAGE (filler — replace copy via CMS) ============
+const TermsPage = ({ setPage }) => (
+  <PageWrap>
+    <section className="pt-24 pb-24 max-w-3xl mx-auto px-6 lg:px-12 relative">
+      <UnityParticles count={4} pattern="drift" />
+      <SectionLabel>Legal</SectionLabel>
+      <E p="terms" k="h1" as="h1" className="font-display text-4xl md:text-5xl leading-tight mb-6">Terms &amp; Conditions</E>
+      <E p="terms" k="intro" as="p" className="text-bone-dim leading-relaxed mb-6">
+        This is placeholder text for the Humanity-AI Terms &amp; Conditions. Final terms will be published before launch. By creating an account or signing the petition you agree to these terms once finalised.
+      </E>
+      <div className="space-y-5 text-bone-dim leading-relaxed">
+        <div><h2 className="font-display text-xl text-bone mb-2">1. Your data</h2><E p="terms" k="s1" as="p">We process your data per our privacy commitments and Clause I.2 of the Constitution — explicit, revocable consent, with the right to deletion.</E></div>
+        <div><h2 className="font-display text-xl text-bone mb-2">2. Contributions</h2><E p="terms" k="s2" as="p">Ideas and inputs you submit are attributed to you on the immutable ledger per Clause I.1.</E></div>
+        <div><h2 className="font-display text-xl text-bone mb-2">3. Conduct</h2><E p="terms" k="s3" as="p">Be respectful. Misuse of the platform may result in suspension.</E></div>
+      </div>
+      <button onClick={() => setPage && setPage('home')} className="btn-secondary mt-10">Back to site</button>
+    </section>
+  </PageWrap>
+);
+
 const AboutPage = () => (
   <PageWrap>
     <section className="pt-24 pb-16 max-w-3xl mx-auto px-6 lg:px-12 relative">
@@ -3229,7 +3214,10 @@ export default function HumanityAIQuest() {
   const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const embedSurvey = sp && sp.get('embed') === '1' ? sp.get('survey') : null;
   useEffect(() => {
-    if (sp && sp.get('survey') && !embedSurvey) setPage('surveys');
+    if (!sp) return;
+    if (sp.get('survey') && !embedSurvey) { setPage('surveys'); return; }
+    const pg = sp.get('page');
+    if (pg) setPage(pg);
   }, []);
 
   // Reconcile the stored session on load so UI state and write-permissions agree.
@@ -3311,6 +3299,7 @@ export default function HumanityAIQuest() {
         {page === 'manifesto' && <ManifestoPage setPage={setPage} />}
         {page === 'join' && <JoinPage setPage={setPage} />}
         {page === 'about' && <AboutPage />}
+        {page === 'terms' && <TermsPage setPage={setPage} />}
         {page === 'account' && <AccountPage auth={auth} onLogout={handleLogout} onOpenAuth={openAuthModal} />}
         {page === 'admin' && (
           auth?.user?.role === 'admin'

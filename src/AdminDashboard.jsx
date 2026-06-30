@@ -1867,8 +1867,8 @@ const MembersTab = ({ auth, level }) => {
   };
   const reload = () => openProfile(email);
   const act = async (action, extra) => {
-    try { await apiCall('/api/admin/members', 'POST', { action, email, ...extra }, auth.token); reload(); }
-    catch (e) { setMsg({ error: e.message }); }
+    try { await apiCall('/api/admin/members', 'POST', { action, email, ...extra }, auth.token); flash({ success: 'Saved.' }); reload(); }
+    catch (e) { setMsg({ error: 'Could not save — ' + e.message }); }
   };
   const flash = (m) => { setMsg(m); setTimeout(() => setMsg(null), 3000); };
   const saveMembership = async () => {
@@ -1934,7 +1934,12 @@ const MembersTab = ({ auth, level }) => {
                   {!!p.membership?.is_founding && <Badge label="Founding member" color="gold" />}
                   {!!p.account?.newsletter && <Badge label="Newsletter" color="aurora" />}
                 </div>
-                <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--dust)' }}>{p.email}{(p.account?.country || p.country) ? ` · ${p.account?.country || p.country}` : ''}{p.account?.phone ? ` · ${p.account.phone}` : ''}{p.signed ? ' · signed ✓' : ''}</p>
+                <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--dust)' }}>
+                  <a href={`mailto:${p.email}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--aurora)', textDecoration: 'none' }}>{p.email}</a>
+                  {(p.account?.country || p.country) ? ` · ${p.account?.country || p.country}` : ''}
+                  {p.account?.phone ? ` · ☎ ${p.account.phone}` : ''}
+                  {p.signed ? ' · signed ✓' : ''}
+                </p>
               </div>
             </div>
             {/* Tags */}

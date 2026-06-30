@@ -7,8 +7,10 @@
  * View requires L1; mutations require L3 (editor). Surveys/statements are
  * structured content; votes stay in survey_votes (source of truth for tallies).
  */
-import { json, jsonError, optionsResponse, getUser, requireACL, newId } from "../_shared.js";
+import { json, jsonError, optionsResponse, getUser, requireACL, newId, CORS_HEADERS } from "../_shared.js";
 import { ensureMovementSchema } from "../_movement.js";
+
+const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
 async function logAdmin(env, adminId, action, targetId, details) {
   try {
@@ -52,6 +54,23 @@ export async function onRequestGet(context) {
         ).bind(s.id).first();
         withTallies.push({ ...s, agree: t?.agree || 0, disagree: t?.disagree || 0, pass: t?.pass || 0 });
       }
+
+      // CSV export of per-statement tallies (UC20)
+      if (url.searchParams.get("format") === "csv") {
+        const header = "Statement,Type,Agree,Disagree,Pass\n";
+        const body = withTallies.map(s =>
+          [s.text, s.type || "vote", s.agree, s.disagree, s.pass].map(csvCell).join(",")
+        ).join("\n");
+        return new Response(header + body, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="survey-${id}-${new Date().toISOString().slice(0, 10)}.csv"`,
+            ...CORS_HEADERS,
+          },
+        });
+      }
+
       return json({ survey: { ...survey, statements: withTallies } });
     }
 
@@ -138,6 +157,39 @@ export async function onRequestPost(context) {
         await env.DB.prepare(`DELETE FROM survey_votes WHERE statement_id=?`).bind(body.statement_id).run();
         await env.DB.prepare(`DELETE FROM survey_statements WHERE id=?`).bind(body.statement_id).run();
         return json({ success: true });
+      }
+      case "reorder_statements": {
+        // Task 4 fix — rewrite sort_order from the supplied order of statement ids.
+        if (!body.survey_id || !Array.isArray(body.ordered_ids)) return jsonError("survey_id and ordered_ids required.");
+        let i = 0;
+        for (const sid of body.ordered_ids) {
+          await env.DB.prepare(`UPDATE survey_statements SET sort_order=? WHERE id=? AND survey_id=?`)
+            .bind(i++, sid, body.survey_id).run();
+        }
+        return json({ success: true });
+      }
+      case "clone": {
+        // UC21 — duplicate a survey + its statements as a new draft.
+        if (!body.id) return jsonError("id required.");
+        const src = await env.DB.prepare(
+          `SELECT title, intro, description, location FROM surveys WHERE id = ?`
+        ).bind(body.id).first();
+        if (!src) return jsonError("Survey not found.", 404);
+        const newSurveyId = "survey-" + newId().slice(0, 8);
+        await env.DB.prepare(
+          `INSERT INTO surveys (id, title, intro, description, status, location)
+           VALUES (?,?,?,?,'draft',?)`
+        ).bind(newSurveyId, (src.title || "Survey") + " (copy)", src.intro || "", src.description || "", src.location || "surveys_page").run();
+        const stmts = await env.DB.prepare(
+          `SELECT text, type, sort_order FROM survey_statements WHERE survey_id = ? ORDER BY sort_order ASC, created_at ASC`
+        ).bind(body.id).all();
+        for (const s of stmts.results || []) {
+          await env.DB.prepare(
+            `INSERT INTO survey_statements (id, survey_id, text, author, type, sort_order) VALUES (?,?,?,NULL,?,?)`
+          ).bind(newId(), newSurveyId, s.text, s.type || "vote", s.sort_order || 0).run();
+        }
+        await logAdmin(env, user.id, "clone", newSurveyId, `Cloned from ${body.id}`);
+        return json({ success: true, id: newSurveyId });
       }
       default:
         return jsonError("Invalid action.");

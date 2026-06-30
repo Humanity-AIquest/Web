@@ -97,6 +97,12 @@ export async function ensureMovementSchema(env) {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`).run();
 
+  // ── Admin audit log (written by admin endpoints; never created in code) ─────
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_actions (
+    id TEXT PRIMARY KEY, admin_id TEXT, action_type TEXT, target_type TEXT,
+    target_id TEXT, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+
   // ── Migrations: columns added after the original bootstrap (idempotent) ──────
   for (const sql of [
     "ALTER TABLE surveys ADD COLUMN location TEXT DEFAULT 'surveys_page'",

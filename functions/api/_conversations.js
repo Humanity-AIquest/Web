@@ -53,6 +53,17 @@ export async function ensureConversationSchema(env) {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`).run();
 
+  // ── Admin audit log (written by many endpoints, never created in code) ──────
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_actions (
+    id TEXT PRIMARY KEY,
+    admin_id TEXT,
+    action_type TEXT,
+    target_type TEXT,
+    target_id TEXT,
+    details TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+
   // ── Unified interactions index (append-only pointer log) ────────────────────
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS interactions (
     id TEXT PRIMARY KEY,

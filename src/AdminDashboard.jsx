@@ -6,7 +6,7 @@ import {
   RefreshCw, Eye, EyeOff, Clock, User, Ban, UserCheck,
   ChevronUp, MoreHorizontal, Check, Tag, Plus, Zap, SortAsc,
   ArrowUpDown, Settings2, Bookmark, Mic, Volume2, ExternalLink, Key,
-  Star, StarOff, Play, Square, Globe
+  Star, StarOff, Play, Square, Globe, Mail
 } from 'lucide-react';
 import { useTTS, ListenButton, TTS_PLUGINS, testSpeakPlugin, stopTestSpeech } from './useTTS';
 
@@ -1754,6 +1754,314 @@ const VoicePickerPanel = ({ tts }) => {
 };
 
 /* ============================================================
+   COMMS — mailing-segment builder + export (UC25), newsletter (UC26)
+   ============================================================ */
+const CommsTab = ({ auth, level }) => {
+  const [f, setF] = useState({ country: '', side: '', account: false, newsletter: false, founding: false });
+  const [res, setRes] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const params = () => {
+    const p = new URLSearchParams();
+    if (f.country) p.set('country', f.country);
+    if (f.side) p.set('side', f.side);
+    if (f.account) p.set('account', '1');
+    if (f.newsletter) p.set('newsletter', '1');
+    if (f.founding) p.set('founding', '1');
+    return p.toString();
+  };
+  const build = async () => {
+    setBusy(true);
+    try { const d = await apiCall(`/api/admin/segments?${params()}`, 'GET', null, auth.token); setRes(d); }
+    catch (e) { setRes({ members: [], total: 0, error: e.message }); } finally { setBusy(false); }
+  };
+  const exportCsv = async () => {
+    try {
+      const r = await fetch(`/api/admin/segments?format=csv&${params()}`, { headers: { Authorization: `Bearer ${auth.token}` } });
+      if (!r.ok) throw new Error();
+      const blob = await r.blob(); const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'segment.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (e) { /* ignore */ }
+  };
+
+  const chk = (key, label) => (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--bone-dim)', cursor: 'pointer' }}>
+      <input type="checkbox" checked={f[key]} onChange={e => setF(s => ({ ...s, [key]: e.target.checked }))} /> {label}
+    </label>
+  );
+
+  return (
+    <div>
+      <h2 style={{ margin: '0 0 4px', fontSize: 16, color: 'var(--bone)' }}>Mailing segments</h2>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--dust)' }}>Filter members into a segment and export for email. Newsletter opt-in is captured at signup &amp; petition signing.</p>
+
+      <div style={{ background: 'var(--void-2)', border: '1px solid var(--line)', borderRadius: 12, padding: 16, marginBottom: 14 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--dust)', marginBottom: 4 }}>Country</label>
+            <input style={{ ...adminInput, width: 160 }} value={f.country} onChange={e => setF(s => ({ ...s, country: e.target.value }))} placeholder="any" />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--dust)', marginBottom: 4 }}>Side</label>
+            <select style={{ ...adminInput, width: 150 }} value={f.side} onChange={e => setF(s => ({ ...s, side: e.target.value }))}>
+              <option value="">Any</option><option value="human">Human</option><option value="developer">Developer</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', paddingBottom: 8 }}>
+            {chk('newsletter', 'Newsletter opt-in')}
+            {chk('account', 'Has account')}
+            {chk('founding', 'Founding members')}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <button onClick={build} disabled={busy} style={{ padding: '8px 16px', border: 'none', background: 'var(--aurora)', color: 'var(--void)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{busy ? 'Building…' : 'Build segment'}</button>
+          {res && res.total > 0 && <button onClick={exportCsv} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 16px', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--bone)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}><ExternalLink size={13} /> Export CSV ({res.total})</button>}
+        </div>
+      </div>
+
+      {res && (res.error
+        ? <div style={{ padding: '8px 12px', borderRadius: 8, fontSize: 13, background: 'rgba(220,60,60,0.12)', color: '#f87171' }}>{res.error}</div>
+        : <div style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', fontSize: 12, color: 'var(--dust)', borderBottom: '1px solid var(--line)' }}>{res.total} member{res.total !== 1 ? 's' : ''} in this segment</div>
+            {(res.members || []).slice(0, 100).map((m, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '8px 16px', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ fontSize: 13, color: 'var(--bone)' }}>{m.name} <span style={{ color: 'var(--dust)' }}>· {m.email}</span></span>
+                <span style={{ fontSize: 12, color: 'var(--dust)', flexShrink: 0 }}>{m.country || ''}{m.newsletter ? ' · ✉' : ''}{m.is_founding ? ' · ★' : ''}</span>
+              </div>
+            ))}
+            {res.total > 100 && <div style={{ padding: '8px 16px', fontSize: 12, color: 'var(--dust)' }}>Showing first 100 — export CSV for all {res.total}.</div>}
+          </div>
+      )}
+    </div>
+  );
+};
+
+/* ============================================================
+   MEMBERS — unified Member Profile / CRM (use cases 1,7,9,10,13,14,16,27)
+   ============================================================ */
+const FOUNDING_LINK = 'https://gogetfunding.com/?p=9622734';
+const TIMELINE_ICON = {
+  agent: MessageCircle, idea: Lightbulb, survey_vote: CheckCircle,
+  signature: Star, quest_pitch: Zap, quest_question: MessageCircle, event_rsvp: Clock,
+};
+
+const MembersTab = ({ auth, level }) => {
+  const [list, setList] = useState(null);
+  const [q, setQ] = useState('');
+  const [email, setEmail] = useState(null);
+  const [p, setP] = useState(null);        // profile
+  const [msg, setMsg] = useState(null);
+  const [draft, setDraft] = useState({ note: '', tag: '', contact: '', channel: 'email', direction: 'inbound', fuTitle: '', fuDue: '', pledge: '' });
+  const canEdit = level >= 2;
+
+  const loadList = useCallback(async () => {
+    try { const d = await apiCall(`/api/admin/members?q=${encodeURIComponent(q)}`, 'GET', null, auth.token); setList(d.members || []); }
+    catch (e) { setList([]); setMsg({ error: e.message }); }
+  }, [auth.token, q]);
+  useEffect(() => { if (!email) loadList(); }, [loadList, email]);
+
+  const openProfile = async (em) => {
+    setEmail(em); setP(null); setMsg(null);
+    try { const d = await apiCall(`/api/admin/members?email=${encodeURIComponent(em)}`, 'GET', null, auth.token); setP(d.member); setDraft(dr => ({ ...dr, pledge: d.member?.membership?.monthly_pledge || '' })); }
+    catch (e) { setMsg({ error: e.message }); }
+  };
+  const reload = () => openProfile(email);
+  const act = async (action, extra) => {
+    try { await apiCall('/api/admin/members', 'POST', { action, email, ...extra }, auth.token); reload(); }
+    catch (e) { setMsg({ error: e.message }); }
+  };
+  const flash = (m) => { setMsg(m); setTimeout(() => setMsg(null), 3000); };
+  const saveMembership = async () => {
+    try { await apiCall('/api/admin/members', 'POST', { action: 'set_membership', email, monthly_pledge: draft.pledge, is_founding: !!draft.pledge }, auth.token); flash({ success: 'Pledge saved.' }); reload(); }
+    catch (e) { setMsg({ error: e.message }); }
+  };
+
+  const card = { background: 'var(--void-2)', border: '1px solid var(--line)', borderRadius: 12, padding: 16 };
+  const head = { margin: '0 0 12px', fontSize: 11, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: '0.08em' };
+
+  // ── LIST ──
+  if (!email) {
+    return (
+      <div>
+        <div style={{ position: 'relative', marginBottom: 14 }}>
+          <Search size={14} style={{ position: 'absolute', left: 11, top: 11, color: 'var(--dust)' }} />
+          <input style={{ ...adminInput, paddingLeft: 32 }} value={q} onChange={e => setQ(e.target.value)} placeholder="Search members by name or email…" />
+        </div>
+        {msg && <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, fontSize: 13, background: 'rgba(220,60,60,0.12)', color: '#f87171' }}>{msg.error}</div>}
+        {list === null ? <div style={{ display: 'flex', gap: 8, color: 'var(--dust)', padding: 20 }}><Spinner /> Loading members…</div>
+          : list.length === 0 ? <div style={{ textAlign: 'center', padding: 36, color: 'var(--dust)' }}>No members{q ? ' match' : ' yet'}.</div>
+          : (
+            <div style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+              {list.map(m => (
+                <div key={m.email} onClick={() => openProfile(m.email)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 14, color: 'var(--bone)', fontWeight: 600 }}>{m.name || m.email}</span>
+                      {!!m.is_founding && <Badge label="Founding" color="gold" />}
+                      {!!m.has_account && <Badge label="Account" color="aurora" />}
+                    </div>
+                    <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--dust)' }}>{m.email}{m.country ? ` · ${m.country}` : ''}{m.monthly_pledge ? ` · $${m.monthly_pledge}/mo` : ''}</p>
+                  </div>
+                  <ChevronRight size={16} color="var(--dust)" style={{ flexShrink: 0 }} />
+                </div>
+              ))}
+            </div>
+          )}
+      </div>
+    );
+  }
+
+  // ── PROFILE ──
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <button onClick={() => { setEmail(null); setP(null); }} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--dust)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+          <ChevronRight size={13} style={{ transform: 'rotate(180deg)' }} /> Members
+        </button>
+        <h2 style={{ margin: 0, fontSize: 16, color: 'var(--bone)' }}>{p?.name || email}</h2>
+      </div>
+      {msg && <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, fontSize: 13, background: msg.error ? 'rgba(220,60,60,0.12)' : 'rgba(52,211,153,0.12)', color: msg.error ? '#f87171' : '#34d399' }}>{msg.error || msg.success}</div>}
+      {!p ? <div style={{ display: 'flex', gap: 8, color: 'var(--dust)', padding: 20 }}><Spinner /> Loading profile…</div> : (
+        <>
+          {/* Header card */}
+          <div style={{ ...card, marginBottom: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--bone)' }}>{p.name}</span>
+                  {p.side && <Badge label={p.side} color={p.side === 'developer' ? 'gold' : 'aurora'} />}
+                  {p.account && <Badge label={`Account · ${p.status || 'active'}`} color="aurora" />}
+                  {!!p.membership?.is_founding && <Badge label="Founding member" color="gold" />}
+                  {!!p.account?.newsletter && <Badge label="Newsletter" color="aurora" />}
+                </div>
+                <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--dust)' }}>{p.email}{(p.account?.country || p.country) ? ` · ${p.account?.country || p.country}` : ''}{p.account?.phone ? ` · ${p.account.phone}` : ''}{p.signed ? ' · signed ✓' : ''}</p>
+              </div>
+            </div>
+            {/* Tags */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+              {p.tags.map(t => (
+                <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'rgba(167,139,250,0.15)', color: '#a78bfa' }}>
+                  {t}{canEdit && <X size={11} style={{ cursor: 'pointer' }} onClick={() => act('remove_tag', { tag: t })} />}
+                </span>
+              ))}
+              {canEdit && (
+                <span style={{ display: 'flex', gap: 4 }}>
+                  <input value={draft.tag} onChange={e => setDraft(d => ({ ...d, tag: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter' && draft.tag.trim()) { act('add_tag', { tag: draft.tag.trim() }); setDraft(d => ({ ...d, tag: '' })); } }} placeholder="+ tag" style={{ ...adminInput, width: 90, padding: '3px 8px', fontSize: 12 }} />
+                </span>
+              )}
+            </div>
+            {/* Membership / pledge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: 'var(--dust)' }}>Monthly pledge $</span>
+              <input value={draft.pledge} onChange={e => setDraft(d => ({ ...d, pledge: e.target.value }))} placeholder="0" disabled={!canEdit} style={{ ...adminInput, width: 80 }} />
+              {canEdit && <button onClick={saveMembership} style={{ padding: '7px 12px', border: 'none', background: 'rgba(91,233,221,0.15)', color: 'var(--aurora)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Save</button>}
+              <a href={FOUNDING_LINK} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 13, color: 'var(--gold)', textDecoration: 'none' }}>
+                <ExternalLink size={13} /> Open crowdfunding page
+              </a>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1fr)', gap: 14 }}>
+            {/* Timeline */}
+            <div style={card}>
+              <p style={head}>Activity timeline ({p.timeline.length})</p>
+              {p.timeline.length === 0 ? <p style={{ fontSize: 13, color: 'var(--dust)' }}>No recorded activity.</p> : p.timeline.map((t, i) => {
+                const Icon = TIMELINE_ICON[t.kind] || MessageCircle;
+                return (
+                  <div key={i} style={{ display: 'flex', gap: 10, padding: '9px 0', borderBottom: i < p.timeline.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                    <Icon size={15} color="var(--aurora)" style={{ marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: 'var(--bone)' }}>{t.summary}</div>
+                      <div style={{ fontSize: 11, color: 'var(--dust)' }}>{(t.created_at || '').slice(0, 16).replace('T', ' ')} · {t.kind}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Notes */}
+              <div style={card}>
+                <p style={head}>Internal notes (staff only)</p>
+                {p.notes.map(n => (
+                  <div key={n.id} style={{ background: 'var(--void)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: 'var(--bone)' }}>{n.note}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+                      <span style={{ fontSize: 11, color: 'var(--dust)' }}>{(n.created_at || '').slice(0, 10)}</span>
+                      {canEdit && <X size={12} style={{ cursor: 'pointer', color: 'var(--dust)' }} onClick={() => act('delete_note', { id: n.id })} />}
+                    </div>
+                  </div>
+                ))}
+                {canEdit && <input value={draft.note} onChange={e => setDraft(d => ({ ...d, note: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter' && draft.note.trim()) { act('add_note', { note: draft.note.trim() }); setDraft(d => ({ ...d, note: '' })); } }} placeholder="Add a note…" style={adminInput} />}
+              </div>
+
+              {/* Contacts (9 + 27) */}
+              <div style={card}>
+                <p style={head}>Contact log</p>
+                {p.contacts.map(c => (
+                  <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontSize: 12, color: 'var(--bone)' }}><Badge label={c.direction} color={c.direction === 'outbound' ? 'gold' : 'aurora'} /> {c.summary}</span>
+                      <div style={{ fontSize: 11, color: 'var(--dust)' }}>{c.channel} · {(c.created_at || '').slice(0, 10)}</div>
+                    </div>
+                    {canEdit && <X size={12} style={{ cursor: 'pointer', color: 'var(--dust)', flexShrink: 0 }} onClick={() => act('delete_contact', { id: c.id })} />}
+                  </div>
+                ))}
+                {canEdit && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                      <select value={draft.direction} onChange={e => setDraft(d => ({ ...d, direction: e.target.value }))} style={{ ...adminInput, width: 'auto' }}><option value="inbound">Inbound</option><option value="outbound">Outbound</option></select>
+                      <select value={draft.channel} onChange={e => setDraft(d => ({ ...d, channel: e.target.value }))} style={{ ...adminInput, width: 'auto' }}><option>email</option><option>call</option><option>DM</option><option>event</option></select>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input value={draft.contact} onChange={e => setDraft(d => ({ ...d, contact: e.target.value }))} placeholder="Log a contact…" style={adminInput} />
+                      <button onClick={() => { if (draft.contact.trim()) { act('add_contact', { summary: draft.contact.trim(), channel: draft.channel, direction: draft.direction }); setDraft(d => ({ ...d, contact: '' })); } }} style={{ padding: '8px 12px', border: 'none', background: 'rgba(91,233,221,0.15)', color: 'var(--aurora)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Log</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Follow-ups */}
+              <div style={card}>
+                <p style={head}>Follow-ups</p>
+                {p.followups.map(f => (
+                  <div key={f.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                    {canEdit ? <input type="checkbox" checked={f.status !== 'open'} onChange={() => act('update_followup', { id: f.id, status: f.status === 'open' ? 'done' : 'open' })} style={{ marginTop: 3 }} /> : null}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, color: 'var(--bone)', textDecoration: f.status !== 'open' ? 'line-through' : 'none' }}>{f.title}</div>
+                      {f.due_date && <div style={{ fontSize: 11, color: f.status === 'open' ? '#fb923c' : 'var(--dust)' }}>due {f.due_date}</div>}
+                    </div>
+                    {canEdit && <X size={12} style={{ cursor: 'pointer', color: 'var(--dust)' }} onClick={() => act('delete_followup', { id: f.id })} />}
+                  </div>
+                ))}
+                {canEdit && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                    <input value={draft.fuTitle} onChange={e => setDraft(d => ({ ...d, fuTitle: e.target.value }))} placeholder="New follow-up…" style={adminInput} />
+                    <input type="date" value={draft.fuDue} onChange={e => setDraft(d => ({ ...d, fuDue: e.target.value }))} style={{ ...adminInput, width: 'auto' }} />
+                    <button onClick={() => { if (draft.fuTitle.trim()) { act('add_followup', { title: draft.fuTitle.trim(), due_date: draft.fuDue }); setDraft(d => ({ ...d, fuTitle: '', fuDue: '' })); } }} style={{ padding: '8px 12px', border: 'none', background: 'rgba(91,233,221,0.15)', color: 'var(--aurora)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Add</button>
+                  </div>
+                )}
+              </div>
+
+              {/* Moderation history */}
+              <div style={card}>
+                <p style={head}>Moderation history</p>
+                {p.moderation.length === 0 ? <p style={{ fontSize: 12, color: 'var(--dust)' }}>No moderation actions.</p> : p.moderation.map((m, i) => (
+                  <div key={i} style={{ padding: '5px 0', borderBottom: '1px solid var(--line)' }}>
+                    <div style={{ fontSize: 12, color: 'var(--bone)' }}>{m.details || m.action_type}</div>
+                    <div style={{ fontSize: 11, color: 'var(--dust)' }}>{(m.created_at || '').slice(0, 16).replace('T', ' ')}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+/* ============================================================
    MOVEMENT HUB — petition signatures · quests · events
    Manages the remaining frontend user inputs (sign / pitch / RSVP).
    ============================================================ */
@@ -2086,6 +2394,30 @@ const SurveysTab = ({ auth, level }) => {
     try { await apiCall('/api/admin/surveys', 'POST', { action: 'delete_statement', statement_id: sid }, auth.token); openEdit(detail.id); }
     catch (e) { flash({ error: e.message }); }
   };
+  // Task 4 — move a statement up/down and persist the new order.
+  const moveStatement = async (i, dir) => {
+    const arr = [...detail.statements];
+    const j = i + dir;
+    if (j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    setDetail(d => ({ ...d, statements: arr }));
+    try { await apiCall('/api/admin/surveys', 'POST', { action: 'reorder_statements', survey_id: detail.id, ordered_ids: arr.map(s => s.id) }, auth.token); }
+    catch (e) { flash({ error: e.message }); openEdit(detail.id); }
+  };
+  const cloneSurvey = async (id) => {
+    try { const d = await apiCall('/api/admin/surveys', 'POST', { action: 'clone', id }, auth.token); flash({ success: 'Survey duplicated.' }); load(); openEdit(d.id); }
+    catch (e) { flash({ error: e.message }); }
+  };
+  const exportCsv = async (id) => {
+    try {
+      const res = await fetch(`/api/admin/surveys?id=${id}&format=csv`, { headers: { Authorization: `Bearer ${auth.token}` } });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `survey-${id}.csv`; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) { flash({ error: 'Export failed.' }); }
+  };
 
   const notice = msg && (
     <div style={{
@@ -2145,22 +2477,46 @@ const SurveysTab = ({ auth, level }) => {
 
           {/* Questions */}
           <div style={{ background: 'var(--void-2)', border: '1px solid var(--line)', borderRadius: 12, padding: 18 }}>
-            <p style={{ margin: '0 0 14px', fontSize: 11, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Questions ({(detail.statements || []).length})
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 14px' }}>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--dust)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Questions ({(detail.statements || []).length})
+              </p>
+              {!isNew && <button onClick={() => exportCsv(detail.id)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--bone)', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}><ExternalLink size={12} /> Export CSV</button>}
+            </div>
             {isNew ? (
               <p style={{ fontSize: 13, color: 'var(--dust)' }}>Create the survey first, then add questions.</p>
             ) : (
               <>
                 {(detail.statements || []).length === 0 && <p style={{ fontSize: 13, color: 'var(--dust)', textAlign: 'center', padding: '14px 0' }}>No questions yet.</p>}
-                {(detail.statements || []).map(q => (
-                  <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
-                    <Badge label={QTYPE_LABEL[q.type] || q.type} color={QTYPE_COLOR[q.type] || 'dust'} />
-                    <span style={{ flex: 1, fontSize: 13, color: 'var(--bone)', minWidth: 0, wordBreak: 'break-word' }}>{q.text}</span>
-                    {q.type === 'vote' && <span style={{ fontSize: 11, color: 'var(--dust)', whiteSpace: 'nowrap' }}>▲{q.agree} ▼{q.disagree} ◦{q.pass}</span>}
-                    {canEdit && <button onClick={() => removeStatement(q.id)} title="Remove" style={{ padding: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--dust)' }}><X size={15} /></button>}
-                  </div>
-                ))}
+                {(detail.statements || []).map((q, i) => {
+                  const total = (q.agree || 0) + (q.disagree || 0) + (q.pass || 0);
+                  const denom = total || 1;
+                  return (
+                    <div key={q.id} style={{ padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {canEdit && (
+                          <span style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+                            <button onClick={() => moveStatement(i, -1)} disabled={i === 0} title="Move up" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--dust)', padding: 0, lineHeight: 1, opacity: i === 0 ? 0.3 : 1 }}><ChevronUp size={13} /></button>
+                            <button onClick={() => moveStatement(i, 1)} disabled={i === detail.statements.length - 1} title="Move down" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--dust)', padding: 0, lineHeight: 1, opacity: i === detail.statements.length - 1 ? 0.3 : 1 }}><ChevronDown size={13} /></button>
+                          </span>
+                        )}
+                        <Badge label={QTYPE_LABEL[q.type] || q.type} color={QTYPE_COLOR[q.type] || 'dust'} />
+                        <span style={{ flex: 1, fontSize: 13, color: 'var(--bone)', minWidth: 0, wordBreak: 'break-word' }}>{q.text}</span>
+                        {canEdit && <button onClick={() => removeStatement(q.id)} title="Remove" style={{ padding: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--dust)', flexShrink: 0 }}><X size={15} /></button>}
+                      </div>
+                      {q.type === 'vote' && total > 0 && (
+                        <div style={{ marginLeft: canEdit ? 26 : 0, marginTop: 6 }}>
+                          <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--line)' }}>
+                            <div style={{ width: `${(q.agree / denom) * 100}%`, background: '#34d399' }} />
+                            <div style={{ width: `${(q.disagree / denom) * 100}%`, background: 'var(--terra)' }} />
+                            <div style={{ width: `${(q.pass / denom) * 100}%`, background: 'var(--dust)' }} />
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--dust)', marginTop: 3 }}>▲{q.agree} agree · ▼{q.disagree} disagree · ◦{q.pass} pass</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 {canEdit && (
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
                     <label style={labelStyle}>Add question</label>
@@ -2215,6 +2571,7 @@ const SurveysTab = ({ auth, level }) => {
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 <button onClick={() => openEdit(s.id)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--bone)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}><Edit2 size={13} /> Edit</button>
+                {canEdit && <button onClick={() => cloneSurvey(s.id)} title="Duplicate" style={{ padding: '6px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--dust)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Duplicate</button>}
                 {canEdit && s.status !== 'archived' && <button onClick={() => setStatus(s.id, 'archived')} style={{ padding: '6px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--dust)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Archive</button>}
                 {canEdit && s.status === 'archived' && <button onClick={() => setStatus(s.id, 'live')} style={{ padding: '6px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--dust)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Restore</button>}
               </div>
@@ -2301,9 +2658,11 @@ export const AdminDashboard = ({ auth }) => {
 
   const tabs = [
     { id: 'users',         label: 'Users',          icon: Users,         minLevel: 1 },
+    { id: 'members',       label: 'Members',         icon: User,          minLevel: 1 },
     { id: 'interactions',  label: 'Interactions',    icon: MessageCircle, minLevel: 1 },
     { id: 'surveys',       label: 'Surveys',         icon: FileText,      minLevel: 1 },
     { id: 'movement',      label: 'Movement',        icon: Globe,         minLevel: 1 },
+    { id: 'comms',         label: 'Comms',           icon: Mail,          minLevel: 2 },
     { id: 'cms',           label: 'CMS',             icon: FileText,      minLevel: 3 },
     { id: 'tts',           label: 'TTS Plugins',     icon: Mic,           minLevel: 3 },
   ].filter(t => level >= t.minLevel);
@@ -2354,9 +2713,11 @@ export const AdminDashboard = ({ auth }) => {
       {/* Tab content */}
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 0' }}>
         {activeTab === 'users'         && <UsersTab           auth={auth} level={level} />}
+        {activeTab === 'members'       && <MembersTab        auth={auth} level={level} />}
         {activeTab === 'interactions'  && <InteractionsTab   auth={auth} level={level} />}
         {activeTab === 'surveys'       && <SurveysTab        auth={auth} level={level} />}
         {activeTab === 'movement'      && <MovementTab       auth={auth} level={level} />}
+        {activeTab === 'comms'         && <CommsTab          auth={auth} level={level} />}
         {activeTab === 'cms'           && <CmsTab            auth={auth} level={level} />}
         {activeTab === 'tts'           && <TtsPluginManager  auth={auth} level={level} />}
       </div>

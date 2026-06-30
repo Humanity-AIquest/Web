@@ -111,6 +111,9 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState('');
+  const [newsletter, setNewsletter] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -126,7 +129,7 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
       const body = mode === 'login'
         ? { email, password }
-        : { email, password, display_name: name || email.split('@')[0] };
+        : { email, password, display_name: name || email.split('@')[0], phone, country, newsletter };
       const data = await apiCall(endpoint, 'POST', body);
       if (data.success) {
         storeAuth({ user: data.user, token: data.token });
@@ -167,10 +170,22 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
 
         <form onSubmit={submit} className="space-y-4">
           {mode === 'signup' && (
-            <input type="text" placeholder="Display name" value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
-              style={{ border: '1px solid var(--line-2)' }} />
+            <>
+              <input type="text" placeholder="Display name" value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
+                style={{ border: '1px solid var(--line-2)' }} />
+              <div className="flex gap-3">
+                <input type="tel" placeholder="Mobile phone" value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  className="w-1/2 px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
+                  style={{ border: '1px solid var(--line-2)' }} />
+                <input type="text" placeholder="Country" value={country}
+                  onChange={e => setCountry(e.target.value)}
+                  className="w-1/2 px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
+                  style={{ border: '1px solid var(--line-2)' }} />
+              </div>
+            </>
           )}
           <input type="email" placeholder="Email address" value={email} required
             onChange={e => setEmail(e.target.value)}
@@ -180,6 +195,13 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
             onChange={e => setPassword(e.target.value)} minLength={8}
             className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
             style={{ border: '1px solid var(--line-2)' }} />
+
+          {mode === 'signup' && (
+            <label className="flex items-center gap-2 text-sm text-bone-dim cursor-pointer">
+              <input type="checkbox" checked={newsletter} onChange={e => setNewsletter(e.target.checked)} />
+              Keep me updated by email about the movement
+            </label>
+          )}
 
           {error && <div className="text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff6b6b' }}>{error}</div>}
 
@@ -201,7 +223,7 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
 };
 
 // ============ ACCOUNT PAGE ============
-const AccountPage = ({ auth, onLogout }) => {
+const AccountPage = ({ auth, onLogout, onOpenAuth }) => {
   const [ideas, setIdeas] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -216,12 +238,16 @@ const AccountPage = ({ auth, onLogout }) => {
     }
   }, [auth]);
 
-  if (!auth) return (
+  if (!auth?.user) return (
     <section className="min-h-[70vh] flex items-center justify-center">
       <div className="text-center">
         <User size={48} className="text-bone-dim mx-auto mb-4" />
         <h2 className="font-display text-2xl mb-2">Sign in to view your account</h2>
-        <p className="text-bone-dim">Create an account to submit ideas and track their progress.</p>
+        <p className="text-bone-dim mb-6">Create an account to submit ideas and track their progress.</p>
+        <div className="flex items-center justify-center gap-3">
+          <button onClick={() => onOpenAuth?.('login')} className="btn-aurora text-sm">Sign In</button>
+          <button onClick={() => onOpenAuth?.('signup')} className="btn-secondary text-sm">Create Account</button>
+        </div>
       </div>
     </section>
   );
@@ -1617,94 +1643,150 @@ const QuestsBoard = () => {
   );
 };
 
-// ============ SURVEYS PAGE (wired to /api/surveys) ============
-const SurveysPage = () => {
-  const SURVEY_ID = 'union-for-creators';
-  const statementPh = useCmsField('surveys', 'statement_ph', 'Your statement…');
-  const addBtn = useCmsField('surveys', 'add_btn', 'Add');
+// ============ SURVEY RUNNER (one survey: vote → results, share/embed) ============
+const SurveyRunner = ({ surveyId, embed }) => {
   const [survey, setSurvey] = useState(null);
   const [idx, setIdx] = useState(0);
   const [results, setResults] = useState(null);
-  const [newStatement, setNewStatement] = useState('');
-  const [addMsg, setAddMsg] = useState('');
+  const [copied, setCopied] = useState('');
 
   useEffect(() => {
-    fetch(`/api/surveys/${SURVEY_ID}`).then(r => r.json()).then(d => setSurvey(d.survey || null)).catch(() => {});
-  }, []);
+    setSurvey(null); setIdx(0); setResults(null);
+    fetch(`/api/surveys/${surveyId}`).then(r => r.json()).then(d => setSurvey(d.survey || null)).catch(() => {});
+  }, [surveyId]);
 
-  const statements = survey?.statements || [];
+  const statements = (survey?.statements || []).filter(s => (s.type || 'vote') === 'vote');
   const done = survey && idx >= statements.length;
 
   const vote = async (value) => {
     const s = statements[idx];
-    if (s) { try { await postJSON(`/api/surveys/${SURVEY_ID}/vote`, { statementId: s.id, value }); } catch {} }
+    if (s) { try { await postJSON(`/api/surveys/${surveyId}/vote`, { statementId: s.id, value }); } catch {} }
     const next = idx + 1;
     setIdx(next);
     if (next >= statements.length) {
-      try { const d = await (await fetch(`/api/surveys/${SURVEY_ID}/results`)).json(); setResults(d.results || []); } catch {}
+      try { const d = await (await fetch(`/api/surveys/${surveyId}/results`)).json(); setResults(d.results || []); } catch {}
     }
   };
 
-  const addStatement = async () => {
-    if (newStatement.trim().length < 4) { setAddMsg('Please write a statement.'); return; }
-    const d = await postJSON(`/api/surveys/${SURVEY_ID}/statements`, { text: newStatement });
-    setAddMsg(d.error || 'Added — others can now vote on it.');
-    if (!d.error) setNewStatement('');
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const shareUrl = `${origin}/?survey=${surveyId}`;
+  const embedCode = `<iframe src="${origin}/?survey=${surveyId}&embed=1" width="100%" height="520" style="border:0;border-radius:16px" title="Survey"></iframe>`;
+  const copy = (text, what) => { try { navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(''), 1800); } catch {} };
+
+  if (!survey) return <div className="mt-10 text-bone-dim flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Loading…</div>;
+
+  return (
+    <>
+      <h1 className="font-display text-4xl md:text-6xl leading-tight">{survey.title}</h1>
+      <p className="text-bone-dim mt-6 max-w-2xl text-lg">{survey.intro}</p>
+
+      {!done ? (
+        <div className="card-glass rounded-2xl p-8 mt-10">
+          <div className="text-xs uppercase tracking-[0.2em] text-dust mb-6">Statement {idx + 1} of {statements.length}</div>
+          <p className="font-display text-2xl md:text-3xl leading-snug mb-8">{statements[idx]?.text}</p>
+          <div className="flex flex-wrap gap-3">
+            <button onClick={() => vote('agree')} className="btn-aurora flex-1 justify-center">Agree</button>
+            <button onClick={() => vote('pass')} className="btn-secondary flex-1 justify-center">Pass</button>
+            <button onClick={() => vote('disagree')} className="btn-secondary flex-1 justify-center">Disagree</button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-10">
+          <E p="surveys" k="results_heading" as="h2" className="font-display text-3xl font-italic text-aurora mb-2">That's the union, taking shape.</E>
+          <E p="surveys" k="results_sub" as="p" className="text-bone-dim mb-8">Live tallies update as people vote.</E>
+          <div className="space-y-3">
+            {(results || []).map((r) => {
+              const total = r.agree + r.disagree + r.pass || 1;
+              return (
+                <div key={r.statementId} className="card-glass rounded-xl p-5">
+                  <p className="text-bone mb-3">{r.text}</p>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-aurora">Agree {r.agree}</span>
+                    <span className="text-terra">Disagree {r.disagree}</span>
+                    <span className="text-dust">Pass {r.pass}</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden mt-3 flex" style={{ background: 'var(--void)' }}>
+                    <div style={{ width: `${(r.agree / total) * 100}%`, background: 'var(--aurora)' }} />
+                    <div style={{ width: `${(r.disagree / total) * 100}%`, background: 'var(--terra)' }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!embed && (
+        <div className="mt-10 flex flex-wrap gap-3">
+          <button onClick={() => copy(shareUrl, 'link')} className="btn-secondary text-sm">{copied === 'link' ? 'Link copied ✓' : 'Copy share link'}</button>
+          <button onClick={() => copy(embedCode, 'embed')} className="btn-secondary text-sm">{copied === 'embed' ? 'Embed code copied ✓' : 'Copy embed code'}</button>
+        </div>
+      )}
+    </>
+  );
+};
+
+// ============ SURVEYS PAGE (multi-survey index, wired to /api/surveys) ============
+const SurveysPage = ({ embedId }) => {
+  const indexTitle = useCmsField('surveys', 'index_title', 'Where the union decides.');
+  const indexIntro = useCmsField('surveys', 'index_intro', 'Choose a question below and vote — agree, disagree, or pass on each statement.');
+  const initial = embedId || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('survey') : null);
+  const [list, setList] = useState(null);
+  const [selected, setSelected] = useState(initial || null);
+
+  useEffect(() => {
+    if (embedId) return;
+    fetch('/api/surveys').then(r => r.json()).then(d => setList(d.surveys || [])).catch(() => setList([]));
+  }, [embedId]);
+
+  const openSurvey = (id) => {
+    setSelected(id);
+    try { window.history.pushState({}, '', `${window.location.pathname}?survey=${id}`); } catch {}
   };
+  const backToList = () => {
+    setSelected(null);
+    try { window.history.pushState({}, '', window.location.pathname); } catch {}
+  };
+
+  // Embedded mode: render just the survey, no page chrome.
+  if (embedId) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--void)', color: 'var(--bone)', padding: '24px 18px' }}>
+        <SurveyRunner surveyId={embedId} embed />
+      </div>
+    );
+  }
 
   return (
     <PageWrap>
       <section className="pt-24 pb-20 max-w-4xl mx-auto px-6 lg:px-12 relative">
         <UnityParticles count={5} pattern="converge" />
         <SectionLabel>Surveys</SectionLabel>
-        <h1 className="font-display text-4xl md:text-6xl leading-tight">{survey?.title || 'A union for AI creators?'}</h1>
-        <p className="text-bone-dim mt-6 max-w-2xl text-lg">{survey?.intro || 'Vote on each statement — agree, disagree, or pass. You can add your own at the end.'}</p>
-
-        {!survey ? (
-          <div className="mt-10 text-bone-dim flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Loading…</div>
-        ) : !done ? (
-          <div className="card-glass rounded-2xl p-8 mt-10">
-            <div className="text-xs uppercase tracking-[0.2em] text-dust mb-6">Statement {idx + 1} of {statements.length}</div>
-            <p className="font-display text-2xl md:text-3xl leading-snug mb-8">{statements[idx]?.text}</p>
-            <div className="flex flex-wrap gap-3">
-              <button onClick={() => vote('agree')} className="btn-aurora flex-1 justify-center">Agree</button>
-              <button onClick={() => vote('pass')} className="btn-secondary flex-1 justify-center">Pass</button>
-              <button onClick={() => vote('disagree')} className="btn-secondary flex-1 justify-center">Disagree</button>
-            </div>
-          </div>
+        {selected ? (
+          <>
+            <button onClick={backToList} className="text-sm text-dust hover:text-bone mb-4 flex items-center gap-1">← All surveys</button>
+            <SurveyRunner surveyId={selected} />
+          </>
         ) : (
-          <div className="mt-10">
-            <E p="surveys" k="results_heading" as="h2" className="font-display text-3xl font-italic text-aurora mb-2">That's the union, taking shape.</E>
-            <E p="surveys" k="results_sub" as="p" className="text-bone-dim mb-8">Live tallies update as people vote.</E>
-            <div className="space-y-3">
-              {(results || []).map((r) => {
-                const total = r.agree + r.disagree + r.pass || 1;
-                return (
-                  <div key={r.statementId} className="card-glass rounded-xl p-5">
-                    <p className="text-bone mb-3">{r.text}</p>
-                    <div className="flex items-center gap-4 text-xs">
-                      <span className="text-aurora">Agree {r.agree}</span>
-                      <span className="text-terra">Disagree {r.disagree}</span>
-                      <span className="text-dust">Pass {r.pass}</span>
-                    </div>
-                    <div className="h-2 rounded-full overflow-hidden mt-3 flex" style={{ background: 'var(--void)' }}>
-                      <div style={{ width: `${(r.agree / total) * 100}%`, background: 'var(--aurora)' }} />
-                      <div style={{ width: `${(r.disagree / total) * 100}%`, background: 'var(--terra)' }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-8 max-w-lg">
-              <E p="surveys" k="add_label" as="div" className="text-xs uppercase tracking-[0.2em] text-dust mb-3">Add a statement for others to vote on</E>
-              <div className="flex gap-2">
-                <input value={newStatement} onChange={e => setNewStatement(e.target.value)} placeholder={statementPh}
-                  className="flex-1 px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
-                <button onClick={addStatement} className="btn-aurora">{addBtn}</button>
+          <>
+            <h1 className="font-display text-4xl md:text-6xl leading-tight">{indexTitle}</h1>
+            <p className="text-bone-dim mt-6 max-w-2xl text-lg">{indexIntro}</p>
+            {list === null ? (
+              <div className="mt-10 text-bone-dim flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Loading…</div>
+            ) : list.length === 0 ? (
+              <div className="mt-10 text-bone-dim">No live surveys right now. Check back soon.</div>
+            ) : (
+              <div className="mt-10 grid gap-4 md:grid-cols-2">
+                {list.map(s => (
+                  <button key={s.id} onClick={() => openSurvey(s.id)} className="card-glass rounded-2xl p-6 text-left transition-all" style={{ borderColor: 'var(--line-2)' }}>
+                    <div className="font-display text-xl mb-2">{s.title}</div>
+                    <p className="text-bone-dim text-sm leading-relaxed">{s.intro}</p>
+                    <div className="text-xs text-aurora mt-3">{s.statement_count} statement{s.statement_count !== 1 ? 's' : ''} →</div>
+                  </button>
+                ))}
               </div>
-              {addMsg && <p className="text-sm text-aurora mt-2">{addMsg}</p>}
-            </div>
-          </div>
+            )}
+          </>
         )}
       </section>
     </PageWrap>
@@ -2856,11 +2938,14 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
         {showIdeaForm ? (
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
             <h3 className="font-display text-lg">Submit an Idea or Amendment</h3>
-            {!auth?.token ? (
+            {!auth?.user ? (
               <div className="text-center py-8">
                 <Lightbulb size={32} className="text-bone-dim mx-auto mb-3" />
                 <p className="text-sm text-bone-dim mb-4">Sign in to submit ideas. Per Clause I.1, your contribution will be attributed to you on the immutable ledger.</p>
-                <button onClick={onOpenAuth} className="btn-aurora text-sm">Sign In to Submit</button>
+                <div className="flex items-center justify-center gap-3">
+                  <button onClick={() => onOpenAuth('login')} className="btn-aurora text-sm">Sign In</button>
+                  <button onClick={() => onOpenAuth('signup')} className="btn-secondary text-sm">Create Account</button>
+                </div>
               </div>
             ) : (
               <>
@@ -3091,6 +3176,35 @@ export default function HumanityAIQuest() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [page]);
 
+  // Deep link: /?survey=<id> opens the Surveys page on that survey.
+  // /?survey=<id>&embed=1 renders the survey standalone (for website iframes).
+  const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const embedSurvey = sp && sp.get('embed') === '1' ? sp.get('survey') : null;
+  useEffect(() => {
+    if (sp && sp.get('survey') && !embedSurvey) setPage('surveys');
+  }, []);
+
+  // Reconcile the stored session on load so UI state and write-permissions agree.
+  // Fixes the "shows Super Admin but says 'sign in'" bug: a stored auth that has a
+  // user but no/expired token gets cleared; a valid token refreshes the user and
+  // is kept. After this, auth is always either null or { user, token } together.
+  useEffect(() => {
+    if (!auth?.token) {
+      if (auth) { clearAuth(); setAuth(null); }
+      return;
+    }
+    apiCall('/api/auth/me', 'GET', null, auth.token)
+      .then(data => {
+        if (data?.authenticated && data.user) {
+          const refreshed = { user: data.user, token: auth.token };
+          setAuth(refreshed); storeAuth(refreshed);
+        } else {
+          clearAuth(); setAuth(null);
+        }
+      })
+      .catch(() => { /* transient network error — keep the existing session */ });
+  }, []);
+
   // CMS edit mode (inside the Admin CMS iframe): start on the hash page and let
   // the admin parent drive navigation between pages.
   useEffect(() => {
@@ -3117,6 +3231,16 @@ export default function HumanityAIQuest() {
     setPage('home');
   };
 
+  // Standalone embedded survey (iframe) — no nav/footer/agent chrome.
+  if (embedSurvey) {
+    return (
+      <CMSProvider>
+        <GlobalStyles />
+        <SurveysPage embedId={embedSurvey} />
+      </CMSProvider>
+    );
+  }
+
   return (
     <CMSProvider>
     <div className="bg-void text-bone min-h-screen font-body">
@@ -3139,7 +3263,7 @@ export default function HumanityAIQuest() {
         {page === 'manifesto' && <ManifestoPage setPage={setPage} />}
         {page === 'join' && <JoinPage setPage={setPage} />}
         {page === 'about' && <AboutPage />}
-        {page === 'account' && <AccountPage auth={auth} onLogout={handleLogout} />}
+        {page === 'account' && <AccountPage auth={auth} onLogout={handleLogout} onOpenAuth={openAuthModal} />}
         {page === 'admin' && (
           auth?.user?.role === 'admin'
             ? <AdminDashboard auth={auth} onLogout={handleLogout} />

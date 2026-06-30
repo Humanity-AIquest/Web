@@ -15,7 +15,7 @@ export async function onRequestGet(context) {
     if (!survey) return jsonError("Survey not found.", 404);
 
     const statements = await env.DB.prepare(
-      `SELECT id, text FROM survey_statements WHERE survey_id = ? ORDER BY created_at ASC`
+      `SELECT id, text, type, sort_order FROM survey_statements WHERE survey_id = ? ORDER BY sort_order ASC, created_at ASC`
     ).bind(params.id).all();
 
     return json({ survey: { ...survey, statements: statements.results || [] } });

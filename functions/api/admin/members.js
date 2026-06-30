@@ -43,6 +43,11 @@ async function ensureMemberSchema(env) {
   for (const col of ["phone TEXT", "country TEXT", "newsletter INTEGER DEFAULT 0"]) {
     try { await env.DB.prepare(`ALTER TABLE users ADD COLUMN ${col}`).run(); } catch (e) { /* exists */ }
   }
+  // Audit table (so the moderation-history query never throws on a missing table).
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_actions (
+    id TEXT PRIMARY KEY, admin_id TEXT, action_type TEXT, target_type TEXT,
+    target_id TEXT, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`).run();
 }
 
 const norm = (e) => (e || "").trim().toLowerCase();

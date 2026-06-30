@@ -4,6 +4,7 @@
  * GET  — Get my ideas with status history
  */
 import { json, jsonError, optionsResponse, getUser, newId } from "./_shared.js";
+import { ensureConversationSchema, logInteraction } from "./_conversations.js";
 
 // ─── Auto-migrate ideas table ─────────────────────────────────────────────────
 async function ensureIdeasSchema(env) {
@@ -98,6 +99,15 @@ export async function onRequestPost(context) {
          VALUES (?, ?, NULL, 'submitted', 'Your idea has been received. Thank you for contributing to the HRC.', 1)`
       ).bind(newId(), ideaId).run();
     } catch (e) { /* log failure is non-critical */ }
+
+    // Index the idea so it appears on the member's cross-source timeline.
+    try {
+      await ensureConversationSchema(env);
+      await logInteraction(env, {
+        kind: "idea", user_id: user.id, participant: (user.email || user.id),
+        ref_type: "idea", ref_id: ideaId, summary: "Submitted idea: " + title.trim(),
+      });
+    } catch (e) { /* index write is best-effort */ }
 
     return json({
       success: true,

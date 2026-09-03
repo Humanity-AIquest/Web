@@ -1,0 +1,3 @@
+Rollback to 6fe5125 on 2026-09-03
+This marks the point where the branch was reset to exclude all uploads from today.
+Target deployment: Cloudflare main branch at 6fe5125

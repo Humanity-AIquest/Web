@@ -17,34 +17,34 @@
 import { json, jsonError, optionsResponse, getUser, requireACL, newId } from "../_shared.js";
 
 async function ensureMemberSchema(env) {
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS member_notes (
+  await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS member_notes (
     id TEXT PRIMARY KEY, member_email TEXT NOT NULL, author_id TEXT,
     note TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS member_contacts (
+  await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS member_contacts (
     id TEXT PRIMARY KEY, member_email TEXT NOT NULL, author_id TEXT,
     channel TEXT, direction TEXT DEFAULT 'inbound', summary TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS member_followups (
+  await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS member_followups (
     id TEXT PRIMARY KEY, member_email TEXT NOT NULL, author_id TEXT,
     title TEXT NOT NULL, due_date TEXT, status TEXT DEFAULT 'open',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS member_tags (
+  await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS member_tags (
     id TEXT PRIMARY KEY, member_email TEXT NOT NULL, tag TEXT NOT NULL,
     UNIQUE(member_email, tag)
   )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS member_membership (
+  await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS member_membership (
     member_email TEXT PRIMARY KEY, monthly_pledge TEXT,
     is_founding INTEGER DEFAULT 0, status TEXT, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`).run();
   // Member fields collected at signup (idempotent; signup also self-migrates).
   for (const col of ["phone TEXT", "country TEXT", "newsletter INTEGER DEFAULT 0"]) {
-    try { await env.DB.prepare(`ALTER TABLE users ADD COLUMN ${col}`).run(); } catch (e) { /* exists */ }
+    try { await env.humanity_ai_db_staging.prepare(`ALTER TABLE users ADD COLUMN ${col}`).run(); } catch (e) { /* exists */ }
   }
   // Audit table (so the moderation-history query never throws on a missing table).
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_actions (
+  await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS admin_actions (
     id TEXT PRIMARY KEY, admin_id TEXT, action_type TEXT, target_type TEXT,
     target_id TEXT, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`).run();
@@ -65,11 +65,11 @@ export async function onRequestGet(context) {
 
     // ── Single profile ──────────────────────────────────────────────────────
     if (email) {
-      const account = await env.DB.prepare(
+      const account = await env.humanity_ai_db_staging.prepare(
         "SELECT id, email, display_name, role, acl_level, status, created_at, phone, country, newsletter FROM users WHERE email = ?"
       ).bind(email).first().catch(() => null);
 
-      const sig = await env.DB.prepare(
+      const sig = await env.humanity_ai_db_staging.prepare(
         "SELECT name, country, side, created_at FROM signatures WHERE email = ? ORDER BY created_at ASC LIMIT 1"
       ).bind(email).first().catch(() => null);
 
@@ -80,23 +80,23 @@ export async function onRequestGet(context) {
       const keys = [email];
       if (account?.id) keys.push(account.id);
       const placeholders = keys.map(() => "?").join(",");
-      const timeline = await env.DB.prepare(
+      const timeline = await env.humanity_ai_db_staging.prepare(
         `SELECT kind, ref_type, ref_id, summary, created_at FROM interactions
          WHERE participant IN (${placeholders}) ORDER BY created_at DESC LIMIT 100`
       ).bind(...keys).all().catch(() => ({ results: [] }));
 
       const [notes, contacts, followups, tags, membership] = await Promise.all([
-        env.DB.prepare("SELECT id, note, author_id, created_at FROM member_notes WHERE member_email = ? ORDER BY created_at DESC").bind(email).all().catch(() => ({ results: [] })),
-        env.DB.prepare("SELECT id, channel, direction, summary, created_at FROM member_contacts WHERE member_email = ? ORDER BY created_at DESC").bind(email).all().catch(() => ({ results: [] })),
-        env.DB.prepare("SELECT id, title, due_date, status, created_at FROM member_followups WHERE member_email = ? ORDER BY (status='open') DESC, due_date ASC").bind(email).all().catch(() => ({ results: [] })),
-        env.DB.prepare("SELECT tag FROM member_tags WHERE member_email = ?").bind(email).all().catch(() => ({ results: [] })),
-        env.DB.prepare("SELECT monthly_pledge, is_founding, status FROM member_membership WHERE member_email = ?").bind(email).first().catch(() => null),
+        env.humanity_ai_db_staging.prepare("SELECT id, note, author_id, created_at FROM member_notes WHERE member_email = ? ORDER BY created_at DESC").bind(email).all().catch(() => ({ results: [] })),
+        env.humanity_ai_db_staging.prepare("SELECT id, channel, direction, summary, created_at FROM member_contacts WHERE member_email = ? ORDER BY created_at DESC").bind(email).all().catch(() => ({ results: [] })),
+        env.humanity_ai_db_staging.prepare("SELECT id, title, due_date, status, created_at FROM member_followups WHERE member_email = ? ORDER BY (status='open') DESC, due_date ASC").bind(email).all().catch(() => ({ results: [] })),
+        env.humanity_ai_db_staging.prepare("SELECT tag FROM member_tags WHERE member_email = ?").bind(email).all().catch(() => ({ results: [] })),
+        env.humanity_ai_db_staging.prepare("SELECT monthly_pledge, is_founding, status FROM member_membership WHERE member_email = ?").bind(email).first().catch(() => null),
       ]);
 
       // Moderation history — admin actions targeting this person's account.
       let moderation = { results: [] };
       if (account?.id) {
-        moderation = await env.DB.prepare(
+        moderation = await env.humanity_ai_db_staging.prepare(
           "SELECT action_type, details, created_at FROM admin_actions WHERE target_type = 'user' AND target_id = ? ORDER BY created_at DESC LIMIT 20"
         ).bind(account.id).all().catch(() => ({ results: [] }));
       }
@@ -129,7 +129,7 @@ export async function onRequestGet(context) {
     const filter = q ? "WHERE m.email LIKE ? OR m.name LIKE ?" : "";
     const args = q ? [like, like] : [];
 
-    const rows = await env.DB.prepare(
+    const rows = await env.humanity_ai_db_staging.prepare(
       `SELECT m.email, MAX(m.name) AS name, MAX(m.country) AS country, MAX(m.has_account) AS has_account,
               mm.monthly_pledge, mm.is_founding
        FROM (
@@ -166,45 +166,45 @@ export async function onRequestPost(context) {
     switch (action) {
       case "add_note":
         if (!email || !body.note) return jsonError("email and note required.");
-        await env.DB.prepare("INSERT INTO member_notes (id, member_email, author_id, note) VALUES (?,?,?,?)")
+        await env.humanity_ai_db_staging.prepare("INSERT INTO member_notes (id, member_email, author_id, note) VALUES (?,?,?,?)")
           .bind(newId(), email, user.id, body.note.trim()).run();
         return json({ success: true });
       case "delete_note":
-        await env.DB.prepare("DELETE FROM member_notes WHERE id = ?").bind(body.id).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM member_notes WHERE id = ?").bind(body.id).run();
         return json({ success: true });
 
       case "add_contact":
         if (!email) return jsonError("email required.");
-        await env.DB.prepare("INSERT INTO member_contacts (id, member_email, author_id, channel, direction, summary) VALUES (?,?,?,?,?,?)")
+        await env.humanity_ai_db_staging.prepare("INSERT INTO member_contacts (id, member_email, author_id, channel, direction, summary) VALUES (?,?,?,?,?,?)")
           .bind(newId(), email, user.id, body.channel || "email", body.direction || "inbound", (body.summary || "").trim()).run();
         return json({ success: true });
       case "delete_contact":
-        await env.DB.prepare("DELETE FROM member_contacts WHERE id = ?").bind(body.id).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM member_contacts WHERE id = ?").bind(body.id).run();
         return json({ success: true });
 
       case "add_followup":
         if (!email || !body.title) return jsonError("email and title required.");
-        await env.DB.prepare("INSERT INTO member_followups (id, member_email, author_id, title, due_date) VALUES (?,?,?,?,?)")
+        await env.humanity_ai_db_staging.prepare("INSERT INTO member_followups (id, member_email, author_id, title, due_date) VALUES (?,?,?,?,?)")
           .bind(newId(), email, user.id, body.title.trim(), body.due_date || null).run();
         return json({ success: true });
       case "update_followup":
-        await env.DB.prepare("UPDATE member_followups SET status = ? WHERE id = ?").bind(body.status || "done", body.id).run();
+        await env.humanity_ai_db_staging.prepare("UPDATE member_followups SET status = ? WHERE id = ?").bind(body.status || "done", body.id).run();
         return json({ success: true });
       case "delete_followup":
-        await env.DB.prepare("DELETE FROM member_followups WHERE id = ?").bind(body.id).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM member_followups WHERE id = ?").bind(body.id).run();
         return json({ success: true });
 
       case "add_tag":
         if (!email || !body.tag) return jsonError("email and tag required.");
-        try { await env.DB.prepare("INSERT INTO member_tags (id, member_email, tag) VALUES (?,?,?)").bind(newId(), email, body.tag.trim()).run(); } catch (e) { /* dup */ }
+        try { await env.humanity_ai_db_staging.prepare("INSERT INTO member_tags (id, member_email, tag) VALUES (?,?,?)").bind(newId(), email, body.tag.trim()).run(); } catch (e) { /* dup */ }
         return json({ success: true });
       case "remove_tag":
-        await env.DB.prepare("DELETE FROM member_tags WHERE member_email = ? AND tag = ?").bind(email, body.tag).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM member_tags WHERE member_email = ? AND tag = ?").bind(email, body.tag).run();
         return json({ success: true });
 
       case "set_membership":
         if (!email) return jsonError("email required.");
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           `INSERT INTO member_membership (member_email, monthly_pledge, is_founding, status, updated_at)
            VALUES (?,?,?,?,datetime('now'))
            ON CONFLICT(member_email) DO UPDATE SET monthly_pledge=excluded.monthly_pledge, is_founding=excluded.is_founding, status=excluded.status, updated_at=datetime('now')`

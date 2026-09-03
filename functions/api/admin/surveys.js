@@ -14,7 +14,7 @@ const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
 async function logAdmin(env, adminId, action, targetId, details) {
   try {
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, ?, 'survey', ?, ?)"
     ).bind(newId(), adminId, action, targetId, details || "").run();
   } catch (e) { /* audit log is best-effort */ }
@@ -32,20 +32,20 @@ export async function onRequestGet(context) {
     const id = url.searchParams.get("id");
 
     if (id) {
-      const survey = await env.DB.prepare(
+      const survey = await env.humanity_ai_db_staging.prepare(
         `SELECT id, title, intro, description, status, location, slug, settings, sort_order
          FROM surveys WHERE id = ?`
       ).bind(id).first();
       if (!survey) return jsonError("Survey not found.", 404);
 
-      const statements = await env.DB.prepare(
+      const statements = await env.humanity_ai_db_staging.prepare(
         `SELECT id, text, type, sort_order FROM survey_statements
          WHERE survey_id = ? ORDER BY sort_order ASC, created_at ASC`
       ).bind(id).all();
 
       const withTallies = [];
       for (const s of statements.results || []) {
-        const t = await env.DB.prepare(
+        const t = await env.humanity_ai_db_staging.prepare(
           `SELECT
              SUM(CASE WHEN value='agree' THEN 1 ELSE 0 END) AS agree,
              SUM(CASE WHEN value='disagree' THEN 1 ELSE 0 END) AS disagree,
@@ -74,7 +74,7 @@ export async function onRequestGet(context) {
       return json({ survey: { ...survey, statements: withTallies } });
     }
 
-    const surveys = await env.DB.prepare(
+    const surveys = await env.humanity_ai_db_staging.prepare(
       `SELECT s.id, s.title, s.intro, s.status, s.location, s.created_at,
               (SELECT COUNT(*) FROM survey_statements ss WHERE ss.survey_id = s.id) AS statement_count,
               (SELECT COUNT(DISTINCT v.voter) FROM survey_votes v WHERE v.survey_id = s.id) AS respondent_count
@@ -101,7 +101,7 @@ export async function onRequestPost(context) {
       case "create": {
         const slug = (body.slug || "").trim();
         const id = slug || "survey-" + newId().slice(0, 8);
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           `INSERT INTO surveys (id, title, intro, description, status, location, slug)
            VALUES (?,?,?,?,?,?,?)`
         ).bind(
@@ -113,7 +113,7 @@ export async function onRequestPost(context) {
       }
       case "update": {
         if (!body.id) return jsonError("id required.");
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           `UPDATE surveys SET title=?, intro=?, description=?, status=?, location=? WHERE id=?`
         ).bind(
           body.title || "", body.intro || "", body.description || "",
@@ -124,15 +124,15 @@ export async function onRequestPost(context) {
       }
       case "set_status": {
         if (!body.id || !body.status) return jsonError("id and status required.");
-        await env.DB.prepare(`UPDATE surveys SET status=? WHERE id=?`).bind(body.status, body.id).run();
+        await env.humanity_ai_db_staging.prepare(`UPDATE surveys SET status=? WHERE id=?`).bind(body.status, body.id).run();
         await logAdmin(env, user.id, "set_status", body.id, `Status → ${body.status}`);
         return json({ success: true });
       }
       case "delete": {
         if (!body.id) return jsonError("id required.");
-        await env.DB.prepare(`DELETE FROM survey_votes WHERE survey_id=?`).bind(body.id).run();
-        await env.DB.prepare(`DELETE FROM survey_statements WHERE survey_id=?`).bind(body.id).run();
-        await env.DB.prepare(`DELETE FROM surveys WHERE id=?`).bind(body.id).run();
+        await env.humanity_ai_db_staging.prepare(`DELETE FROM survey_votes WHERE survey_id=?`).bind(body.id).run();
+        await env.humanity_ai_db_staging.prepare(`DELETE FROM survey_statements WHERE survey_id=?`).bind(body.id).run();
+        await env.humanity_ai_db_staging.prepare(`DELETE FROM surveys WHERE id=?`).bind(body.id).run();
         await logAdmin(env, user.id, "delete", body.id, "Deleted survey + statements + votes");
         return json({ success: true });
       }
@@ -140,7 +140,7 @@ export async function onRequestPost(context) {
         if (!body.survey_id || !body.text) return jsonError("survey_id and text required.");
         const sid = newId();
         const order = parseInt(body.sort_order) || 0;
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           `INSERT INTO survey_statements (id, survey_id, text, author, type, sort_order)
            VALUES (?,?,?,NULL,?,?)`
         ).bind(sid, body.survey_id, body.text, body.type || "vote", order).run();
@@ -148,14 +148,14 @@ export async function onRequestPost(context) {
       }
       case "update_statement": {
         if (!body.statement_id) return jsonError("statement_id required.");
-        await env.DB.prepare(`UPDATE survey_statements SET text=?, type=? WHERE id=?`)
+        await env.humanity_ai_db_staging.prepare(`UPDATE survey_statements SET text=?, type=? WHERE id=?`)
           .bind(body.text || "", body.type || "vote", body.statement_id).run();
         return json({ success: true });
       }
       case "delete_statement": {
         if (!body.statement_id) return jsonError("statement_id required.");
-        await env.DB.prepare(`DELETE FROM survey_votes WHERE statement_id=?`).bind(body.statement_id).run();
-        await env.DB.prepare(`DELETE FROM survey_statements WHERE id=?`).bind(body.statement_id).run();
+        await env.humanity_ai_db_staging.prepare(`DELETE FROM survey_votes WHERE statement_id=?`).bind(body.statement_id).run();
+        await env.humanity_ai_db_staging.prepare(`DELETE FROM survey_statements WHERE id=?`).bind(body.statement_id).run();
         return json({ success: true });
       }
       case "reorder_statements": {
@@ -163,7 +163,7 @@ export async function onRequestPost(context) {
         if (!body.survey_id || !Array.isArray(body.ordered_ids)) return jsonError("survey_id and ordered_ids required.");
         let i = 0;
         for (const sid of body.ordered_ids) {
-          await env.DB.prepare(`UPDATE survey_statements SET sort_order=? WHERE id=? AND survey_id=?`)
+          await env.humanity_ai_db_staging.prepare(`UPDATE survey_statements SET sort_order=? WHERE id=? AND survey_id=?`)
             .bind(i++, sid, body.survey_id).run();
         }
         return json({ success: true });
@@ -171,20 +171,20 @@ export async function onRequestPost(context) {
       case "clone": {
         // UC21 — duplicate a survey + its statements as a new draft.
         if (!body.id) return jsonError("id required.");
-        const src = await env.DB.prepare(
+        const src = await env.humanity_ai_db_staging.prepare(
           `SELECT title, intro, description, location FROM surveys WHERE id = ?`
         ).bind(body.id).first();
         if (!src) return jsonError("Survey not found.", 404);
         const newSurveyId = "survey-" + newId().slice(0, 8);
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           `INSERT INTO surveys (id, title, intro, description, status, location)
            VALUES (?,?,?,?,'draft',?)`
         ).bind(newSurveyId, (src.title || "Survey") + " (copy)", src.intro || "", src.description || "", src.location || "surveys_page").run();
-        const stmts = await env.DB.prepare(
+        const stmts = await env.humanity_ai_db_staging.prepare(
           `SELECT text, type, sort_order FROM survey_statements WHERE survey_id = ? ORDER BY sort_order ASC, created_at ASC`
         ).bind(body.id).all();
         for (const s of stmts.results || []) {
-          await env.DB.prepare(
+          await env.humanity_ai_db_staging.prepare(
             `INSERT INTO survey_statements (id, survey_id, text, author, type, sort_order) VALUES (?,?,?,NULL,?,?)`
           ).bind(newId(), newSurveyId, s.text, s.type || "vote", s.sort_order || 0).run();
         }

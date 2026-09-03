@@ -7,7 +7,7 @@ import { json, jsonError, optionsResponse, getUser, requireACL } from "../_share
 
 async function ensure(env) {
   // admin_actions is written by several endpoints but was never created in code.
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_actions (
+  await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS admin_actions (
     id TEXT PRIMARY KEY,
     admin_id TEXT,
     action_type TEXT,
@@ -31,14 +31,14 @@ export async function onRequestGet(context) {
     const limit = 60;
     const offset = (page - 1) * limit;
 
-    const rows = await env.DB.prepare(
+    const rows = await env.humanity_ai_db_staging.prepare(
       `SELECT a.id, a.action_type, a.target_type, a.target_id, a.details, a.created_at,
               u.display_name AS admin_name, u.email AS admin_email
        FROM admin_actions a LEFT JOIN users u ON a.admin_id = u.id
        ORDER BY a.created_at DESC LIMIT ? OFFSET ?`
     ).bind(limit, offset).all().catch(() => ({ results: [] }));
 
-    const total = (await env.DB.prepare("SELECT COUNT(*) AS n FROM admin_actions").first().catch(() => null))?.n || 0;
+    const total = (await env.humanity_ai_db_staging.prepare("SELECT COUNT(*) AS n FROM admin_actions").first().catch(() => null))?.n || 0;
     return json({ actions: rows.results || [], total, page, pages: Math.ceil(total / limit) });
   } catch (err) {
     return jsonError("Failed to load audit log: " + err.message);

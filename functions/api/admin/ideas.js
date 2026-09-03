@@ -23,7 +23,7 @@ export async function onRequestGet(context) {
 
     // Single idea with full history
     if (id) {
-      const idea = await env.DB.prepare(
+      const idea = await env.humanity_ai_db_staging.prepare(
         `SELECT i.*, u.email, u.display_name
          FROM ideas i LEFT JOIN users u ON i.user_id = u.id
          WHERE i.id = ?`
@@ -31,7 +31,7 @@ export async function onRequestGet(context) {
 
       if (!idea) return jsonError("Idea not found.");
 
-      const history = await env.DB.prepare(
+      const history = await env.humanity_ai_db_staging.prepare(
         `SELECT isl.*, a.display_name as admin_name
          FROM idea_status_log isl LEFT JOIN users a ON isl.admin_id = a.id
          WHERE isl.idea_id = ? ORDER BY isl.created_at ASC`
@@ -52,11 +52,11 @@ export async function onRequestGet(context) {
     query += " ORDER BY i.created_at DESC LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
-    const result = await env.DB.prepare(query).bind(...params).all();
+    const result = await env.humanity_ai_db_staging.prepare(query).bind(...params).all();
 
     const countQuery = `SELECT COUNT(*) as total FROM ideas WHERE 1=1${status ? " AND status = ?" : ""}`;
     const countParams = status ? [status] : [];
-    const countResult = await env.DB.prepare(countQuery).bind(...countParams).first();
+    const countResult = await env.humanity_ai_db_staging.prepare(countQuery).bind(...countParams).first();
 
     return json({
       ideas: result.results || [],
@@ -92,22 +92,22 @@ export async function onRequestPut(context) {
     }
 
     // Get current idea
-    const idea = await env.DB.prepare("SELECT id, status, user_id FROM ideas WHERE id = ?").bind(idea_id).first();
+    const idea = await env.humanity_ai_db_staging.prepare("SELECT id, status, user_id FROM ideas WHERE id = ?").bind(idea_id).first();
     if (!idea) return jsonError("Idea not found.");
 
     const oldStatus = idea.status;
 
     // Update idea status
-    await env.DB.prepare("UPDATE ideas SET status = ? WHERE id = ?").bind(status, idea_id).run();
+    await env.humanity_ai_db_staging.prepare("UPDATE ideas SET status = ? WHERE id = ?").bind(status, idea_id).run();
 
     // Log status change (visible to user by default)
     const logComment = comment || `Status changed from ${oldStatus} to ${status}`;
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       "INSERT INTO idea_status_log (id, idea_id, old_status, new_status, admin_id, comment, visible_to_user) VALUES (?, ?, ?, ?, ?, ?, ?)"
     ).bind(newId(), idea_id, oldStatus, status, admin.id, logComment, visible_to_user !== false ? 1 : 0).run();
 
     // Log admin action
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, ?, 'idea', ?, ?)"
     ).bind(newId(), admin.id, `idea_${status}`, idea_id, logComment).run();
 
@@ -139,11 +139,11 @@ export async function onRequestPost(context) {
     if (action === 'set_tags') {
       // Auto-migrate tags column
       try {
-        await env.DB.prepare("ALTER TABLE ideas ADD COLUMN tags TEXT").run();
+        await env.humanity_ai_db_staging.prepare("ALTER TABLE ideas ADD COLUMN tags TEXT").run();
       } catch (e) { /* column already exists */ }
 
       const tagsStr = (tags || '').toString().trim();
-      await env.DB.prepare("UPDATE ideas SET tags = ? WHERE id = ?")
+      await env.humanity_ai_db_staging.prepare("UPDATE ideas SET tags = ? WHERE id = ?")
         .bind(tagsStr || null, idea_id).run();
 
       return json({ success: true, idea_id, tags: tagsStr });

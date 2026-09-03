@@ -10,7 +10,7 @@ export async function onRequestGet(context) {
   const { env } = context;
   try {
     await ensureMovementSchema(env);
-    const rows = await env.DB.prepare(
+    const rows = await env.humanity_ai_db_staging.prepare(
       `SELECT id, title, bounty, status, summary, tags FROM quests WHERE status = 'Open' ORDER BY created_at DESC`
     ).all();
     const quests = (rows.results || []).map(q => ({
@@ -35,7 +35,7 @@ export async function onRequestPost(context) {
     if (!title) return jsonError("A quest needs a title.");
     const slug = (id || title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       `INSERT INTO quests (id, title, bounty, status, summary, problem, tags) VALUES (?,?,?,'Open',?,?,?)`
     ).bind(slug, title.trim(), bounty || null, summary || null, problem || null,
       JSON.stringify(Array.isArray(tags) ? tags : [])).run();

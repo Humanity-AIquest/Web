@@ -9,7 +9,7 @@ export async function onRequestGet(context) {
   const { env, params } = context;
   try {
     await ensureMovementSchema(env);
-    const quest = await env.DB.prepare(
+    const quest = await env.humanity_ai_db_staging.prepare(
       `SELECT id, title, bounty, status, summary, problem, tags FROM quests WHERE id = ?`
     ).bind(params.id).first();
     if (!quest) return jsonError("Quest not found.", 404);
@@ -17,7 +17,7 @@ export async function onRequestGet(context) {
     let tags = [];
     try { const a = JSON.parse(quest.tags); tags = Array.isArray(a) ? a : []; } catch {}
 
-    const qa = await env.DB.prepare(
+    const qa = await env.humanity_ai_db_staging.prepare(
       `SELECT id, author, question, answer FROM quest_questions WHERE quest_id = ? ORDER BY created_at ASC`
     ).bind(params.id).all();
 

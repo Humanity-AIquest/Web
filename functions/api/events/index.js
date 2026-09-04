@@ -10,7 +10,7 @@ export async function onRequestGet(context) {
   const { env } = context;
   try {
     await ensureMovementSchema(env);
-    const rows = await env.humanity_ai_db_staging.prepare(
+    const rows = await env.DB.prepare(
       `SELECT id, title, when_text, type, blurb FROM events ORDER BY created_at ASC`
     ).all();
     return json({ events: rows.results || [] });
@@ -31,7 +31,7 @@ export async function onRequestPost(context) {
     if (!title) return jsonError("An event needs a title.");
 
     const id = newId();
-    await env.humanity_ai_db_staging.prepare(
+    await env.DB.prepare(
       `INSERT INTO events (id, title, when_text, type, blurb) VALUES (?,?,?,?,?)`
     ).bind(id, title.trim(), when_text || null, type || "Event", blurb || null).run();
 

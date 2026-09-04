@@ -34,7 +34,7 @@ export async function onRequestGet(context) {
     query += " ORDER BY m.created_at DESC LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
-    const result = await env.humanity_ai_db_staging.prepare(query).bind(...params).all();
+    const result = await env.DB.prepare(query).bind(...params).all();
 
     return json({ comments: result.results || [], page });
   } catch (err) {
@@ -59,14 +59,14 @@ export async function onRequestDelete(context) {
 
     let deleted = 0;
     for (const msgId of message_ids.slice(0, 100)) { // Max 100 at a time
-      await env.humanity_ai_db_staging.prepare(
+      await env.DB.prepare(
         "UPDATE messages SET content = '[Deleted by admin]', flagged = 1, flag_reason = ? WHERE id = ?"
       ).bind(reason || "Deleted by admin", msgId).run();
       deleted++;
     }
 
     // Log action
-    await env.humanity_ai_db_staging.prepare(
+    await env.DB.prepare(
       "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, 'delete_comments', 'messages', ?, ?)"
     ).bind(newId(), admin.id, message_ids.join(","), `Deleted ${deleted} comments: ${reason || "No reason"}`).run();
 

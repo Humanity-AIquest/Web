@@ -20,7 +20,7 @@ export async function onRequestPost(context) {
     }
 
     if (token) {
-      await env.humanity_ai_db_staging.prepare("DELETE FROM sessions WHERE token = ?").bind(token).run();
+      await env.DB.prepare("DELETE FROM sessions WHERE token = ?").bind(token).run();
     }
 
     return json({ success: true, message: "Logged out successfully." });

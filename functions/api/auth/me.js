@@ -17,7 +17,7 @@ export async function onRequestGet(context) {
     // Ensure ideas table exists (auto-migrate)
     const ideaCols = ['ledger_hash TEXT', 'prev_hash TEXT', 'clause_refs TEXT', 'conversation_id TEXT', 'tags TEXT'];
     try {
-      await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS ideas (
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS ideas (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         title TEXT NOT NULL,
@@ -32,13 +32,13 @@ export async function onRequestGet(context) {
       )`).run();
     } catch(e) { /* already exists */ }
     for (const col of ideaCols) {
-      try { await env.humanity_ai_db_staging.prepare(`ALTER TABLE ideas ADD COLUMN ${col}`).run(); } catch(e) {}
+      try { await env.DB.prepare(`ALTER TABLE ideas ADD COLUMN ${col}`).run(); } catch(e) {}
     }
 
     // Fetch user's ideas — separate try/catch so auth still works if table is weird
     let ideas = [];
     try {
-      const result = await env.humanity_ai_db_staging.prepare(
+      const result = await env.DB.prepare(
         `SELECT id, title, status, clause_refs, created_at
          FROM ideas
          WHERE user_id = ?
@@ -50,7 +50,7 @@ export async function onRequestGet(context) {
       // Attach latest visible comment to each idea
       for (let i = 0; i < ideas.length; i++) {
         try {
-          const log = await env.humanity_ai_db_staging.prepare(
+          const log = await env.DB.prepare(
             `SELECT comment, created_at FROM idea_status_log
              WHERE idea_id = ? AND visible_to_user = 1
              ORDER BY created_at DESC LIMIT 1`

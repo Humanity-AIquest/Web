@@ -30,13 +30,13 @@ export async function onRequestGet(context) {
     query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
-    const result = await env.humanity_ai_db_staging.prepare(query).bind(...params).all();
+    const result = await env.DB.prepare(query).bind(...params).all();
 
     let countQuery = "SELECT COUNT(*) as total FROM users WHERE 1=1";
     const countParams = [];
     if (status) { countQuery += " AND status = ?"; countParams.push(status); }
     if (role) { countQuery += " AND role = ?"; countParams.push(role); }
-    const countResult = await env.humanity_ai_db_staging.prepare(countQuery).bind(...countParams).first();
+    const countResult = await env.DB.prepare(countQuery).bind(...countParams).first();
 
     return json({
       users: result.results || [],
@@ -66,7 +66,7 @@ async function handleUserUpdate(context) {
     if (action === "promote") action = "set_admin";
     if (action === "revoke") action = "revoke_admin";
 
-    const target = await env.humanity_ai_db_staging.prepare(
+    const target = await env.DB.prepare(
       "SELECT id, email, display_name, role, acl_level, status FROM users WHERE id = ?"
     ).bind(user_id).first();
     if (!target) return jsonError("User not found.");
@@ -83,16 +83,16 @@ async function handleUserUpdate(context) {
       case "ban": {
         const err = requireACL(admin, 4);
         if (err) return err;
-        await env.humanity_ai_db_staging.prepare("UPDATE users SET status = 'banned', ban_reason = ?, updated_at = datetime('now') WHERE id = ?")
+        await env.DB.prepare("UPDATE users SET status = 'banned', ban_reason = ?, updated_at = datetime('now') WHERE id = ?")
           .bind(reason || "Violated community guidelines", user_id).run();
-        await env.humanity_ai_db_staging.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user_id).run();
+        await env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user_id).run();
         logAction = `Banned user: ${reason || "No reason given"}`;
         break;
       }
       case "suspend": {
         const err = requireACL(admin, 4);
         if (err) return err;
-        await env.humanity_ai_db_staging.prepare("UPDATE users SET status = 'suspended', ban_reason = ?, updated_at = datetime('now') WHERE id = ?")
+        await env.DB.prepare("UPDATE users SET status = 'suspended', ban_reason = ?, updated_at = datetime('now') WHERE id = ?")
           .bind(reason || "Temporarily suspended", user_id).run();
         logAction = `Suspended user: ${reason || "No reason given"}`;
         break;
@@ -100,7 +100,7 @@ async function handleUserUpdate(context) {
       case "activate": {
         const err = requireACL(admin, 4);
         if (err) return err;
-        await env.humanity_ai_db_staging.prepare("UPDATE users SET status = 'active', ban_reason = NULL, updated_at = datetime('now') WHERE id = ?")
+        await env.DB.prepare("UPDATE users SET status = 'active', ban_reason = NULL, updated_at = datetime('now') WHERE id = ?")
           .bind(user_id).run();
         logAction = "Activated user";
         break;
@@ -110,7 +110,7 @@ async function handleUserUpdate(context) {
         if (err) return err;
         // Default to L4 (matches the admin UI); L5 can grant up to L4 only.
         const level = Math.min(Math.max(parseInt(acl_level) || 4, 1), 4);
-        await env.humanity_ai_db_staging.prepare("UPDATE users SET role = 'admin', acl_level = ?, updated_at = datetime('now') WHERE id = ?")
+        await env.DB.prepare("UPDATE users SET role = 'admin', acl_level = ?, updated_at = datetime('now') WHERE id = ?")
           .bind(level, user_id).run();
         logAction = `Promoted to admin L${level}`;
         break;
@@ -118,7 +118,7 @@ async function handleUserUpdate(context) {
       case "revoke_admin": {
         const err = requireACL(admin, 5);
         if (err) return err;
-        await env.humanity_ai_db_staging.prepare("UPDATE users SET role = 'user', acl_level = 0, updated_at = datetime('now') WHERE id = ?")
+        await env.DB.prepare("UPDATE users SET role = 'user', acl_level = 0, updated_at = datetime('now') WHERE id = ?")
           .bind(user_id).run();
         logAction = "Revoked admin access (returned to regular user)";
         break;
@@ -129,11 +129,11 @@ async function handleUserUpdate(context) {
 
     // Audit log — best-effort so a logging failure never fails the action.
     try {
-      await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS admin_actions (
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_actions (
         id TEXT PRIMARY KEY, admin_id TEXT, action_type TEXT, target_type TEXT,
         target_id TEXT, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`).run();
-      await env.humanity_ai_db_staging.prepare(
+      await env.DB.prepare(
         "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, ?, 'user', ?, ?)"
       ).bind(newId(), admin.id, action, user_id, logAction).run();
     } catch (e) { /* audit is best-effort */ }

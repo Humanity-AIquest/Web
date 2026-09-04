@@ -8,7 +8,7 @@ import { json, jsonError, optionsResponse, getUser, requireACL, newId } from "..
 
 // Auto-migrate site_content tables
 async function ensureSchema(env) {
-  await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS site_content (
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS site_content (
     id TEXT PRIMARY KEY,
     page_key TEXT NOT NULL,
     section_key TEXT NOT NULL,
@@ -19,7 +19,7 @@ async function ensureSchema(env) {
     UNIQUE(page_key, section_key)
   )`).run().catch(() => {});
 
-  await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS site_content_history (
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS site_content_history (
     id TEXT PRIMARY KEY,
     content_id TEXT NOT NULL,
     old_content TEXT,
@@ -44,13 +44,13 @@ export async function onRequestGet(context) {
     const sectionKey = url.searchParams.get("section_key");
 
     if (pageKey && sectionKey) {
-      const content = await env.humanity_ai_db_staging.prepare(
+      const content = await env.DB.prepare(
         "SELECT * FROM site_content WHERE page_key = ? AND section_key = ?"
       ).bind(pageKey, sectionKey).first();
 
       let history = [];
       if (content) {
-        const histResult = await env.humanity_ai_db_staging.prepare(
+        const histResult = await env.DB.prepare(
           `SELECT h.*, u.display_name as editor_name
            FROM site_content_history h LEFT JOIN users u ON h.updated_by = u.id
            WHERE h.content_id = ? ORDER BY h.created_at DESC LIMIT 20`
@@ -60,7 +60,7 @@ export async function onRequestGet(context) {
       return json({ content, history });
     }
 
-    const result = await env.humanity_ai_db_staging.prepare(
+    const result = await env.DB.prepare(
       `SELECT sc.*, u.display_name as editor_name
        FROM site_content sc LEFT JOIN users u ON sc.updated_by = u.id
        ORDER BY sc.page_key, sc.section_key`
@@ -81,23 +81,23 @@ async function upsertContent(env, user, body) {
 
   await ensureSchema(env);
 
-  const existing = await env.humanity_ai_db_staging.prepare(
+  const existing = await env.DB.prepare(
     "SELECT id, content FROM site_content WHERE page_key = ? AND section_key = ?"
   ).bind(page_key, section_key).first();
 
   if (existing) {
-    await env.humanity_ai_db_staging.prepare(
+    await env.DB.prepare(
       "INSERT INTO site_content_history (id, content_id, old_content, new_content, updated_by) VALUES (?, ?, ?, ?, ?)"
     ).bind(newId(), existing.id, existing.content, content, user.id).run().catch(() => {});
 
-    await env.humanity_ai_db_staging.prepare(
+    await env.DB.prepare(
       "UPDATE site_content SET content = ?, content_type = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?"
     ).bind(content, content_type || "text", user.id, existing.id).run();
 
     return json({ success: true, action: "updated", page_key, section_key });
   } else {
     const id = newId();
-    await env.humanity_ai_db_staging.prepare(
+    await env.DB.prepare(
       "INSERT INTO site_content (id, page_key, section_key, content_type, content, updated_by) VALUES (?, ?, ?, ?, ?, ?)"
     ).bind(id, page_key, section_key, content_type || "text", content, user.id).run();
 

@@ -12,14 +12,14 @@ export async function onRequestPost(context) {
   const { request, env, params } = context;
   try {
     await ensureMovementSchema(env);
-    const event = await env.humanity_ai_db_staging.prepare("SELECT id FROM events WHERE id = ?").bind(params.id).first();
+    const event = await env.DB.prepare("SELECT id FROM events WHERE id = ?").bind(params.id).first();
     if (!event) return jsonError("Event not found.", 404);
 
     const { name, email } = await request.json();
     if (!name || name.trim().length < 2) return jsonError("Please add your name.");
     if (!validEmail(email)) return jsonError("Please add a valid email.");
 
-    await env.humanity_ai_db_staging.prepare(
+    await env.DB.prepare(
       `INSERT INTO event_rsvps (id, event_id, name, email) VALUES (?,?,?,?)`
     ).bind(newId(), params.id, name.trim(), email.trim().toLowerCase()).run();
 

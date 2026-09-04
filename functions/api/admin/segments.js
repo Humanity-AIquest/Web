@@ -44,7 +44,7 @@ export async function onRequestGet(context) {
   try {
     await ensureMovementSchema(env);
     // member_membership lives in admin/members.js schema; create defensively.
-    try { await env.humanity_ai_db_staging.prepare(`CREATE TABLE IF NOT EXISTS member_membership (member_email TEXT PRIMARY KEY, monthly_pledge TEXT, is_founding INTEGER DEFAULT 0, status TEXT, updated_at DATETIME)`).run(); } catch (e) {}
+    try { await env.DB.prepare(`CREATE TABLE IF NOT EXISTS member_membership (member_email TEXT PRIMARY KEY, monthly_pledge TEXT, is_founding INTEGER DEFAULT 0, status TEXT, updated_at DATETIME)`).run(); } catch (e) {}
 
     const user = await getUser(request, env);
     const aclError = requireACL(user, 2);
@@ -52,7 +52,7 @@ export async function onRequestGet(context) {
 
     const url = new URL(request.url);
     const { sql, args } = buildQuery(url);
-    const rows = (await env.humanity_ai_db_staging.prepare(sql).bind(...args).all().catch(() => ({ results: [] }))).results || [];
+    const rows = (await env.DB.prepare(sql).bind(...args).all().catch(() => ({ results: [] }))).results || [];
 
     if (url.searchParams.get("format") === "csv") {
       const header = "Name,Email,Country,Phone,Newsletter,Account,Side\n";

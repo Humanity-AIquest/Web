@@ -30,7 +30,7 @@ export async function onRequestGet(context) {
 
     // CSV export — all matching rows, no pagination.
     if (format === "csv") {
-      const all = await env.DB.prepare(
+      const all = await env.humanity_ai_db_staging.prepare(
         `SELECT name, email, side, country, created_at FROM signatures ${where} ORDER BY created_at ASC`
       ).bind(...likeArgs).all();
       const header = "Name,Email,Side,Country,Signed At\n";
@@ -47,11 +47,11 @@ export async function onRequestGet(context) {
       });
     }
 
-    const rows = await env.DB.prepare(
+    const rows = await env.humanity_ai_db_staging.prepare(
       `SELECT id, name, email, side, country, created_at FROM signatures ${where}
        ORDER BY created_at DESC LIMIT ? OFFSET ?`
     ).bind(...likeArgs, limit, offset).all();
-    const total = (await env.DB.prepare(`SELECT COUNT(*) AS n FROM signatures ${where}`).bind(...likeArgs).first())?.n || 0;
+    const total = (await env.humanity_ai_db_staging.prepare(`SELECT COUNT(*) AS n FROM signatures ${where}`).bind(...likeArgs).first())?.n || 0;
 
     return json({ signatures: rows.results || [], total, page, pages: Math.ceil(total / limit) });
   } catch (err) {
@@ -70,9 +70,9 @@ export async function onRequestPost(context) {
     const { action, id } = await request.json();
     if (action !== "delete" || !id) return jsonError("Invalid action. Use: delete { id }.");
 
-    await env.DB.prepare("DELETE FROM signatures WHERE id = ?").bind(id).run();
+    await env.humanity_ai_db_staging.prepare("DELETE FROM signatures WHERE id = ?").bind(id).run();
     try {
-      await env.DB.prepare(
+      await env.humanity_ai_db_staging.prepare(
         "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, 'delete', 'signature', ?, 'Deleted signature')"
       ).bind(newId(), user.id, id).run();
     } catch (e) { /* audit best-effort */ }

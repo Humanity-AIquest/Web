@@ -28,7 +28,7 @@ export async function onRequestPost(context) {
     const { statementId, value } = await request.json();
     if (!["agree", "disagree", "pass"].includes(value)) return jsonError("Invalid vote value.");
 
-    const stmt = await env.DB.prepare(
+    const stmt = await env.humanity_ai_db_staging.prepare(
       "SELECT id FROM survey_statements WHERE id = ? AND survey_id = ?"
     ).bind(statementId, params.id).first();
     if (!stmt) return jsonError("Statement not found.", 404);
@@ -38,7 +38,7 @@ export async function onRequestPost(context) {
     if (!voter) voter = generateToken();
 
     // Upsert: one row per (statement, voter)
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       `INSERT INTO survey_votes (id, survey_id, statement_id, value, voter)
        VALUES (?,?,?,?,?)
        ON CONFLICT(statement_id, voter) DO UPDATE SET value = excluded.value`

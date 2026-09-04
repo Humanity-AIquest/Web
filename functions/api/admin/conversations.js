@@ -14,7 +14,7 @@ async function ensureSchema(env) {
   try { await ensureConversationSchema(env); } catch (e) { /* best-effort */ }
   // Backfill columns on pre-existing tables that the base CREATE won't add.
   for (const col of ["flag_category TEXT", "kind TEXT DEFAULT 'agent'", "mode TEXT"]) {
-    try { await env.DB.prepare(`ALTER TABLE conversations ADD COLUMN ${col}`).run(); } catch (e) { /* exists */ }
+    try { await env.humanity_ai_db_staging.prepare(`ALTER TABLE conversations ADD COLUMN ${col}`).run(); } catch (e) { /* exists */ }
   }
 }
 
@@ -37,7 +37,7 @@ export async function onRequestGet(context) {
 
     // Single conversation with messages
     if (id) {
-      const conv = await env.DB.prepare(
+      const conv = await env.humanity_ai_db_staging.prepare(
         `SELECT c.*, u.email, u.display_name
          FROM conversations c LEFT JOIN users u ON c.user_id = u.id
          WHERE c.id = ?`
@@ -45,12 +45,12 @@ export async function onRequestGet(context) {
 
       if (!conv) return jsonError("Conversation not found.");
 
-      const msgs = await env.DB.prepare(
+      const msgs = await env.humanity_ai_db_staging.prepare(
         "SELECT id, role, content, flagged, flag_reason, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC"
       ).bind(id).all();
 
       // Get admin notes for this conversation
-      const notes = await env.DB.prepare(
+      const notes = await env.humanity_ai_db_staging.prepare(
         `SELECT n.id, n.note, n.note_type, n.created_at, u.display_name as admin_name
          FROM conversation_notes n LEFT JOIN users u ON n.admin_id = u.id
          WHERE n.conversation_id = ? ORDER BY n.created_at ASC`
@@ -78,7 +78,7 @@ export async function onRequestGet(context) {
     query += " ORDER BY c.started_at DESC LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
-    const result = await env.DB.prepare(query).bind(...params).all();
+    const result = await env.humanity_ai_db_staging.prepare(query).bind(...params).all();
 
     return json({
       conversations: result.results || [],
@@ -108,11 +108,11 @@ export async function onRequestPost(context) {
       case "flag": {
         // flag_category: 'process_hrc', 'more_info', 'warn_user', 'suspend_user'
         const category = body.flag_category || "general";
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           "UPDATE conversations SET flagged = 1, flag_category = ? WHERE id = ?"
         ).bind(category, conversation_id).run();
 
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, 'flag', 'conversation', ?, ?)"
         ).bind(newId(), user.id, conversation_id, `Flag: ${category}`).run();
 
@@ -120,11 +120,11 @@ export async function onRequestPost(context) {
       }
 
       case "unflag": {
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           "UPDATE conversations SET flagged = 0, flag_category = NULL WHERE id = ?"
         ).bind(conversation_id).run();
 
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, 'unflag', 'conversation', ?, 'Unflagged')"
         ).bind(newId(), user.id, conversation_id).run();
 
@@ -136,10 +136,10 @@ export async function onRequestPost(context) {
         const delErr = requireACL(user, 4);
         if (delErr) return delErr;
 
-        await env.DB.prepare("DELETE FROM messages WHERE conversation_id = ?").bind(conversation_id).run();
-        await env.DB.prepare("DELETE FROM conversations WHERE id = ?").bind(conversation_id).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM messages WHERE conversation_id = ?").bind(conversation_id).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM conversations WHERE id = ?").bind(conversation_id).run();
 
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, 'delete', 'conversation', ?, 'Deleted conversation')"
         ).bind(newId(), user.id, conversation_id).run();
 
@@ -151,7 +151,7 @@ export async function onRequestPost(context) {
         if (!note) return jsonError("Note text is required.");
 
         // Create conversation_notes table if it doesn't exist
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           `CREATE TABLE IF NOT EXISTS conversation_notes (
             id TEXT PRIMARY KEY,
             conversation_id TEXT NOT NULL,
@@ -162,7 +162,7 @@ export async function onRequestPost(context) {
           )`
         ).run();
 
-        await env.DB.prepare(
+        await env.humanity_ai_db_staging.prepare(
           "INSERT INTO conversation_notes (id, conversation_id, admin_id, note, note_type) VALUES (?, ?, ?, ?, ?)"
         ).bind(newId(), conversation_id, user.id, note, note_type || "comment").run();
 
@@ -189,10 +189,10 @@ export async function onRequestPut(context) {
     const { conversation_id, flagged } = body;
     if (!conversation_id) return jsonError("conversation_id required.");
 
-    await env.DB.prepare("UPDATE conversations SET flagged = ? WHERE id = ?")
+    await env.humanity_ai_db_staging.prepare("UPDATE conversations SET flagged = ? WHERE id = ?")
       .bind(flagged ? 1 : 0, conversation_id).run();
 
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, ?, 'conversation', ?, ?)"
     ).bind(newId(), user.id, flagged ? "flag" : "unflag", conversation_id, flagged ? "Flagged" : "Unflagged").run();
 

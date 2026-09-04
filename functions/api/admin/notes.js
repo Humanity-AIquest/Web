@@ -21,7 +21,7 @@ export async function onRequestGet(context) {
 
     // Ensure conversation_notes table exists
     try {
-      await env.DB.prepare(
+      await env.humanity_ai_db_staging.prepare(
         `CREATE TABLE IF NOT EXISTS conversation_notes (
           id TEXT PRIMARY KEY,
           conversation_id TEXT NOT NULL,
@@ -58,7 +58,7 @@ export async function onRequestGet(context) {
     query += " ORDER BY n.created_at DESC LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
-    const result = await env.DB.prepare(query).bind(...params).all();
+    const result = await env.humanity_ai_db_staging.prepare(query).bind(...params).all();
 
     return json({
       notes: result.results || [],

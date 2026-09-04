@@ -16,16 +16,16 @@ export async function onRequestGet(context) {
     const aclError = requireACL(user, 1);
     if (aclError) return aclError;
 
-    const quests = await env.DB.prepare(
+    const quests = await env.humanity_ai_db_staging.prepare(
       `SELECT id, title, bounty, status, summary, tags, created_at FROM quests ORDER BY created_at DESC`
     ).all();
 
     const out = [];
     for (const q of quests.results || []) {
-      const pitches = await env.DB.prepare(
+      const pitches = await env.humanity_ai_db_staging.prepare(
         `SELECT id, name, email, approach, created_at FROM quest_pitches WHERE quest_id = ? ORDER BY created_at DESC`
       ).bind(q.id).all();
-      const questions = await env.DB.prepare(
+      const questions = await env.humanity_ai_db_staging.prepare(
         `SELECT id, author, question, answer, created_at FROM quest_questions WHERE quest_id = ? ORDER BY created_at DESC`
       ).bind(q.id).all();
       out.push({ ...q, pitches: pitches.results || [], questions: questions.results || [] });
@@ -50,15 +50,15 @@ export async function onRequestPost(context) {
     switch (action) {
       case "answer_question": {
         if (!body.question_id) return jsonError("question_id required.");
-        await env.DB.prepare("UPDATE quest_questions SET answer = ? WHERE id = ?")
+        await env.humanity_ai_db_staging.prepare("UPDATE quest_questions SET answer = ? WHERE id = ?")
           .bind((body.answer || "").trim(), body.question_id).run();
         return json({ success: true });
       }
       case "set_status": {
         if (!body.quest_id || !body.status) return jsonError("quest_id and status required.");
-        await env.DB.prepare("UPDATE quests SET status = ? WHERE id = ?").bind(body.status, body.quest_id).run();
+        await env.humanity_ai_db_staging.prepare("UPDATE quests SET status = ? WHERE id = ?").bind(body.status, body.quest_id).run();
         try {
-          await env.DB.prepare(
+          await env.humanity_ai_db_staging.prepare(
             "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, 'set_status', 'quest', ?, ?)"
           ).bind(newId(), user.id, body.quest_id, `Status → ${body.status}`).run();
         } catch (e) { /* audit best-effort */ }
@@ -66,12 +66,12 @@ export async function onRequestPost(context) {
       }
       case "delete_pitch": {
         if (!body.pitch_id) return jsonError("pitch_id required.");
-        await env.DB.prepare("DELETE FROM quest_pitches WHERE id = ?").bind(body.pitch_id).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM quest_pitches WHERE id = ?").bind(body.pitch_id).run();
         return json({ success: true });
       }
       case "delete_question": {
         if (!body.question_id) return jsonError("question_id required.");
-        await env.DB.prepare("DELETE FROM quest_questions WHERE id = ?").bind(body.question_id).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM quest_questions WHERE id = ?").bind(body.question_id).run();
         return json({ success: true });
       }
       default:

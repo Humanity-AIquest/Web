@@ -10,7 +10,7 @@ export async function onRequestGet(context) {
   const { env } = context;
   try {
     await ensureMovementSchema(env);
-    const rows = await env.DB.prepare(
+    const rows = await env.humanity_ai_db_staging.prepare(
       `SELECT s.id, s.title, s.intro, s.location,
               (SELECT COUNT(*) FROM survey_statements ss
                  WHERE ss.survey_id = s.id AND (ss.type IS NULL OR ss.type = 'vote')) AS statement_count

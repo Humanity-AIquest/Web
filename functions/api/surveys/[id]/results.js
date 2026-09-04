@@ -10,13 +10,13 @@ export async function onRequestGet(context) {
   const { env, params } = context;
   try {
     await ensureMovementSchema(env);
-    const statements = await env.DB.prepare(
+    const statements = await env.humanity_ai_db_staging.prepare(
       `SELECT id, text FROM survey_statements WHERE survey_id = ? ORDER BY created_at ASC`
     ).bind(params.id).all();
 
     const results = [];
     for (const s of statements.results || []) {
-      const tally = await env.DB.prepare(
+      const tally = await env.humanity_ai_db_staging.prepare(
         `SELECT
            SUM(CASE WHEN value='agree' THEN 1 ELSE 0 END) AS agree,
            SUM(CASE WHEN value='disagree' THEN 1 ELSE 0 END) AS disagree,

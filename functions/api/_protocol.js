@@ -208,10 +208,10 @@ const INDEXES = [
  */
 export async function ensureProtocolSchema(env) {
   for (const stmt of TABLES) {
-    try { await env.DB.prepare(stmt).run(); } catch (e) { /* exists */ }
+    try { await env.humanity_ai_db_staging.prepare(stmt).run(); } catch (e) { /* exists */ }
   }
   for (const stmt of INDEXES) {
-    try { await env.DB.prepare(stmt).run(); } catch (e) { /* exists */ }
+    try { await env.humanity_ai_db_staging.prepare(stmt).run(); } catch (e) { /* exists */ }
   }
 }
 
@@ -227,20 +227,20 @@ export async function ensureProtocolSchema(env) {
  * Returns { state, vouch_count, method }.
  */
 export async function recomputeVerification(env, userId) {
-  const row = await env.DB.prepare(
+  const row = await env.humanity_ai_db_staging.prepare(
     `SELECT COUNT(*) AS n FROM vouches
      WHERE subject_id = ? AND withdrawn_at IS NULL`
   ).bind(userId).first();
 
   const count = row?.n || 0;
 
-  const existing = await env.DB.prepare(
+  const existing = await env.humanity_ai_db_staging.prepare(
     `SELECT state, override_by, method FROM member_verification WHERE user_id = ?`
   ).bind(userId).first();
 
   // An administrator override stands regardless of vouch count.
   if (existing?.override_by) {
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       `UPDATE member_verification SET vouch_count = ? WHERE user_id = ?`
     ).bind(count, userId).run();
     return { state: existing.state, vouch_count: count, method: existing.method };
@@ -249,7 +249,7 @@ export async function recomputeVerification(env, userId) {
   const state = count >= VOUCHES_REQUIRED ? "verified" : "pending";
   const now = new Date().toISOString();
 
-  await env.DB.prepare(
+  await env.humanity_ai_db_staging.prepare(
     `INSERT INTO member_verification (user_id, state, method, vouch_count, verified_at, standing_since)
      VALUES (?, ?, 'vouched', ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
@@ -267,7 +267,7 @@ export async function recomputeVerification(env, userId) {
  */
 export async function overrideVerification(env, userId, adminId, reason, state = "verified") {
   const now = new Date().toISOString();
-  await env.DB.prepare(
+  await env.humanity_ai_db_staging.prepare(
     `INSERT INTO member_verification (user_id, state, method, override_by, override_reason, verified_at, standing_since)
      VALUES (?, ?, 'override', ?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
@@ -285,14 +285,14 @@ export async function overrideVerification(env, userId, adminId, reason, state =
  * review. Flagged, not revoked — a bad voucher does not prove a bad member.
  */
 export async function cascadeVouchReview(env, revokedUserId, reason) {
-  const affected = await env.DB.prepare(
+  const affected = await env.humanity_ai_db_staging.prepare(
     `SELECT subject_id FROM vouches WHERE voucher_id = ? AND withdrawn_at IS NULL`
   ).bind(revokedUserId).all();
 
   const now = new Date().toISOString();
   for (const r of affected.results || []) {
     try {
-      await env.DB.prepare(
+      await env.humanity_ai_db_staging.prepare(
         `UPDATE member_verification SET flagged_at = ?, flagged_reason = ? WHERE user_id = ?`
       ).bind(now, `Voucher revoked: ${reason}`, r.subject_id).run();
     } catch (e) { /* member has no verification row yet */ }
@@ -311,7 +311,7 @@ export async function cascadeVouchReview(env, revokedUserId, reason) {
 export async function checkCredential(env, credential, action, requiredScope, ctx = {}) {
   const log = async (verdict, reason, reg) => {
     try {
-      await env.DB.prepare(
+      await env.humanity_ai_db_staging.prepare(
         `INSERT INTO firewall_events
            (id, credential, registration_id, sponsor_id, action, verdict, reason, client_type, plugin_version)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -334,7 +334,7 @@ export async function checkCredential(env, credential, action, requiredScope, ct
     return { ok: false, verdict: "refused", reason: "No credential presented. Agents must register with a verified human sponsor." };
   }
 
-  const reg = await env.DB.prepare(
+  const reg = await env.humanity_ai_db_staging.prepare(
     `SELECT r.*, v.state AS sponsor_state
      FROM agent_registrations r
      LEFT JOIN member_verification v ON v.user_id = r.sponsor_id
@@ -370,7 +370,7 @@ export async function checkCredential(env, credential, action, requiredScope, ct
 
   await log("allowed", null, reg);
   try {
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       `UPDATE agent_registrations SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`
     ).bind(reg.id).run();
   } catch (e) { /* non-fatal */ }
@@ -393,7 +393,7 @@ async function sha256Hex(text) {
  * compatible with strict provenance.
  */
 export async function sealContribution(env, entry) {
-  const prev = await env.DB.prepare(
+  const prev = await env.humanity_ai_db_staging.prepare(
     `SELECT seq, entry_hash FROM contributions ORDER BY seq DESC LIMIT 1`
   ).first();
 
@@ -411,7 +411,7 @@ export async function sealContribution(env, entry) {
   const entryHash = await sha256Hex(payload);
   const id = crypto.randomUUID().replace(/-/g, "");
 
-  await env.DB.prepare(
+  await env.humanity_ai_db_staging.prepare(
     `INSERT INTO contributions
        (id, seq, user_id, kind, subject_type, subject_id, summary, body_hash,
         ai_role, ai_model, credential, hrc_verdict, hrc_clauses,
@@ -435,7 +435,7 @@ export async function sealContribution(env, entry) {
  * Returns { ok, checked, broken_at }.
  */
 export async function verifyChain(env, limit = 1000) {
-  const rows = await env.DB.prepare(
+  const rows = await env.humanity_ai_db_staging.prepare(
     `SELECT seq, user_id, kind, subject_type, subject_id, body_hash,
             ai_role, sealed_at, prev_hash, entry_hash
      FROM contributions ORDER BY seq ASC LIMIT ?`

@@ -78,7 +78,7 @@ export async function getUser(request, env) {
   if (!token) return null;
 
   // Look up session in D1
-  const session = await env.DB.prepare(
+  const session = await env.humanity_ai_db_staging.prepare(
     "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.acl_level, u.status FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > datetime('now')"
   ).bind(token).first();
 

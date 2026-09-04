@@ -10,14 +10,14 @@ export async function onRequestPost(context) {
   const { request, env, params } = context;
   try {
     await ensureMovementSchema(env);
-    const quest = await env.DB.prepare("SELECT id FROM quests WHERE id = ?").bind(params.id).first();
+    const quest = await env.humanity_ai_db_staging.prepare("SELECT id FROM quests WHERE id = ?").bind(params.id).first();
     if (!quest) return jsonError("Quest not found.", 404);
 
     const { author, question } = await request.json();
     if (!question || question.trim().length < 3) return jsonError("Please write your question.");
 
     const id = newId();
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       `INSERT INTO quest_questions (id, quest_id, author, question) VALUES (?,?,?,?)`
     ).bind(id, params.id, (author || "Anonymous").trim(), question.trim()).run();
 

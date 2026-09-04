@@ -78,7 +78,7 @@ export async function getUser(request, env) {
   if (!token) return null;
 
   // Look up session in D1
-  const session = await env.DB.prepare(
+  const session = await env.humanity_ai_db_staging.prepare(
     "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.acl_level, u.status FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > datetime('now')"
   ).bind(token).first();
 
@@ -118,7 +118,7 @@ export function newId() {
 export async function ensureAuthSchema(env) {
   try {
     // Create users table if it doesn't exist
-    await env.DB.prepare(`
+    await env.humanity_ai_db_staging.prepare(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
@@ -140,12 +140,12 @@ export async function ensureAuthSchema(env) {
     const userCols = ['ban_reason', 'phone', 'country', 'newsletter', 'created_at', 'updated_at'];
     for (const col of userCols) {
       try {
-        if (col === 'ban_reason') await env.DB.prepare('ALTER TABLE users ADD COLUMN ban_reason TEXT').run();
-        if (col === 'phone') await env.DB.prepare('ALTER TABLE users ADD COLUMN phone TEXT').run();
-        if (col === 'country') await env.DB.prepare('ALTER TABLE users ADD COLUMN country TEXT').run();
-        if (col === 'newsletter') await env.DB.prepare('ALTER TABLE users ADD COLUMN newsletter INTEGER DEFAULT 1').run();
-        if (col === 'created_at') await env.DB.prepare('ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP').run();
-        if (col === 'updated_at') await env.DB.prepare('ALTER TABLE users ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP').run();
+        if (col === 'ban_reason') await env.humanity_ai_db_staging.prepare('ALTER TABLE users ADD COLUMN ban_reason TEXT').run();
+        if (col === 'phone') await env.humanity_ai_db_staging.prepare('ALTER TABLE users ADD COLUMN phone TEXT').run();
+        if (col === 'country') await env.humanity_ai_db_staging.prepare('ALTER TABLE users ADD COLUMN country TEXT').run();
+        if (col === 'newsletter') await env.humanity_ai_db_staging.prepare('ALTER TABLE users ADD COLUMN newsletter INTEGER DEFAULT 1').run();
+        if (col === 'created_at') await env.humanity_ai_db_staging.prepare('ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP').run();
+        if (col === 'updated_at') await env.humanity_ai_db_staging.prepare('ALTER TABLE users ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP').run();
       } catch (e) {
         // Column already exists, that's fine
       }
@@ -153,13 +153,13 @@ export async function ensureAuthSchema(env) {
 
     // Create unique index on lowercase email (case-insensitive lookup)
     try {
-      await env.DB.prepare('CREATE UNIQUE INDEX idx_users_email_lower ON users(LOWER(email))').run();
+      await env.humanity_ai_db_staging.prepare('CREATE UNIQUE INDEX idx_users_email_lower ON users(LOWER(email))').run();
     } catch (e) {
       // Index already exists
     }
 
     // Create sessions table if it doesn't exist
-    await env.DB.prepare(`
+    await env.humanity_ai_db_staging.prepare(`
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL REFERENCES users(id),
@@ -171,7 +171,7 @@ export async function ensureAuthSchema(env) {
 
     // Add missing columns to sessions (idempotent)
     try {
-      await env.DB.prepare('ALTER TABLE sessions ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP').run();
+      await env.humanity_ai_db_staging.prepare('ALTER TABLE sessions ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP').run();
     } catch (e) {
       // Column already exists
     }
@@ -184,7 +184,7 @@ export async function ensureAuthSchema(env) {
     ];
     for (const idx of sessionIndexes) {
       try {
-        await env.DB.prepare(idx).run();
+        await env.humanity_ai_db_staging.prepare(idx).run();
       } catch (e) {
         // Index already exists
       }

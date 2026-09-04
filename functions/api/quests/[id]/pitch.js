@@ -12,7 +12,7 @@ export async function onRequestPost(context) {
   const { request, env, params } = context;
   try {
     await ensureMovementSchema(env);
-    const quest = await env.DB.prepare("SELECT id, status FROM quests WHERE id = ?").bind(params.id).first();
+    const quest = await env.humanity_ai_db_staging.prepare("SELECT id, status FROM quests WHERE id = ?").bind(params.id).first();
     if (!quest) return jsonError("Quest not found.", 404);
     if (quest.status !== "Open") return jsonError("This quest is closed to new pitches.");
 
@@ -20,7 +20,7 @@ export async function onRequestPost(context) {
     if (!name || name.trim().length < 2) return jsonError("Please add your name.");
     if (!validEmail(email)) return jsonError("Please add a valid email.");
 
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       `INSERT INTO quest_pitches (id, quest_id, name, email, approach) VALUES (?,?,?,?,?)`
     ).bind(newId(), params.id, name.trim(), email.trim().toLowerCase(), (approach || "").trim()).run();
 

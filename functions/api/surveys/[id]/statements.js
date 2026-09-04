@@ -9,7 +9,7 @@ export async function onRequestPost(context) {
   const { request, env, params } = context;
   try {
     await ensureMovementSchema(env);
-    const survey = await env.DB.prepare("SELECT id, status FROM surveys WHERE id = ?").bind(params.id).first();
+    const survey = await env.humanity_ai_db_staging.prepare("SELECT id, status FROM surveys WHERE id = ?").bind(params.id).first();
     if (!survey) return jsonError("Survey not found.", 404);
     if (survey.status !== "open") return jsonError("This survey is closed.");
 
@@ -18,7 +18,7 @@ export async function onRequestPost(context) {
     if (text.length > 280) return jsonError("Statements must be 280 characters or less.");
 
     const id = newId();
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       `INSERT INTO survey_statements (id, survey_id, text, author) VALUES (?,?,?,?)`
     ).bind(id, params.id, text.trim(), (author || "").trim() || null).run();
 

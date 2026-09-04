@@ -27,11 +27,11 @@ export async function onRequestPost(context) {
 
     // Self-migrate: member fields collected at signup.
     for (const col of ["phone TEXT", "country TEXT", "newsletter INTEGER DEFAULT 0"]) {
-      try { await env.DB.prepare(`ALTER TABLE users ADD COLUMN ${col}`).run(); } catch (e) { /* exists */ }
+      try { await env.humanity_ai_db_staging.prepare(`ALTER TABLE users ADD COLUMN ${col}`).run(); } catch (e) { /* exists */ }
     }
 
     // Check if email already exists
-    const existing = await env.DB.prepare(
+    const existing = await env.humanity_ai_db_staging.prepare(
       "SELECT id FROM users WHERE email = ?"
     ).bind(email.toLowerCase().trim()).first();
 
@@ -45,7 +45,7 @@ export async function onRequestPost(context) {
     const name = (display_name || email.split("@")[0]).trim().slice(0, 50);
     const cleanEmail = email.toLowerCase().trim();
 
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       "INSERT INTO users (id, email, password_hash, display_name, role, acl_level, status, phone, country, newsletter) VALUES (?, ?, ?, ?, 'user', 0, 'active', ?, ?, ?)"
     ).bind(userId, cleanEmail, passHash, name, (phone || "").trim() || null, (country || "").trim() || null, newsletter ? 1 : 0).run();
 
@@ -53,7 +53,7 @@ export async function onRequestPost(context) {
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
 
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       "INSERT INTO sessions (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)"
     ).bind(newId(), userId, token, expiresAt).run();
 

@@ -17,7 +17,7 @@ export async function onRequestPost(context) {
     }
 
     // Find user
-    const user = await env.DB.prepare(
+    const user = await env.humanity_ai_db_staging.prepare(
       "SELECT id, email, password_hash, display_name, role, acl_level, status FROM users WHERE email = ?"
     ).bind(email.toLowerCase().trim()).first();
 
@@ -40,7 +40,7 @@ export async function onRequestPost(context) {
     }
 
     // Clean up old sessions for this user (keep max 5)
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       "DELETE FROM sessions WHERE user_id = ? AND id NOT IN (SELECT id FROM sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 4)"
     ).bind(user.id, user.id).run();
 
@@ -48,7 +48,7 @@ export async function onRequestPost(context) {
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    await env.DB.prepare(
+    await env.humanity_ai_db_staging.prepare(
       "INSERT INTO sessions (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)"
     ).bind(newId(), user.id, token, expiresAt).run();
 

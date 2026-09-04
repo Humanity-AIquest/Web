@@ -16,13 +16,13 @@ export async function onRequestGet(context) {
     const aclError = requireACL(user, 1);
     if (aclError) return aclError;
 
-    const events = await env.DB.prepare(
+    const events = await env.humanity_ai_db_staging.prepare(
       `SELECT id, title, when_text, type, blurb, created_at FROM events ORDER BY created_at DESC`
     ).all();
 
     const out = [];
     for (const e of events.results || []) {
-      const rsvps = await env.DB.prepare(
+      const rsvps = await env.humanity_ai_db_staging.prepare(
         `SELECT id, name, email, created_at FROM event_rsvps WHERE event_id = ? ORDER BY created_at DESC`
       ).bind(e.id).all();
       out.push({ ...e, rsvps: rsvps.results || [] });
@@ -47,15 +47,15 @@ export async function onRequestPost(context) {
     switch (action) {
       case "delete_rsvp": {
         if (!body.rsvp_id) return jsonError("rsvp_id required.");
-        await env.DB.prepare("DELETE FROM event_rsvps WHERE id = ?").bind(body.rsvp_id).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM event_rsvps WHERE id = ?").bind(body.rsvp_id).run();
         return json({ success: true });
       }
       case "delete_event": {
         if (!body.event_id) return jsonError("event_id required.");
-        await env.DB.prepare("DELETE FROM event_rsvps WHERE event_id = ?").bind(body.event_id).run();
-        await env.DB.prepare("DELETE FROM events WHERE id = ?").bind(body.event_id).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM event_rsvps WHERE event_id = ?").bind(body.event_id).run();
+        await env.humanity_ai_db_staging.prepare("DELETE FROM events WHERE id = ?").bind(body.event_id).run();
         try {
-          await env.DB.prepare(
+          await env.humanity_ai_db_staging.prepare(
             "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, 'delete', 'event', ?, 'Deleted event + RSVPs')"
           ).bind(newId(), user.id, body.event_id).run();
         } catch (e) { /* audit best-effort */ }

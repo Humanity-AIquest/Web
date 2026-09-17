@@ -3,12 +3,14 @@
  * Returns current user info (if logged in)
  * Ideas query wrapped in its own try/catch so a missing table never breaks auth
  */
-import { json, jsonError, optionsResponse, getUser } from "../_shared.js";
+import { json, jsonError, optionsResponse, getUser, ensureAuthSchema } from "../_shared.js";
 
 export async function onRequestGet(context) {
   const { request, env } = context;
 
   try {
+    // Must run before getUser — it reads the users/sessions tables.
+    await ensureAuthSchema(env);
     const user = await getUser(request, env);
     if (!user) {
       return json({ authenticated: false });

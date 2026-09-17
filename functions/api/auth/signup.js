@@ -3,7 +3,7 @@
  * Register a new user account
  * Body: { email, password, display_name, phone, country, newsletter }
  */
-import { json, jsonError, optionsResponse, hashPassword, generateToken, newId } from "../_shared.js";
+import { json, jsonError, optionsResponse, hashPassword, generateToken, newId, ensureAuthSchema } from "../_shared.js";
 import { sendTemplate } from "../_email.js";
 import { createLead } from "../_zoho.js";
 
@@ -11,6 +11,7 @@ export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
+    await ensureAuthSchema(env);
     const body = await request.json();
     const { email, password, display_name, phone, country, newsletter } = body;
 
@@ -23,11 +24,6 @@ export async function onRequestPost(context) {
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return jsonError("Please provide a valid email address.");
-    }
-
-    // Self-migrate: member fields collected at signup.
-    for (const col of ["phone TEXT", "country TEXT", "newsletter INTEGER DEFAULT 0"]) {
-      try { await env.DB.prepare(`ALTER TABLE users ADD COLUMN ${col}`).run(); } catch (e) { /* exists */ }
     }
 
     // Check if email already exists

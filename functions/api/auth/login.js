@@ -3,12 +3,13 @@
  * Login with email + password, returns session token
  * Body: { email, password }
  */
-import { json, jsonError, optionsResponse, verifyPassword, generateToken, newId } from "../_shared.js";
+import { json, jsonError, optionsResponse, verifyPassword, generateToken, newId, ensureAuthSchema } from "../_shared.js";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
+    await ensureAuthSchema(env);
     const body = await request.json();
     const { email, password } = body;
 

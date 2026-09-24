@@ -48,3 +48,11 @@ the decisions already made, so they don't have to be re-derived.
 
 Warm, civilizational, never corporate or AI-hype. Avoid: disrupt, revolutionize, game-changer,
 supercharge, unleash, next-gen.
+
+## PDF export
+
+- Current PDF: [`Constitutional-Nation-V1-Draft.pdf`](./Constitutional-Nation-V1-Draft.pdf) (A4, 19 pages, built from doc rev 15).
+- The docs tool's own PDF export prints diagrams as raw code, so use `build-pdf.js` instead:
+  export the doc tab as HTML, `npm pack mermaid@11` for the diagram library (the CDN is blocked
+  in cloud sessions), then `node build-pdf.js out.pdf`. Diagrams are switched to top-down for print.
+- Regenerate the PDF after every round of edits to the living doc; the doc is the source of truth.

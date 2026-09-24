@@ -1,12 +1,14 @@
-// Builds the print PDF from the living doc's HTML export, rendering mermaid diagrams.
-// Usage (from a scratch dir holding doc.html = the doc's HTML export, and package/dist/mermaid.min.js
-// from `npm pack mermaid@11`): node build-pdf.js <output.pdf>
+// Builds a print PDF from a living doc's HTML export, rendering mermaid diagrams.
+// Usage (in a scratch dir holding doc.html = the doc tab's HTML export, and package/dist/mermaid.min.js
+// from `npm pack mermaid@11`): DOC_TITLE="..." DOC_HEADER="..." node build-pdf.js <output.pdf>
+// Note: semicolons inside mermaid sequence-diagram messages break rendering; use commas.
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const fs = require('fs');
 let body = fs.readFileSync('doc.html', 'utf8');
 body = body.replace(/<span data-atom="mention"[^>]*>[^<]*<\/span>/g, 'Humanity-AI.Quest');
 const dec = s => s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&');
 body = body.replace(/flowchart LR/g, 'flowchart TD').replace(/(G\d)\{([^}]*)\}/g, '$1[$2]');
+body = body.replace(/<pre><code class="language-latex">[\s\S]*?<\/code><\/pre>/g, '<p class="formula">Net saving = (staff today &minus; staff in 2029) &times; cost per employee &minus; cost of AI operations</p>');
 body = body.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g, (m, c) => `<div class="mermaid">${dec(c)}</div>`);
 const css = `
 @page { size: A4; margin: 20mm 18mm 22mm; }
@@ -22,11 +24,12 @@ table { border-collapse:collapse; width:100%; font-size:9pt; margin:8pt 0 12pt; 
 th { background:#E7EDEB; text-align:left; }
 th, td { border:1px solid #cbd6d3; padding:4pt 6pt; vertical-align:top; }
 tr { break-inside:avoid; }
+.formula { text-align:center; font-style:italic; background:#F1F4F3; padding:8pt; border-left:3px solid #0C7F77; }
 .mermaid { text-align:center; margin:10pt 0; break-inside:avoid; }
 .mermaid svg { max-width:100% !important; max-height:105mm; height:auto; }
 ul.contains-task-list, li.task-list-item { list-style:none; }
 `;
-const html = `<!doctype html><html><head><meta charset="utf-8"><title>The Constitutional Nation — V1 Draft</title><style>${css}</style></head><body>${body}<script>${fs.readFileSync('package/dist/mermaid.min.js','utf8')}</script><script>mermaid.initialize({startOnLoad:false, theme:'neutral', themeVariables:{fontSize:'22px'}, flowchart:{htmlLabels:true, nodeSpacing:30, rankSpacing:35}}); mermaid.run().then(()=>{document.body.dataset.done=1});</script></body></html>`;
+const html = `<!doctype html><html><head><meta charset="utf-8"><title>${process.env.DOC_TITLE||'Draft'}</title><style>${css}</style></head><body>${body}<script>${fs.readFileSync('package/dist/mermaid.min.js','utf8')}</script><script>mermaid.initialize({startOnLoad:false, theme:'neutral', themeVariables:{fontSize:'22px'}, flowchart:{htmlLabels:true, nodeSpacing:30, rankSpacing:35}}); mermaid.run().then(()=>{document.body.dataset.done=1});</script></body></html>`;
 fs.writeFileSync('print.html', html);
 (async () => {
   const b = await chromium.launch();
@@ -34,7 +37,7 @@ fs.writeFileSync('print.html', html);
   await p.goto('file://' + process.cwd() + '/print.html');
   await p.waitForSelector('body[data-done="1"]', { timeout: 30000 });
   await p.pdf({ path: process.argv[2], format: 'A4', printBackground: true, displayHeaderFooter: true,
-    headerTemplate: '<div style="font-size:7pt;color:#888;width:100%;padding:0 18mm;font-family:sans-serif">The Constitutional Nation — V1 draft, not for citation — Humanity-AI.Quest</div>',
+    headerTemplate: '<div style="font-size:7pt;color:#888;width:100%;padding:0 18mm;font-family:sans-serif">' + (process.env.DOC_HEADER||'Draft') + '</div>',
     footerTemplate: '<div style="font-size:7pt;color:#888;width:100%;text-align:right;padding:0 18mm;font-family:sans-serif">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>',
     margin: { top: '20mm', bottom: '22mm', left: '18mm', right: '18mm' } });
   await b.close();

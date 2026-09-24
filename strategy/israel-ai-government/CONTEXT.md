@@ -3,12 +3,14 @@
 Read this first when resuming work on the strategy in a new Claude session. It holds
 the decisions already made, so they don't have to be re-derived.
 
-## Where the document lives
+## Where the documents live
 
-- **Living draft (edit and comment here):** https://claude.ai/code/artifact/48597a2e-6193-47cf-8475-146407911e3c
-  - Title: *The Constitutional Nation: An AI-First Roadmap for Israel's Next Government*
-  - V1 draft written 24 Sep 2026. English.
-- **Research brief and all source links:** [`00-research-brief-and-workplan.md`](./00-research-brief-and-workplan.md)
+| Version | Living doc (edit and comment here) | PDF |
+|---|---|---|
+| **V2 (current)**: *The Agentic Nation: Israel's 1% Government by 2029* | https://claude.ai/code/artifact/86fd8e79-a80f-42fa-bac9-535b783717df | [`Agentic-Nation-V2-Draft.pdf`](./Agentic-Nation-V2-Draft.pdf) (21 pp, doc rev 14) |
+| V1 (superseded): *The Constitutional Nation* | https://claude.ai/code/artifact/48597a2e-6193-47cf-8475-146407911e3c | [`Constitutional-Nation-V1-Draft.pdf`](./Constitutional-Nation-V1-Draft.pdf) |
+
+Research brief and V1 source links: [`00-research-brief-and-workplan.md`](./00-research-brief-and-workplan.md)
 
 ## Decisions made by the user (do not re-litigate)
 
@@ -16,33 +18,34 @@ the decisions already made, so they don't have to be re-derived.
 |---|---|
 | Who asked | **Orot Hashachar** (party running in the 27 Oct 2026 election, list led by Nissim Louk) |
 | Partisanship | **Non-partisan roadmap for all parties**, offered equally and published openly |
-| Build status | **Stated openly**: HRC in v1 drafting and not ratified; firewall designed with its schema written but not wired; gate 4 not built |
-| Language and format | **English first**, as a living document; Hebrew edition after sign-off |
+| Build status | **Stated openly**: the firewall is designed but not running; the rules check is not built |
+| Language and format | **English first**, as a living document; Hebrew later |
+| V2 goal (24 Sep) | Show politicians what agents make possible, how government functions would operate, and staff/budget savings, targeting **1% of administrative staff and budget** |
+| V2 content | Intro on the Trump/US "super intelligence" moves (Sep 2026) with **5 scenarios** of US-controlled SI and Israeli dependence; Israel as **"a light to the nations"** with an AI-first society by 2029; **Agentic Nation** use cases (citizens, visitors, GDP for all); **resilience** use cases (Oct 7 mass-casualty coordination, 24h epidemic quarantine requests, "no banks", plus 10 more); **remove HRC content**; focus on continuous citizen feedback and voting with **expert-weighted** input |
 
-## Structure of V1
+## V2 structure
 
-0 Status note · Executive brief (3 asks, 100-day table, NIS 150–250m envelope) ·
-1 The moment · 2 Diagnosis · 3 Principles (10 HRC clauses mapped to duties) ·
-4 Architecture (citizen agent, 4-gate firewall, ledger) · 5 Open-source regulation ·
-6 Start-up Nation 2.0 / Builders' Corps · 7 Funding · 8 Legal path and election-law guardrails ·
-9 Roadmap and pilots · 10 Risks · Appendix (verification checklist and sources)
+Status · One-page answer · 1 World in 2026 (US SI, 5 scenarios) · 2 Israel's choice (light to the nations, Citizens' Charter) ·
+3 How the agentic state works (personal agents, service agents, rules as code, firewall, stewards) ·
+4 The 1% government (function table + savings model: NIS 15–21bn/yr net) · 5 Agentic nation use cases ·
+6 Resilience and security (Oct 7, epidemics, 10 more) · 7 The people decide (public + expert tallies, delegation) ·
+8 Roadmap to 2029 and workforce transition · 9 Safeguards and honest limits · Appendix (verify list, sources)
 
-## Key positions taken in the draft
+## Positions and framing to keep consistent
 
-- Complete the existing National AI Program (PMO Directorate, Erez Askal); do not compete with it.
-- Hook the firewall to the May 2026 *Guide for Responsible AI Use in the Public Sector*: the guide's risk level becomes the credential's scope.
-- Civilian government only; defence is out of scope (HRC I.8).
-- State adopts 10 clauses as a *standard* by resolution now; a framework law comes only after HRC ratification.
-- Candidate pilots: Population Authority, National Insurance, small-business registration.
-- Recommended licence: AGPL for the firewall and rules, Apache-2.0 dual licence for vendor libraries.
-- Election-law guardrails: equal offer, no campaigning, no in-kind donation, AI disclosure, lawyer review.
+- The 1% applies to **administrative machinery only**, not transfers or front-line professionals (teachers, doctors, police, soldiers).
+- The savings are an **illustrative model and design target**, never presented as proven.
+- The US framing is factual (UNGA speech 22 Sep 2026 renaming AI "super intelligence", AI Force 19 Sep, "SICK conspiracy" 14 Sep, the June 2026 frontier-model export cut-off, Israel ranked tier 2 under the 2025 diffusion rule). It was not a literal declaration of war.
+- Technology would not have prevented Oct 7; it shortens the chaos after an attack.
+- Sensors: opt-in, event-type only, no voice, time-limited emergency modes.
+- The Knesset stays sovereign; citizen votes create a duty to respond, binding only where delegated by law (proposed Public Voice Law).
+- Workforce: attrition, redeployment, retraining, voluntary exit; no forced redundancies in pilots; negotiate with the Histadrut.
 
-## Open items for V2
+## Open items for V3
 
-- Everything on the doc's "Still to verify" checklist (Basic Law deadlines, Party Financing Law in-kind rules, Hebrew primary texts, costings).
-- Costings reviewed by a budget expert.
-- Hebrew translation.
-- Possible: slide deck version; site page / agent script for the Builders' Corps call.
+- Everything on the V2 "Still to verify" checklist (headcount, turnover, US primary sources, digital shekel status, epidemic modelling, legal basis for binding votes).
+- Productivity/GDP-per-person model with the Bank of Israel.
+- Hebrew translation; possibly a slide deck for politicians.
 
 ## Style rules (from CLAUDE.md)
 
@@ -51,8 +54,7 @@ supercharge, unleash, next-gen.
 
 ## PDF export
 
-- Current PDF: [`Constitutional-Nation-V1-Draft.pdf`](./Constitutional-Nation-V1-Draft.pdf) (A4, 19 pages, built from doc rev 15).
-- The docs tool's own PDF export prints diagrams as raw code, so use `build-pdf.js` instead:
-  export the doc tab as HTML, `npm pack mermaid@11` for the diagram library (the CDN is blocked
-  in cloud sessions), then `node build-pdf.js out.pdf`. Diagrams are switched to top-down for print.
-- Regenerate the PDF after every round of edits to the living doc; the doc is the source of truth.
+- The docs tool's own PDF export prints diagrams as raw code, so use `build-pdf.js`:
+  export the doc tab as HTML into a scratch dir as `doc.html`, `npm pack mermaid@11` there (the CDN is blocked
+  in cloud sessions), then `DOC_TITLE="..." DOC_HEADER="..." node build-pdf.js out.pdf`.
+- Regenerate the PDF after every round of edits; the living doc is the source of truth.

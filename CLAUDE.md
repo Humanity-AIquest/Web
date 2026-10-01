@@ -10,7 +10,7 @@ AI agent chat which remembers user context and interaction history, an idea "pat
 quests, events, a CRM, a CMS, and an admin console — all on Cloudflare (Pages Functions + D1).
 
 > **For the complete data model and API surface, see [`SCHEMA.md`](./SCHEMA.md).** That file is
-> the ground-truth reference (24 D1 tables, ~35 endpoints, auth/ACL, integrations). Keep it in
+> the ground-truth reference (37 D1 tables, 33 endpoint files, auth/ACL, integrations). Keep it in
 > sync when you change the schema. This file is the orientation + intent doc; SCHEMA.md is the map.
 
 ---
@@ -118,9 +118,14 @@ humanity-ai-quest/
 - Salted **SHA-256** passwords via Web Crypto (`hashPassword`/`verifyPassword`).
 - 30-day sessions: 64-hex token in the `hrc_session` cookie or `Authorization: Bearer`.
 - **ACL levels** (`acl_level`, only meaningful when `role === 'admin'`): 0 user · 1 viewer ·
-  2 moderator · 3 editor · 4 manager · 5 super admin. `requireACL(user, min)` enforces
-  **`role === 'admin' && acl_level >= min`** — the `&&` matters (a prior `||` bug let any admin
-  escalate; keep it `&&`).
+  2 moderator · 3 editor · 4 manager · 5 super admin.
+- **ACL rule:** `requireACL(user, min)` passes only when **`role === 'admin'` AND
+  `acl_level >= min`** — both conditions. It is written as the equivalent *negated guard*:
+  ```js
+  if (user.role !== "admin" || user.acl_level < minLevel) return 403;
+  ```
+  That `||` is correct (De Morgan of the rule above). **Do not "fix" it to `&&`** — that inverts
+  the rule and lets any admin, even L1, perform L5 actions. This has regressed before.
 
 ## Key color palette
 - `--void`: #07101F (deep space background)

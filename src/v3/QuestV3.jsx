@@ -20,6 +20,7 @@ import {
   Lightbulb, BadgeCheck, Mail, Sparkles, ShieldCheck, Flag, Hammer, Clock, ChevronDown, Coins, Cpu
 } from 'lucide-react';
 import { Reveal, useStarField } from './PiV3.jsx';
+import { PLEDGES } from './pledges.js';
 
 // ---------- campaign types (the new model) ----------
 const TYPES = {
@@ -58,6 +59,16 @@ const inferType = (q) => {
   return 'prize';
 };
 
+// ---------- money + progress helpers (the quest data model: type, goal, raised, deadline, teams) ----------
+const SYMBOLS = { USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', ILS: '₪' };
+const fmtMoney = (n, cur = 'USD') => {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '';
+  return (SYMBOLS[cur] ?? `${cur} `) + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+};
+const pctOf = (q) => (Number(q.goal) > 0 ? Math.min(100, (Number(q.raised || 0) / Number(q.goal)) * 100) : null);
+const pledgeName = (id) => (PLEDGES.find((p) => p.n === id) || {}).name || '';
+
 const SAMPLES = [
   { id: 'sample-prize', sample: true, type: 'prize', status: 'Open', bounty: '$25,000', title: 'Turn ocean plastic into clean fuel', summary: 'A scalable, low-energy process to convert mixed ocean plastics into usable fuel.', tags: ['Climate', 'Materials'] },
   { id: 'sample-startup', sample: true, type: 'startup', status: 'Open', bounty: '[Pool to be announced]', title: 'Humanity’s first OS moment: the proof of concept', summary: 'Winning teams build the first working proof of the Constitutional OS with their winnings, then the full solution they pitched.', tags: ['OS', 'Startup funding'] },
@@ -87,6 +98,7 @@ export const QuestStylesV3 = () => (
     .qv-chip { padding: .5rem 1rem; border-radius: 999px; font-size: .82rem; border: 1px solid rgba(255,255,255,.16); color: var(--bone-dim); transition: all .25s; background: transparent; cursor: pointer; }
     .qv-chip:hover { border-color: rgba(255,214,10,.5); color: #fff; }
     .qv-chip.on { background: var(--gold); border-color: var(--gold); color: var(--void); font-weight: 600; }
+    .qv-select { height: 40px; padding: 0 1rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); background: rgba(6,12,24,.7); color: var(--bone); font-size: .82rem; outline: none; }
     .qv-search { display: flex; align-items: center; gap: .6rem; padding: 0 1rem; height: 46px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); background: rgba(6,12,24,.7); min-width: 260px; }
     .qv-search input { background: transparent; border: 0; outline: 0; color: var(--bone); flex: 1; min-width: 0; font-size: .9rem; }
     .qv-meter { height: 8px; border-radius: 999px; background: rgba(255,255,255,.09); overflow: hidden; }
@@ -131,33 +143,105 @@ export function createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDet
   const QuestCard = ({ q, onOpen }) => {
     const type = inferType(q); const T = TYPES[type]; const I = T.icon;
     const dl = q.deadline ? daysLeft(q.deadline) : null;
-    const pct = Number(q.goal) > 0 && Number(q.raised) >= 0 ? Math.min(100, (Number(q.raised) / Number(q.goal)) * 100) : null;
+    const pct = pctOf(q);
+    const teams = Number(q.teams || 0), backers = Number(q.backers || 0);
+    const statusText = String(q.status || 'Open');
     return (
       <button className="qv-card w-full" onClick={() => onOpen(q)}>
         <div className="qv-cover" style={{ '--hue-a': `${T.hue}55`, '--hue-b': `${T.hue}22` }}>
           <div className="absolute left-4 top-4 flex gap-2 flex-wrap z-10">
             <TypeBadge type={type} />
             {q.sample && <span className="qv-badge v3-mono" style={{ color: '#C4CFE6' }}>Sample</span>}
+            {!q.sample && q.is_demo ? <span className="qv-badge v3-mono" style={{ color: 'var(--gold)' }}>Demo</span> : null}
           </div>
           <I className="ico" size={44} style={{ color: T.hue }} />
         </div>
         <div className="p-6 flex flex-col gap-3 flex-1">
           <div className="flex items-center justify-between gap-3">
-            <span className="v3-mono" style={{ fontSize: '.62rem', color: 'var(--pi-teal)' }}>{q.status || 'Open'}</span>
-            <span className="font-display text-xl" style={{ color: 'var(--gold)' }}>{q.bounty}</span>
+            <span className="v3-mono" style={{ fontSize: '.62rem', color: 'var(--pi-teal)' }}>{statusText}</span>
+            <span className="font-display text-xl" style={{ color: 'var(--gold)' }}>{Number(q.goal) > 0 ? fmtMoney(q.goal, q.currency) : q.bounty}</span>
           </div>
           <div className="font-display text-2xl leading-snug">{q.title}</div>
           <p className="text-sm leading-relaxed flex-1" style={{ color: '#9AA8C4' }}>{q.summary}</p>
-          {pct !== null && <div><div className="qv-meter"><i style={{ width: `${pct}%` }} /></div><div className="v3-mono mt-2" style={{ fontSize: '.58rem', color: '#8A98B6' }}>{Math.round(pct)}% funded · aspirational until goal met</div></div>}
+          {pct !== null ? (
+            <div>
+              <div className="qv-meter"><i style={{ width: `${pct}%` }} /></div>
+              <div className="flex items-baseline justify-between mt-2 text-sm">
+                <span><b style={{ color: 'var(--gold)' }}>{fmtMoney(q.raised, q.currency)}</b> <span style={{ color: '#8A98B6' }}>pledged</span></span>
+                <span className="v3-mono" style={{ fontSize: '.6rem', color: '#8A98B6' }}>{Math.round(pct)}%</span>
+              </div>
+            </div>
+          ) : <div className="v3-mono" style={{ fontSize: '.58rem', color: 'var(--gold)' }}>Goal to be announced · opens at goal</div>}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 v3-mono" style={{ fontSize: '.58rem', color: '#8A98B6' }}>
+            <span className="inline-flex items-center gap-1"><HandCoins size={12} />{backers.toLocaleString()} backers</span>
+            <span className="inline-flex items-center gap-1"><Users size={12} />{teams.toLocaleString()} {teams === 1 ? 'team' : 'teams'}</span>
+            <span className="inline-flex items-center gap-1"><Clock size={12} />{dl !== null ? `${dl} days left` : 'Opens at goal'}</span>
+          </div>
           <div className="flex flex-wrap gap-2">
+            {(q.pledges || []).slice(0, 3).map((id) => <span key={id} className="v3-mono px-2 py-1 rounded-full" style={{ fontSize: '.56rem', border: '1px solid rgba(123,224,195,.4)', color: '#BFEAFF' }}>{id}</span>)}
             {(q.tags || []).map((t) => <span key={t} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid var(--line-2)', color: 'var(--bone-dim)' }}>{t}</span>)}
           </div>
           <div className="flex items-center justify-between pt-3 mt-1" style={{ borderTop: '1px solid rgba(255,255,255,.08)' }}>
-            <span className="v3-mono flex items-center gap-2" style={{ fontSize: '.6rem', color: '#8A98B6' }}><Clock size={12} />{dl !== null ? `${dl} days left` : 'Pre-funded · opens at goal'}</span>
+            <span className="v3-mono" style={{ fontSize: '.58rem', color: '#8A98B6' }}>{q.sponsor ? `By ${q.sponsor}` : (q.is_demo ? 'Demo figures' : '')}</span>
             <span className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--gold)' }}>View quest <ArrowRight size={14} /></span>
           </div>
         </div>
       </button>
+    );
+  };
+
+  // ---------- campaign facts shown in the quest modal (above the live pitch + Q&A) ----------
+  const QuestFacts = ({ q }) => {
+    const type = inferType(q); const T = TYPES[type];
+    const pct = pctOf(q);
+    const dl = q.deadline ? daysLeft(q.deadline) : null;
+    const tr = Array.isArray(q.tranches) ? q.tranches.filter((t) => t && t.name) : [];
+    const trTotal = tr.reduce((s, t) => s + (Number(t.pct) || 0), 0) || 1;
+    const tile = (label, value) => (
+      <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)' }}>
+        <div className="v3-mono" style={{ fontSize: '.52rem', color: '#8A98B6' }}>{label}</div>
+        <div className="text-sm font-semibold mt-1">{value}</div>
+      </div>
+    );
+    return (
+      <div className="mt-6 grid gap-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <TypeBadge type={type} />
+          {q.is_demo ? <span className="qv-badge v3-mono" style={{ color: 'var(--gold)' }}>Demo figures</span> : null}
+          {q.sponsor && <span className="v3-mono" style={{ fontSize: '.6rem', color: '#8A98B6' }}>By {q.sponsor}</span>}
+        </div>
+        {pct !== null ? (
+          <div>
+            <div className="qv-meter"><i style={{ width: `${pct}%` }} /></div>
+            <div className="flex justify-between items-baseline mt-2 text-sm">
+              <span><b style={{ color: 'var(--gold)' }}>{fmtMoney(q.raised, q.currency)}</b> of {fmtMoney(q.goal, q.currency)}</span>
+              <span className="v3-mono" style={{ fontSize: '.62rem', color: '#8A98B6' }}>{Math.round(pct)}%</span>
+            </div>
+          </div>
+        ) : <div className="v3-mono" style={{ fontSize: '.62rem', color: 'var(--gold)' }}>Goal to be announced · the quest opens at goal</div>}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {tile('Backers', Number(q.backers || 0).toLocaleString())}
+          {tile('Teams', Number(q.teams || 0).toLocaleString())}
+          {tile(dl !== null ? 'Days left' : 'Deadline', dl !== null ? dl : 'Opens at goal')}
+          {tile('Type', T.label)}
+        </div>
+        {Array.isArray(q.pledges) && q.pledges.length > 0 && (
+          <div>
+            <div className="v3-mono mb-2" style={{ fontSize: '.58rem', color: 'var(--pi-teal)' }}>Pledges this quest advances</div>
+            <div className="flex flex-wrap gap-2">
+              {q.pledges.map((id) => <span key={id} className="text-xs px-3 py-1 rounded-full" style={{ border: '1px solid rgba(123,224,195,.4)', color: '#BFEAFF' }}>{id} {pledgeName(id)}</span>)}
+            </div>
+          </div>
+        )}
+        {tr.length > 0 && (
+          <div>
+            <div className="v3-mono mb-2" style={{ fontSize: '.58rem', color: 'var(--gold)' }}>Money follows milestones</div>
+            <div className="flex gap-1">{tr.map((t, i) => <div key={i} style={{ flex: Number(t.pct) || 1, height: 8, borderRadius: 4, background: T.hue, opacity: 1 - i * 0.2 }} />)}</div>
+            <div className="flex gap-1 mt-2">{tr.map((t, i) => <div key={i} className="text-xs" style={{ flex: Number(t.pct) || 1, color: '#9AA8C4' }}>{t.name}<div className="v3-mono" style={{ fontSize: '.55rem' }}>{Math.round(((Number(t.pct) || 0) / trTotal) * 100)}%</div></div>)}</div>
+          </div>
+        )}
+        <p className="v3-mono" style={{ fontSize: '.58rem', color: '#8A98B6' }}>{q.is_demo ? 'Demo quest · figures are illustrative · no money moves until live payments are approved' : 'Funds unlock only as milestones are met'}</p>
+      </div>
     );
   };
 
@@ -192,7 +276,7 @@ export function createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDet
           ) : (
             <div className="relative">
               <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 z-10 text-bone-dim hover:text-bone"><X size={22} /></button>
-              <QuestDetail quest={detail} loading={loading} onClose={onClose} />
+              <QuestDetail quest={detail} loading={loading} onClose={onClose} facts={<QuestFacts q={detail || q} />} />
             </div>
           )}
         </div>
@@ -207,6 +291,7 @@ export function createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDet
     const [type, setType] = useState('startup');          // type explorer
     const [filterType, setFilterType] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [sort, setSort] = useState('featured');
     const [q, setQ] = useState('');
     const [open, setOpen] = useState(null);
     const [faq, setFaq] = useState(0);
@@ -214,7 +299,9 @@ export function createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDet
     const goal = useCmsField('quest', 'fund_goal', '');
     const raised = useCmsField('quest', 'fund_raised', '');
     const num = (v) => parseFloat(String(v).replace(/[^0-9.]/g, ''));
-    const g = num(goal), r = num(raised);
+    const flagQ = quests.find((x) => x.id === 'first-os-moment') || null; // live flagship quest from the API, if present
+    const g = flagQ && Number(flagQ.goal) > 0 ? Number(flagQ.goal) : num(goal);
+    const r = flagQ && Number(flagQ.goal) > 0 ? Number(flagQ.raised || 0) : num(raised);
     const flagPct = g > 0 && r >= 0 ? Math.min(100, (r / g) * 100) : null;
 
     const usingSamples = loaded && quests.length === 0;
@@ -227,7 +314,17 @@ export function createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDet
         if (!hay.includes(q.trim().toLowerCase())) return false;
       }
       return true;
-    }), [all, filterType, filterStatus, q]);
+    }).sort((x, y) => {
+      if (sort === 'ending') return (x.deadline ? Date.parse(x.deadline) : Infinity) - (y.deadline ? Date.parse(y.deadline) : Infinity);
+      if (sort === 'funded') return (pctOf(y) ?? -1) - (pctOf(x) ?? -1);
+      if (sort === 'newest') return String(y.created_at || '').localeCompare(String(x.created_at || ''));
+      return 0;
+    }), [all, filterType, filterStatus, q, sort]);
+    const totals = useMemo(() => ({
+      raised: all.reduce((t, x) => t + (Number(x.raised) || 0), 0),
+      backers: all.reduce((t, x) => t + (Number(x.backers) || 0), 0),
+      teams: all.reduce((t, x) => t + (Number(x.teams) || 0), 0),
+    }), [all]);
 
     const T = TYPES[type]; const TI = T.icon;
     const proposeHref = 'mailto:build@humanity-ai.quest?subject=' + encodeURIComponent('Propose a quest') + '&body=' + encodeURIComponent('Campaign type (Prize / Startup / Crowd):\nProblem to solve:\nGoal and who funds it:\nWho should be on the panel:\n');
@@ -258,7 +355,7 @@ export function createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDet
                 <a href={proposeHref} className="btn-secondary" style={{ padding: '1rem 1.6rem', borderColor: 'rgba(255,214,10,.5)', color: 'var(--gold)' }}><E p="quest" k="v3_cta_launch" as="span">Launch a quest</E> <Rocket size={16} /></a>
                 <button onClick={() => setPage('back')} className="btn-secondary" style={{ padding: '1rem 1.6rem' }}><E p="quest" k="v3_cta_fund" as="span">Fund a quest</E></button>
               </div>
-              <E p="quest" k="v3_honesty" as="div" className="v3-mono mt-5" style={{ fontSize: '.62rem', color: '#8A98B6' }}>Aspirational until funding goals are met · No live payments yet</E>
+              <E p="quest" k="v3_honesty" as="div" className="v3-mono mt-5" style={{ fontSize: '.62rem', color: '#8A98B6' }}>Demo build · no live payments · aspirational until goals are met</E>
             </div>
 
             {/* quest console */}
@@ -266,7 +363,7 @@ export function createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDet
               <div className="qv-flag p-7">
                 <div className="flex items-center justify-between">
                   <span className="qv-badge v3-mono" style={{ color: '#7BE0C3' }}><Cpu size={11} /> Flagship quest</span>
-                  <span className="v3-mono" style={{ fontSize: '.58rem', color: '#8A98B6' }}>Aspirational</span>
+                  <span className="v3-mono" style={{ fontSize: '.58rem', color: '#8A98B6' }}>Demo · aspirational</span>
                 </div>
                 <E p="quest" k="v3_flag_title" as="div" className="font-display text-3xl mt-5 leading-tight">Humanity’s first OS moment</E>
                 <E p="quest" k="v3_flag_d" as="p" className="text-sm mt-3 leading-relaxed" style={{ color: '#9AA8C4' }}>
@@ -279,7 +376,7 @@ export function createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDet
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3 mt-6">
-                  {[['Type', 'Startup Quest'], ['Panel', 'By lottery'], ['Payout', 'Tranches']].map(([a, b]) => (
+                  {[['Type', 'Startup Quest'], ['Teams', String(flagQ ? flagQ.teams ?? 0 : 0)], ['Payout', 'Tranches']].map(([a, b]) => (
                     <div key={a} className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)' }}>
                       <div className="v3-mono" style={{ fontSize: '.52rem', color: '#8A98B6' }}>{a}</div>
                       <div className="text-sm font-semibold mt-1">{b}</div>
@@ -287,6 +384,7 @@ export function createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDet
                   ))}
                 </div>
                 <button onClick={() => onSeedAgent ? onSeedAgent('Help me turn my idea into a pitch for the Humanity’s first OS moment quest.') : onOpenAgent()} className="btn-aurora w-full justify-center mt-6"><Sparkles size={16} /> <E p="quest" k="v3_flag_cta" as="span">Pitch with Pi</E></button>
+                {flagQ && <button onClick={() => setOpen(flagQ)} className="btn-secondary w-full justify-center mt-3"><E p="quest" k="v3_flag_register" as="span">Register to pitch</E></button>}
               </div>
             </Reveal>
           </div>
@@ -337,10 +435,20 @@ export function createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDet
               <label className="qv-search"><Search size={16} style={{ color: 'var(--bone-dim)' }} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search quests, tags, problems…" aria-label="Search quests" /></label>
             </Reveal>
 
-            <div className="flex flex-wrap gap-2 mt-8">
+            <div className="v3-hud mt-8">
+              <div><div className="font-display text-3xl" style={{ color: 'var(--gold)' }}>{all.length}</div><div className="v3-mono mt-1" style={{ fontSize: '.6rem', color: '#8A98B6' }}>Quests</div></div>
+              <div><div className="font-display text-3xl">{fmtMoney(totals.raised)}</div><div className="v3-mono mt-1" style={{ fontSize: '.6rem', color: '#8A98B6' }}>Pledged (demo)</div></div>
+              <div><div className="font-display text-3xl">{totals.backers.toLocaleString()}</div><div className="v3-mono mt-1" style={{ fontSize: '.6rem', color: '#8A98B6' }}>Backers</div></div>
+              <div><div className="font-display text-3xl">{totals.teams.toLocaleString()}</div><div className="v3-mono mt-1" style={{ fontSize: '.6rem', color: '#8A98B6' }}>Teams</div></div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-6 items-center">
               {[['all', 'All types'], ['prize', 'Prize'], ['startup', 'Startup'], ['crowd', 'Crowd']].map(([id, l]) => <button key={id} onClick={() => setFilterType(id)} className={'qv-chip ' + (filterType === id ? 'on' : '')}>{l}</button>)}
               <span className="mx-2 w-px self-stretch" style={{ background: 'rgba(255,255,255,.14)' }} />
               {[['all', 'Any status'], ['open', 'Open'], ['in review', 'In review'], ['awarded', 'Awarded']].map(([id, l]) => <button key={id} onClick={() => setFilterStatus(id)} className={'qv-chip ' + (filterStatus === id ? 'on' : '')}>{l}</button>)}
+              <select className="qv-select ml-auto" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort quests">
+                <option value="featured">Sort: Featured</option><option value="ending">Ending soon</option><option value="funded">Most funded</option><option value="newest">Newest</option>
+              </select>
             </div>
 
             {usingSamples && <div className="v3-mono mt-6 p-3 rounded-xl inline-block" style={{ fontSize: '.62rem', color: 'var(--gold)', border: '1px dashed rgba(255,214,10,.4)' }}>Showing sample quests · live quests appear here as soon as they are published</div>}

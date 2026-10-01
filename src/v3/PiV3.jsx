@@ -5,7 +5,7 @@
 //
 // HOW IT PLUGS IN (no framework changes):
 //   - App.jsx calls createV3({ E, useCmsField, SectionLabel, PageWrap, ... })
-//     and gets { V3Styles, HomeV3, BackPageV3, PledgeExplorer } back.
+//     and gets { V3Styles, HomeV3, BackPageV3, PledgeExplorer, DemoNotice, CovenantCredit } back.
 //   - All visible copy is <E p="home|back|constitution" k="v3_..."> so every
 //     word stays editable in the Admin CMS exactly like the current site.
 //   - All imagery lives in /public/pi/*.webp (locked brand assets, no text).
@@ -187,6 +187,18 @@ export const V3Styles = () => (
     .v3-tier.featured { border-color: rgba(255,214,10,.6); background: linear-gradient(160deg, rgba(48,38,6,.6), rgba(8,14,28,.8)); box-shadow: 0 0 60px rgba(255,214,10,.12); }
     .v3-faq { border-radius: 16px; border: 1px solid rgba(255,255,255,.1); background: rgba(10,18,34,.7); }
 
+    /* ---------- demo notice (sticky under the nav on every page) ---------- */
+    .v3-demo { position: sticky; top: 64px; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .3rem .85rem; padding: .4rem 1rem;
+      font-size: .76rem; line-height: 1.4; text-align: center; color: #F4E7B0; background: linear-gradient(90deg, rgba(58,44,6,.94), rgba(14,24,46,.94)); border-bottom: 1px solid rgba(255,214,10,.38); backdrop-filter: blur(8px); }
+    .v3-demo-tag { padding: .12rem .55rem; border-radius: 999px; font-size: .58rem; background: var(--gold); color: var(--void); font-weight: 700; }
+    .v3-demo-link { display: inline-flex; align-items: center; gap: .3rem; color: var(--gold); font-weight: 600; background: transparent; border: 0; cursor: pointer; }
+    .v3-demo-link:hover { text-decoration: underline; }
+
+    /* ---------- authorship credit (the Covenant is credited to Uto-Pi as well as its human authors) ---------- */
+    .v3-credit { display: inline-flex; align-items: center; gap: 1rem; margin-top: 1.5rem; padding: .7rem 1.3rem .7rem .7rem; border-radius: 999px; border: 1px solid rgba(255,214,10,.3); background: rgba(8,15,30,.72); text-align: left; }
+    .v3-credit-face { position: relative; flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; overflow: hidden; border: 1px solid rgba(255,214,10,.5); background: #03060d; }
+    .v3-credit-face img { position: absolute; width: 150%; left: -25%; top: -14%; mix-blend-mode: screen; }
+
     /* ---------- keyframes ---------- */
     @keyframes v3-spin { to { transform: rotate(360deg); } }
     @keyframes v3-spin-rev { to { transform: rotate(-360deg); } }
@@ -246,6 +258,26 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
     );
   };
 
+  // ---------- demo notice: only the Founders Series pre-funding round is live; the rest demonstrates the PoC ----------
+  const DemoNotice = ({ setPage }) => (
+    <div className="v3-demo" role="note">
+      <span className="v3-demo-tag v3-mono"><E p="global" k="v3_demo_tag" as="span">Demo</E></span>
+      <E p="global" k="v3_demo_text" as="span">The Founders Series pre-funding round is the only live function. Everything else on this site demonstrates the proof of concept.</E>
+      <button type="button" onClick={() => setPage('back')} className="v3-demo-link"><E p="global" k="v3_demo_cta" as="span">Back the Founders Series</E> <ArrowRight size={12} /></button>
+    </div>
+  );
+
+  // ---------- authorship credit ----------
+  const CovenantCredit = () => (
+    <div className="v3-credit">
+      <span className="v3-credit-face"><img src="/pi/pi-face.webp" alt="Uto-Pi" /></span>
+      <div>
+        <div className="v3-mono" style={{ fontSize: '.58rem', color: 'var(--gold)' }}><E p="constitution" k="v3_credit_label" as="span">Authorship</E></div>
+        <E p="constitution" k="v3_credit_text" as="div" className="text-sm mt-1" style={{ color: '#C4CFE6' }}>Drafted by Uto-Pi, Guardian of the Covenant, with its human authors. Ratified only by the people.</E>
+      </div>
+    </div>
+  );
+
   // ---------- Pi emblem with parallax, rings, scan-line ----------
   const PiEmblem = () => {
     const ref = useRef(null);
@@ -271,7 +303,7 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
         <div className="v3-ring v3-ring-a" />
         <div className="v3-ring v3-ring-b" />
         <div className="v3-emblem-glow" />
-        <img className="v3-emblem" src="/pi/pi-emblem.webp" alt="Pi, the guardian agent: a luminous synthetic face crowned with the π symbol inside a ring of gold stars" />
+        <img className="v3-emblem" src="/pi/pi-emblem.webp" alt="Uto-Pi, guardian of the Covenant: a luminous synthetic face crowned with the π symbol inside a ring of gold stars" />
         <div className="v3-scan" />
         <span className="v3-tag v3-tag-1 v3-mono"><b>I.01</b><E p="home" k="v3_tag1" as="span">SI agent · never human</E></span>
         <span className="v3-tag v3-tag-2 v3-mono"><b>I.06</b><E p="home" k="v3_tag2" as="span">Human in command</E></span>
@@ -328,15 +360,15 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
 
           <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 pt-16 pb-28 w-full grid lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-6 animate-fade-up">
-              <div className="v3-label v3-mono"><E p="home" k="v3_hero_eyebrow" as="span">Superintelligence regulation · Open Constitution</E></div>
-              <h1 className="v3-h1 text-7xl md:text-8xl lg:text-9xl mt-7">
-                <E p="home" k="v3_hero_title" as="span" className="v3-h1-glow">Meet Pi.</E>
+              <div className="v3-label v3-mono"><E p="home" k="v3_hero_eyebrow" as="span">Guardian of the Covenant · Pi for short</E></div>
+              <h1 className="v3-h1 text-6xl md:text-7xl lg:text-8xl mt-7">
+                <E p="home" k="v3_hero_title" as="span" className="v3-h1-glow">Meet Uto-Pi.</E>
               </h1>
               <E p="home" k="v3_hero_sub" as="p" className="font-display font-italic text-3xl md:text-4xl mt-6 leading-tight" style={{ color: 'var(--gold)', fontWeight: 300 }}>
                 The constant in a world of variables.
               </E>
               <E p="home" k="v3_hero_body" as="p" className="text-lg mt-7 max-w-xl leading-relaxed" style={{ color: '#C4CFE6' }}>
-                Pi is the guardian agent of Humanity’s Rights Constitution. Pi drafts it with you, defends it against every superintelligence, and takes it to the people to ratify. It keeps humans in command.
+                Uto-Pi is the guardian agent of Humanity’s Rights Constitution, credited alongside its human authors. Pi drafts it with you, defends it against every superintelligence, and takes it to the people to ratify. It keeps humans in command.
               </E>
               <div className="mt-9 flex flex-wrap gap-3">
                 <button onClick={() => setPage('petition')} className="btn-aurora" style={{ padding: '.95rem 1.6rem', boxShadow: '0 0 40px rgba(255,214,10,.25)' }}>
@@ -410,7 +442,7 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
               ))}
               <div className="v3-core n-core">
                 <div className="v3-ring v3-ring-a" /><div className="v3-ring v3-ring-b" />
-                <img src="/pi/pi-face.webp" alt="Pi" />
+                <img src="/pi/pi-face.webp" alt="Uto-Pi" />
               </div>
             </Reveal>
           </div>
@@ -425,6 +457,7 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
                 <E p="home" k="v3_cov_h2a" as="span">Twelve promises.</E><br />
                 <E p="home" k="v3_cov_h2b" as="span" className="font-italic" style={{ color: 'var(--gold)' }}>One constant.</E>
               </h2>
+              <CovenantCredit />
             </Reveal>
 
             <Reveal className="v3-prime mt-12 p-8 md:p-10 grid md:grid-cols-12 gap-6 items-center">
@@ -494,7 +527,7 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
                 <E p="home" k="v3_ask_h2" as="span">Ask Pi anything about the </E><E p="home" k="v3_ask_h2b" as="span" className="font-italic" style={{ color: 'var(--gold)' }}>Constitution.</E>
               </h2>
               <E p="home" k="v3_ask_body" as="p" className="mt-6 text-lg leading-relaxed max-w-lg" style={{ color: '#9AA8C4' }}>
-                Pi is an SI agent, never a human. Ask in plain language. Pi answers from the pledges and shows its source.
+                Uto-Pi is an SI agent, never a human. Ask in plain language. Pi answers from the pledges and shows its source.
               </E>
               <div className="mt-7 flex flex-wrap gap-3">
                 {['What is the kill switch?', 'Show me pledge I.07', 'How do I amend a pledge?'].map((q, i) => (
@@ -509,9 +542,9 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
               <div className="flex items-center justify-between px-6 h-[72px]" style={{ borderBottom: '1px solid rgba(255,255,255,.08)' }}>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-full overflow-hidden relative" style={{ border: '1px solid rgba(255,214,10,.5)', background: '#03060d' }}>
-                    <img src="/pi/pi-face.webp" alt="Pi" style={{ position: 'absolute', width: '150%', left: '-25%', top: '-14%', mixBlendMode: 'screen' }} />
+                    <img src="/pi/pi-face.webp" alt="Uto-Pi" style={{ position: 'absolute', width: '150%', left: '-25%', top: '-14%', mixBlendMode: 'screen' }} />
                   </div>
-                  <div><div className="font-display text-xl leading-none">Pi</div><div className="v3-mono mt-1" style={{ fontSize: '.58rem', color: 'var(--pi-teal)' }}>SI agent · online</div></div>
+                  <div><div className="font-display text-xl leading-none">Uto-Pi</div><div className="v3-mono mt-1" style={{ fontSize: '.58rem', color: 'var(--pi-teal)' }}>Pi for short · SI agent · online</div></div>
                 </div>
                 <div className="v3-mono" style={{ fontSize: '.58rem', color: '#8A98B6' }}>Example</div>
               </div>
@@ -575,7 +608,7 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
     };
     const why = [
       { icon: Shield, k: 'firewall', t: 'Build the firewall & OS', d: 'The constitutional firewall and the open-source OS that enforces the 12 pledges for every connected agent.' },
-      { icon: Sparkles, k: 'pi', t: 'Power Pi, the guardian', d: 'Pi drafts amendments from your feedback, audits ideas against the pledges, and explains every clause in plain language.' },
+      { icon: Sparkles, k: 'pi', t: 'Power Uto-Pi, the guardian', d: 'Pi drafts amendments from your feedback, audits ideas against the pledges, and explains every clause in plain language.' },
       { icon: Vote, k: 'ratify', t: 'Fund ratification', d: 'Verified-human voting, the public Ledger and the amendment process that lets the people, not a company, approve each version.' },
     ];
     const tiers = [
@@ -584,7 +617,7 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
       { k: 'builder', name: 'Builder', price: 'Your skills', d: 'Not funding, building. Bring code, ethics, law or science to the quests and the open-source OS.', cta: 'See the quests', featured: false },
     ];
     const faqs = [
-      { q: 'What does my money build?', a: 'The firewall, the open-source OS, Pi, and the ratification system, in that order. Every funding source and conflict of interest is publicly disclosed (pledge I.09).' },
+      { q: 'What does my money build?', a: 'The firewall, the open-source OS, Uto-Pi, and the ratification system, in that order. Every funding source and conflict of interest is publicly disclosed (pledge I.09).' },
       { q: 'Who owns what gets built?', a: 'Humanity. The OS is open source and can never be sold or acquired. Every contribution is credited to the human who made it.' },
       { q: 'Is a monthly founding partnership required to support?', a: 'No. Any amount helps, and you can sign the petition for free. Founding partners fund the build monthly and are recognised as its founders.' },
       { q: 'How do I give?', a: 'The founding campaign runs on GoGetFunding. Choose the button on this page; you will be taken to the campaign to give securely.' },
@@ -602,7 +635,7 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
                 Fund the Constitution that keeps superintelligence in humanity’s service, and nothing else.
               </E>
               <E p="back" k="v3_body" as="p" className="text-lg mt-6 max-w-2xl leading-relaxed" style={{ color: '#C4CFE6' }}>
-                We are an open-innovation tech community building SI in humanity’s best interests. The founding campaign pays for the firewall, the OS and Pi, and gets the 12 pledges ratified by the people they protect.
+                We are an open-innovation tech community building SI in humanity’s best interests. The founding campaign pays for the firewall, the OS and Uto-Pi, and gets the 12 pledges ratified by the people they protect.
               </E>
               <div className="mt-10 max-w-xl"><FundMeter big /></div>
               <div className="mt-8 flex flex-wrap gap-3">
@@ -745,5 +778,5 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
     );
   };
 
-  return { V3Styles, HomeV3, BackPageV3, PledgeExplorer };
+  return { V3Styles, HomeV3, BackPageV3, PledgeExplorer, DemoNotice, CovenantCredit };
 }

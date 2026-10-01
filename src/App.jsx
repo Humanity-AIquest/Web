@@ -288,7 +288,7 @@ const AccountPage = ({ auth, onLogout, onOpenAuth }) => {
         ) : ideas.length === 0 ? (
           <div className="card-glass rounded-xl p-6 text-center text-bone-dim">
             <p>You haven't submitted any ideas yet.</p>
-            <p className="text-sm mt-2">Use the HRC Agent to develop your ideas, then submit them for review.</p>
+            <p className="text-sm mt-2">Use Uto-Pi to develop your ideas, then submit them for review.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -1384,9 +1384,10 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
             <E p="constitution" k="h1_a" as="span">The Hippocratic Oath</E><br />
             <E p="constitution" k="h1_b" as="span" className="font-italic aurora-text">for Artificial Intelligence.</E>
           </h1>
-          <E p="constitution" k="intro" as="p" className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
-            One Prime Promise and twelve Hippocratic pledges: the Humanity Rights Constitution the union signs, amends and ratifies in the open. Open any pledge to read it in full, or ask Pi to explain what it means for your work. The original 52 draft clauses are kept on the second tab.
+          <E p="constitution" k="v3_intro" as="p" className="text-bone-dim mt-8 max-w-2xl text-lg leading-relaxed">
+            One Prime Promise and twelve Hippocratic pledges: the Humanity Rights Constitution the union signs, amends and ratifies in the open. Open any pledge to read it in full, or ask Uto-Pi to explain what it means for your work. The original 52 draft clauses are kept on the second tab.
           </E>
+          <CovenantCredit />
 
           <div className="mt-10 flex flex-wrap gap-2">
             {[{ id: 'pledges', label: 'The 12 Pledges' }, { id: 'clauses', label: 'Draft clauses (52)' }].map(v => (
@@ -1491,7 +1492,7 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
             Verified humans only. One signature, one agent, one voice in the living democracy of the HRC.
           </p>
           <div className="mt-10 flex flex-wrap gap-3 justify-center">
-            <button onClick={() => alert('Verified identity signing will be available in the next release. For now, submit your ideas through the HRC Agent.')} className="btn-primary">Sign with Verified Identity <ArrowRight size={16} /></button>
+            <button onClick={() => alert('Verified identity signing will be available in the next release. For now, submit your ideas through Uto-Pi.')} className="btn-primary">Sign with Verified Identity <ArrowRight size={16} /></button>
             <button onClick={onOpenAgent} className="btn-secondary"><MessageCircle size={16} /> Ask the Agent first</button>
           </div>
         </div>
@@ -1507,7 +1508,7 @@ const postJSON = async (url, body) => {
   return r.json();
 };
 
-const QuestDetail = ({ quest, loading, onClose }) => {
+const QuestDetail = ({ quest, loading, onClose, facts }) => {
   const [pitchOpen, setPitchOpen] = useState(false);
   const [pitch, setPitch] = useState({ name: '', email: '', approach: '' });
   const [pitchMsg, setPitchMsg] = useState('');
@@ -1548,6 +1549,7 @@ const QuestDetail = ({ quest, loading, onClose }) => {
       </div>
       <p className="text-bone-dim mt-4 leading-relaxed">{quest.summary}</p>
       <p className="text-bone-dim mt-3 leading-relaxed">{quest.problem}</p>
+      {facts}
 
       <div className="mt-6">
         <button onClick={() => setPitchOpen(v => !v)} className="btn-aurora">Register to pitch <ArrowRight size={16} /></button>
@@ -2002,8 +2004,8 @@ const AgentPage = ({ onOpenAgent }) => (
             to test your ideas, and connects you to the humans who can build them with you.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
-            <button onClick={() => alert('Personal agents are coming in Phase 2. Try the HRC Agent now to experience the constitution.')} className="btn-aurora">Claim Your Agent <ArrowRight size={16} /></button>
-            <button onClick={onOpenAgent} className="btn-secondary"><MessageCircle size={16} /> Try the HRC Agent now</button>
+            <button onClick={() => alert('Personal agents are coming in Phase 2. Try Uto-Pi now to experience the constitution.')} className="btn-aurora">Claim Your Agent <ArrowRight size={16} /></button>
+            <button onClick={onOpenAgent} className="btn-secondary"><MessageCircle size={16} /> Try Uto-Pi now</button>
           </div>
         </div>
 
@@ -2643,7 +2645,7 @@ const Footer = ({ setPage }) => (
 );
 
 // ============ HRC AGENT (chat) — WITH AUTH, VOICE, MODES, AUTO-SCROLL ============
-const AGENT_DEFAULT_GREETING = "I am Pi, the guardian of Humanity's Rights Constitution. I am an SI agent, never a human.\n\nAsk me anything about the 12 pledges, or share an idea you'd like to develop and I'll help refine it through the lens of the constitution. Every conversation is yours alone.";
+const AGENT_DEFAULT_GREETING = "I am Uto-Pi (Pi for short), guardian of the Covenant: Humanity's Rights Constitution. I am an SI agent, never a human.\n\nAsk me anything about the 12 pledges, or share an idea you'd like to develop and I'll help refine it through the lens of the constitution. Every conversation is yours alone.";
 
 const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
   const greeting = useCmsField('agent', 'greeting', AGENT_DEFAULT_GREETING);
@@ -2857,8 +2859,8 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
               <Sparkles size={14} className="text-void" />
             </div>
             <div>
-              <div className="font-display" style={{ fontSize: 15, lineHeight: 1.2 }}>Pi</div>
-              <div style={{ fontSize: 10, color: 'var(--dust)', lineHeight: 1 }}>Carrying humanity's constitution</div>
+              <div className="font-display" style={{ fontSize: 15, lineHeight: 1.2 }}>Uto-Pi</div>
+              <div style={{ fontSize: 10, color: 'var(--dust)', lineHeight: 1 }}>Pi for short · Guardian of the Covenant</div>
             </div>
           </div>
 
@@ -3222,7 +3224,7 @@ const AgentButton = ({ onClick }) => (
 );
 
 // ============ V3 (Pi) — plugged in via src/v3/PiV3.jsx ============
-const { V3Styles, HomeV3, BackPageV3, PledgeExplorer } = createV3({
+const { V3Styles, HomeV3, BackPageV3, PledgeExplorer, DemoNotice, CovenantCredit } = createV3({
   E, useCmsField, SectionLabel, PageWrap, AgentNetwork, useAspirationalCount, useAnimatedCount,
 });
 
@@ -3319,6 +3321,7 @@ export default function HumanityAIQuest() {
       <Nav page={page} setPage={setPage} onOpenAgent={openAgent} auth={auth} onOpenAuth={openAuthModal} onLogout={handleLogout} />
 
       <main>
+        {page !== 'admin' && <DemoNotice setPage={setPage} />}
         {page === 'home' && (useLegacyHome
           ? <HomePage setPage={setPage} onOpenAgent={openAgent} />
           : <HomeV3 setPage={setPage} onOpenAgent={openAgent} onSeedAgent={seedAgent} />)}

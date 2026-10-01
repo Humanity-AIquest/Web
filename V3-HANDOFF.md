@@ -66,5 +66,10 @@ Source: `src/v3/QuestV3.jsx`. Built from the platform docs (Quest v3 Migration P
 - API fields for type, goal, raised, deadline, teams. The page uses them when present.
 - A team/entry view per quest and the panel scoring UI.
 
-### Naming conflict to resolve
-The team docs call the guardian agent **Utopi**; V3 mockups and this branch call it **Pi**.
+## Update 2026-10-01 (decisions from Antony)
+- **Agent name:** Uto-Pi (hyphenated, trademark), Pi for short, Guardian of the Covenant. Applied to home, chat prompt, greeting, agent header, Constitution credit line, meta description. Never write Utopi.
+- **Authorship credit:** the Covenant is credited to Uto-Pi alongside its human authors (CMS keys constitution/v3_credit_*).
+- **Demo notice:** sticky bar on every public page: only the Founders Series pre-funding round is live, everything else is demo. CMS keys global/v3_demo_tag, v3_demo_text, v3_demo_cta.
+- **CMS:** the live copy was archived to functions/api/_cms_archive.js (55 rows, snapshot 2026-10-01) and imported once, newer-wins, by functions/api/_cms.js. Constitution intro moved to key v3_intro so the old override does not mask it.
+- **Quest data:** quests now have type, goal, raised, currency, deadline, backers, sponsor, pledges[], tranches[], is_demo; team count = registered pitches. Admin > Quests API supports update_quest / create_quest. Two demo quests added (first-os-moment has no invented goal). All figures are demo (is_demo=1).
+- **Open item:** the GoGetFunding link https://gogetfunding.com/?p=9622734 returns 404 for the public (likely an unpublished draft). Set the public URL in CMS back/fund_url.

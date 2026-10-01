@@ -31,7 +31,7 @@ const DEFAULT_FUND_URL = 'https://gogetfunding.com/?p=9622734';
 // ---------- tiny helpers ----------
 const lcg = (seed) => () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
 
-const useStarField = (count = 90) => useMemo(() => {
+export const useStarField = (count = 90) => useMemo(() => {
   const rnd = lcg(61);
   return Array.from({ length: count }).map(() => {
     const x = (rnd() * 100).toFixed(1), y = (rnd() * 100).toFixed(1);
@@ -40,7 +40,7 @@ const useStarField = (count = 90) => useMemo(() => {
   }).join(',');
 }, [count]);
 
-const Reveal = ({ children, delay = 0, className = '', as: Tag = 'div', style }) => {
+export const Reveal = ({ children, delay = 0, className = '', as: Tag = 'div', style }) => {
   const ref = useRef(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {

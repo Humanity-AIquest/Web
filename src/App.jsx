@@ -9,6 +9,7 @@ import {
 import AdminDashboard from './AdminDashboard';
 import { useTTS, ListenButton, getLS, setLS, TTS_SPEEDS } from './useTTS';
 import { createV3 } from './v3/PiV3.jsx';
+import { createQuestV3 } from './v3/QuestV3.jsx';
 
 
 /* ============================================================
@@ -3225,6 +3226,8 @@ const { V3Styles, HomeV3, BackPageV3, PledgeExplorer } = createV3({
   E, useCmsField, SectionLabel, PageWrap, AgentNetwork, useAspirationalCount, useAnimatedCount,
 });
 
+const { QuestStylesV3, QuestPageV3 } = createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDetail });
+
 // ============ ROOT ============
 export default function HumanityAIQuest() {
   const [page, setPage] = useState('home');
@@ -3312,6 +3315,7 @@ export default function HumanityAIQuest() {
     <div className="bg-void text-bone min-h-screen font-body">
       <GlobalStyles />
       <V3Styles />
+      <QuestStylesV3 />
       <Nav page={page} setPage={setPage} onOpenAgent={openAgent} auth={auth} onOpenAuth={openAuthModal} onLogout={handleLogout} />
 
       <main>
@@ -3321,7 +3325,9 @@ export default function HumanityAIQuest() {
         {page === 'back' && <BackPageV3 setPage={setPage} onOpenAgent={openAgent} />}
         {page === 'petition' && <PetitionPage setPage={setPage} onOpenAgent={openAgent} />}
         {page === 'constitution' && <ConstitutionPage onOpenAgent={openAgent} setAgentSeed={seedAgent} />}
-        {page === 'quest' && <QuestPage onOpenAgent={openAgent} />}
+        {page === 'quest' && (useLegacyHome
+          ? <QuestPage onOpenAgent={openAgent} />
+          : <QuestPageV3 setPage={setPage} onOpenAgent={openAgent} onSeedAgent={seedAgent} />)}
         {page === 'surveys' && <SurveysPage />}
         {page === 'events' && <EventsPage />}
         {page === 'media' && <MediaPage setPage={setPage} />}

@@ -50,3 +50,21 @@ npm run dev
 
 ## Roll back
 `git checkout main` (nothing was changed there), or open `/?legacy=1` to compare.
+
+## Quest OS page (`?page=quest`) — added
+Source: `src/v3/QuestV3.jsx`. Built from the platform docs (Quest v3 Migration Plan; Utopi "Quests" mockups).
+- Three campaign types: **Prize Quest** (pre-funded prize), **Startup Quest** (pre-crowdfunded startup funding; winners build the PoC, then the solution), **Crowd Campaign** (regular crowdfunding).
+- Flagship quest: "Humanity's first OS moment", with a pre-funded meter driven by CMS fields `quest` → `fund_goal`, `fund_raised` (blank until set).
+- Kickstarter-style board: search, type + status filters, cards with cover art, badge, prize, tags, progress/deadline when the API provides `goal`/`raised`/`deadline`. Live data from `GET /api/quests`; shows labelled sample quests if the API is empty.
+- Lifecycle rail: Fund, Pitch, Panel, Award, Build the PoC, Ship the solution (money follows milestone tranches).
+- Pitch + Q&A reuse the existing live `QuestDetail` (opens in a modal), so registration still works.
+- "Launch a quest" / "Sponsor a quest" open a prefilled email to build@humanity-ai.quest (no new backend).
+- Honesty rules from the docs are on the page: progress is aspirational until goals are met; no live payments.
+
+### Not built (needs your decision)
+- Real money movement (escrow, tranches, refunds). The migration plan lists payments as an Antony gate.
+- API fields for type, goal, raised, deadline, teams. The page uses them when present.
+- A team/entry view per quest and the panel scoring UI.
+
+### Naming conflict to resolve
+The team docs call the guardian agent **Utopi**; V3 mockups and this branch call it **Pi**.

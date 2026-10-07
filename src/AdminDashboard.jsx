@@ -6,7 +6,7 @@ import {
   RefreshCw, Eye, EyeOff, Clock, User, Ban, UserCheck,
   ChevronUp, MoreHorizontal, Check, Tag, Plus, Zap, SortAsc,
   ArrowUpDown, Settings2, Bookmark, Mic, Volume2, ExternalLink, Key,
-  Star, StarOff, Play, Square, Globe, Mail
+  Star, StarOff, Play, Square, Globe, Mail, Bot
 } from 'lucide-react';
 import { useTTS, ListenButton, TTS_PLUGINS, testSpeakPlugin, stopTestSpeech } from './useTTS';
 
@@ -2699,6 +2699,24 @@ const AuditTab = ({ auth, level }) => {
 };
 
 /* ============================================================
+   AGENTI — thin embed of the separate Agenti admin shell.
+   Override the URL with VITE_AGENTI_ADMIN_URL. The default deep-links
+   into the placeholder session (?as=antony) so the iframe opens on the
+   Agenti welcome shell. Point the env var at /admin/login to require
+   the in-iframe "Continue as Antony" click instead.
+   ============================================================ */
+const AGENTI_ADMIN_URL = import.meta.env.VITE_AGENTI_ADMIN_URL
+  || 'https://agenti-pm.humanity-ai-info.workers.dev/admin?as=antony';
+
+const AgentiTab = () => (
+  <iframe
+    title="Agenti admin"
+    src={AGENTI_ADMIN_URL}
+    style={{ width: '100%', height: '100%', border: 'none', display: 'block', background: '#f3efe6' }}
+  />
+);
+
+/* ============================================================
    MAIN EXPORT — AdminDashboard
    ============================================================ */
 export const AdminDashboard = ({ auth }) => {
@@ -2724,12 +2742,17 @@ export const AdminDashboard = ({ auth }) => {
     { id: 'audit',         label: 'Audit',           icon: Shield,        minLevel: 4 },
     { id: 'cms',           label: 'CMS',             icon: FileText,      minLevel: 3 },
     { id: 'tts',           label: 'TTS Plugins',     icon: Mic,           minLevel: 3 },
+    { id: 'agenti',        label: 'Agenti',          icon: Bot,           minLevel: 1 },
   ].filter(t => level >= t.minLevel);
 
+  const showAgenti = activeTab === 'agenti';
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--void)', padding: '0 0 60px' }}>
+    <div style={showAgenti
+      ? { height: 'calc(100vh - 64px)', background: 'var(--void)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+      : { minHeight: '100vh', background: 'var(--void)', padding: '0 0 60px' }}>
       {/* Top bar */}
-      <div style={{ background: 'var(--void-2)', borderBottom: '1px solid var(--line-2)', padding: '20px 24px 0', position: 'sticky', top: 0, zIndex: 50 }}>
+      <div style={{ background: 'var(--void-2)', borderBottom: '1px solid var(--line-2)', padding: '20px 24px 0', position: 'sticky', top: 0, zIndex: 50, ...(showAgenti ? { flexShrink: 0 } : {}) }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(91,233,221,0.12)', border: '1px solid rgba(91,233,221,0.2)' }}>
@@ -2769,7 +2792,12 @@ export const AdminDashboard = ({ auth }) => {
         </div>
       </div>
 
-      {/* Tab content */}
+      {/* Tab content. Agenti fills the area under the tab strip; every other tab keeps the existing column. */}
+      {showAgenti ? (
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <AgentiTab />
+        </div>
+      ) : (
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 0' }}>
         {activeTab === 'users'         && <UsersTab           auth={auth} level={level} />}
         {activeTab === 'members'       && <MembersTab        auth={auth} level={level} />}
@@ -2781,6 +2809,7 @@ export const AdminDashboard = ({ auth }) => {
         {activeTab === 'cms'           && <CmsTab            auth={auth} level={level} />}
         {activeTab === 'tts'           && <TtsPluginManager  auth={auth} level={level} />}
       </div>
+      )}
     </div>
   );
 };

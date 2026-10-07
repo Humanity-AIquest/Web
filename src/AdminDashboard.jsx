@@ -2704,6 +2704,9 @@ const AuditTab = ({ auth, level }) => {
    into the placeholder session (?as=antony) so the iframe opens on the
    Agenti welcome shell. Point the env var at /admin/login to require
    the in-iframe "Continue as Antony" click instead.
+   Agenti's CSP frame-ancestors allows humanity-ai.quest and
+   http://localhost (any port). Local preview must use localhost,
+   not 127.0.0.1, or the iframe is refused.
    ============================================================ */
 const AGENTI_ADMIN_URL = import.meta.env.VITE_AGENTI_ADMIN_URL
   || 'https://agenti-pm.humanity-ai-info.workers.dev/admin?as=antony';

@@ -17,8 +17,10 @@
  * Every send gets an unsubscribe link (see complianceFooter in _consent.js).
  * Newsletter, donation, and other promo sends must pass advertising: true.
  * sendTemplate then starts the subject with פרסומת and adds the sender name,
- * contact address, and a reply-to-refuse line. There is no bulk newsletter
- * sender yet; do not add one without that flag.
+ * contact address, and a reply-to-refuse line.
+ * No advertising mail goes out until ALLOW_ADVERTISING_EMAIL=1. Leave that unset
+ * until Antony names the legal operator (D25): then set EMAIL_FROM_NAME to that
+ * legal name and use the operator's contact address as EMAIL_FROM.
  */
 import { advertisingIdentityHtml, advertisingSubject, complianceFooter, publicOrigin, unsubscribeToken } from "./_consent.js";
 
@@ -80,6 +82,12 @@ export async function sendEmail(env, { to, toName, subject, html }) {
 // advertising: true marks donation/promo/newsletter mail (Communications Law s.30A).
 export async function sendTemplate(env, key, { to, toName, vars, advertising = false }) {
   try {
+    // Tied to the legal-operator decision (D25). The public brand is not that name.
+    // Do not set ALLOW_ADVERTISING_EMAIL until EMAIL_FROM_NAME is the legal name
+    // and EMAIL_FROM is the operator's contact address in this footer.
+    if (advertising && env?.ALLOW_ADVERTISING_EMAIL !== "1") {
+      return { skipped: true, reason: "advertising sends are off until the legal operator is named" };
+    }
     await ensureEmailSchema(env);
     const t = await env.DB.prepare("SELECT subject, html FROM email_templates WHERE key = ?").bind(key).first();
     if (!t) return { skipped: true, reason: "template missing" };

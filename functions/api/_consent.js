@@ -46,10 +46,17 @@ export async function logConsent(env, { email, purpose, source, consentText }) {
 export async function logNewsletterWithdrawal(env, email) {
   if (!env?.DB || !email) return;
   await ensureConsentSchema(env);
+  const clean = String(email).trim().toLowerCase();
+  // Stamp the original opt-in rows. A new withdrawal row alone would leave them
+  // with withdrawn_at NULL, so the 3-year purge would never delete them.
+  await env.DB.prepare(
+    `UPDATE consent_log SET withdrawn_at = datetime('now')
+     WHERE email = ? AND purpose = 'newsletter' AND withdrawn_at IS NULL`
+  ).bind(clean).run();
   await env.DB.prepare(
     `INSERT INTO consent_log (id, email, purpose, source, consent_text, withdrawn_at)
      VALUES (?,?,?,?,?,datetime('now'))`
-  ).bind(newId(), String(email).trim().toLowerCase(), "newsletter", "unsubscribe", "Unsubscribe link in email").run();
+  ).bind(newId(), clean, "newsletter", "unsubscribe", "Unsubscribe link in email").run();
 }
 
 /** Stable per-email token so every outbound message can carry an unsubscribe link. */
@@ -105,9 +112,9 @@ export function advertisingIdentityHtml({ senderName, contactAddress }) {
 }
 
 /**
- * Drop consent_log rows withdrawn more than 3 years ago. Rows with no
- * withdrawn_at stay — they are still live consent. There is no scheduler;
- * call this from withdrawal and admin-deletion paths, and from any future job.
+ * Drop consent_log rows withdrawn more than 3 years ago. Live rows stay until
+ * logNewsletterWithdrawal stamps them. There is no scheduler; call this from
+ * withdrawal and admin-deletion paths, and from any future job.
  */
 export async function purgeExpiredConsentLog(env) {
   if (!env?.DB) return { purged: 0 };

@@ -7,6 +7,8 @@
  */
 import { json, jsonError, optionsResponse, getUser, requireACL, newId, CORS_HEADERS } from "../_shared.js";
 import { ensureMovementSchema } from "../_movement.js";
+import { purgeSignatureInteractions } from "../_conversations.js";
+import { purgeExpiredConsentLog } from "../_consent.js";
 
 const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
@@ -70,7 +72,15 @@ export async function onRequestPost(context) {
     const { action, id } = await request.json();
     if (action !== "delete" || !id) return jsonError("Invalid action. Use: delete { id }.");
 
+    const row = await env.DB.prepare("SELECT email FROM signatures WHERE id = ?").bind(id).first();
+    if (!row) return jsonError("Signature not found.");
+
     await env.DB.prepare("DELETE FROM signatures WHERE id = ?").bind(id).run();
+    // D1 only. If this person ticked contact-me, also delete the matching Zoho
+    // CRM lead by hand and note the date. See SCHEMA.md "Withdrawal runbook".
+    // D1 backups, if enabled, can still hold the interaction row until the next cycle.
+    try { await purgeSignatureInteractions(env, row.email); } catch (e) { /* index purge is best-effort */ }
+    try { await purgeExpiredConsentLog(env); } catch (e) { /* retention sweep is best-effort */ }
     try {
       await env.DB.prepare(
         "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, 'delete', 'signature', ?, 'Deleted signature')"

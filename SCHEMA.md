@@ -58,6 +58,10 @@ CREATE UNIQUE INDEX idx_users_email_lower ON users(LOWER(email));
 Back-filled on older databases via `ALTER TABLE`: `ban_reason`, `phone`, `country`, `newsletter`,
 `created_at`, `updated_at` (also re-asserted in `admin/members.js`).
 
+`POST /api/auth/signup` stores `newsletter` as `1` only when the JSON value is boolean `true`.
+A Zoho CRM lead (`Lead_Source: "Account signup"`) is created only when `contactMe` or
+`crm_opt_in` is boolean `true`. Opening an account does not create a lead.
+
 ### `sessions`
 Login sessions, 30-day expiry. 64-hex token in the `hrc_session` cookie or `Authorization: Bearer`.
 
@@ -134,6 +138,23 @@ CREATE INDEX idx_inter_kind ON interactions(kind);
 CREATE INDEX idx_inter_created ON interactions(created_at);
 ```
 
+A petition signature writes `kind = 'signature'`, `participant` = the signer email, and a
+summary like `"<name> signed the petition"`. `purgeSignatureInteractions(env, email)` in
+`_conversations.js` deletes those rows. Admin `POST /api/admin/signatures` `{ action: "delete", id }`
+calls it after removing the signature. That is the deletion path for a withdrawal sent to
+`hrc@humanity-ai.quest` — there is no public self-serve delete. Live rows only: a D1 backup,
+if enabled, can still hold the row until the next backup cycle ages out.
+
+### Withdrawal runbook (hrc@)
+
+When someone writes to `hrc@humanity-ai.quest` to withdraw a signature or close an account:
+
+1. Admin delete of the signature (`POST /api/admin/signatures`, `{ action: "delete", id }`, ACL 4) removes the D1 signature and purges the matching interactions-index rows. It also runs `purgeExpiredConsentLog` (see Comms).
+2. **Zoho CRM is not deleted by that call.** If the person had ticked “Contact me about volunteering, events and the Humanity-AI project” (`contactMe` / `crm_opt_in`), delete the matching lead in Zoho CRM by hand (search by email, source “Petition signature” or “Account signup”) and note the date next to the request. There is no CRM-delete call in `_zoho.js`.
+3. Account closure is the same mailbox. Delete or disable the `users` row through the admin console, and delete a Zoho “Account signup” lead the same way if they had opted in.
+4. D1 backups, if enabled, can still hold deleted rows until the next backup cycle ages out.
+5. If someone replies “unsubscribe” to hrc@, within a few days set `newsletter = 0` on `signatures` and `users` for that email and log a newsletter withdrawal (stamp the live newsletter `consent_log` rows, then insert the withdrawal row). That is the same outcome as a confirmed `/api/unsubscribe`.
+
 ### `conversation_notes`
 Admin notes attached to a conversation.
 
@@ -205,6 +226,18 @@ CREATE TABLE IF NOT EXISTS signatures (
 );
 ALTER TABLE signatures ADD COLUMN newsletter INTEGER DEFAULT 0;
 ```
+
+`POST /api/sign` body: `{ name, email, side, country, newsletter, contactMe }`.
+`crm_opt_in` is accepted as an alias of `contactMe`. `newsletter` is stored as `1` only when
+the JSON value is boolean `true` (otherwise `0`; column default remains `0`). A Zoho CRM lead
+(`Lead_Source: "Petition signature"`) is created only when `contactMe` or `crm_opt_in` is
+boolean `true`. A missing or false flag creates no lead.
+
+Signer names are not on any public page. `GET /api/count` returns a total and a count of
+distinct countries, not names. Names are visible in the admin console only.
+
+When `newsletter` or `contactMe` is boolean `true`, a row is appended to `consent_log` with
+the canonical checkbox text from `_consent.js` (the same strings the UI shows).
 
 ### `quests`, `quest_pitches`, `quest_questions`
 
@@ -342,7 +375,50 @@ CREATE TABLE IF NOT EXISTS email_templates (
 );
 ```
 Rendered with `{{variable}}` substitution and sent via ZeptoMail (`_email.js`). No-ops until
-`ZEPTOMAIL_TOKEN` / `EMAIL_FROM` are set.
+`ZEPTOMAIL_TOKEN` / `EMAIL_FROM` are set. Every send appends an unsubscribe link
+(`/api/unsubscribe?token=`). Pass `advertising: true` for newsletter, donation, or other
+promo mail so the footer states that the message is advertising. Welcome and signature
+thank-you stay transactional (`advertising` false). No advertising mail is sent unless
+`ALLOW_ADVERTISING_EMAIL=1`. Leave that unset until Antony names the legal operator:
+then set `EMAIL_FROM_NAME` to that legal name and `EMAIL_FROM` to the operator’s contact
+address. Until then, no advertising sends go out.
+
+```sql
+CREATE TABLE IF NOT EXISTS consent_log (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  purpose TEXT NOT NULL,                    -- 'newsletter' | 'contact'
+  source TEXT NOT NULL,                     -- 'petition' | 'signup' | 'unsubscribe'
+  consent_text TEXT NOT NULL,               -- exact checkbox text, or the unsubscribe label
+  consented_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  withdrawn_at DATETIME
+);
+CREATE TABLE IF NOT EXISTS newsletter_tokens (
+  email TEXT PRIMARY KEY,
+  token TEXT NOT NULL UNIQUE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+`GET /api/unsubscribe?token=` shows a confirm page and does not change data (email scanners
+must not opt anyone out). `POST` with that token sets `newsletter = 0` on `signatures` and
+`users`, appends a withdrawal row to `consent_log`, and runs `purgeExpiredConsentLog`. It does
+not delete the signature. Set `PUBLIC_ORIGIN` (or `SITE_URL`) on Staging so the link hits the
+staging host. The fallback origin is `https://humanity-ai.quest`.
+
+`consent_log` is kept as proof of consent, including after a signature is deleted.
+`logNewsletterWithdrawal` first stamps every live newsletter row for that email
+(`withdrawn_at` was null), then inserts the withdrawal row. `purgeExpiredConsentLog`
+deletes rows whose `withdrawn_at` is older than 3 years, so the original opt-in is not
+kept forever after a withdrawal. Rows that were never withdrawn stay. There is no
+scheduler; the helper runs on admin signature delete and on confirmed unsubscribe.
+
+Advertising sends (`sendTemplate` with `advertising: true`) start the subject with
+`פרסומת` and append the sender name, a contact address, and a reply-to-refuse line.
+They are refused unless `ALLOW_ADVERTISING_EMAIL=1`. Do not turn that on until
+`EMAIL_FROM_NAME` is the legal operator Antony names and the footer contact address is
+theirs. The name in the footer until then is only the public brand “Humanity-AI”.
+Welcome and signature thank-you stay `advertising: false`.
 
 ---
 
@@ -467,7 +543,7 @@ shared modules, not routes.
 |---|---|
 | Auth | `auth/signup`, `auth/login`, `auth/logout`, `auth/me` |
 | Agent | `chat` |
-| Public content | `content`, `count`, `ideas`, `sign` |
+| Public content | `content`, `count`, `ideas`, `sign`, `unsubscribe` |
 | Movement | `quests`, `quests/[id]`, `quests/[id]/pitch`, `quests/[id]/questions`, `events`, `events/[id]/rsvp`, `surveys`, `surveys/[id]`, `surveys/[id]/vote`, `surveys/[id]/results`, `surveys/[id]/statements` |
 | Admin | `admin/users`, `admin/members`, `admin/segments`, `admin/conversations`, `admin/comments`, `admin/ideas`, `admin/notes`, `admin/surveys`, `admin/signatures`, `admin/quests`, `admin/events`, `admin/content`, `admin/audit` |
 

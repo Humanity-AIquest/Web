@@ -223,10 +223,10 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
                 <span>{CONTACT_LABEL}</span>
               </label>
               <p className="text-xs leading-relaxed text-dust">
-                Giving your details is voluntary. There is no legal duty to provide them. Opening an account is not a request to be contacted. We use Zoho (ZeptoMail for the welcome email and, only if you ask to be contacted, Zoho CRM), which may store data outside Israel.
+                Giving your details is voluntary. There is no legal duty to provide them. Opening an account is not a request to be contacted. We use Zoho (ZeptoMail for the welcome email and, only if you ask to be contacted, Zoho CRM), which may store data outside Israel. We keep your name, email, and phone and country if you give them, to run your account. The phone is sent to Zoho CRM only if you ask to be contacted. Kept while your account is open; to close it and delete your data, write to <a href="mailto:hrc@humanity-ai.quest" className="text-aurora hover:underline">hrc@humanity-ai.quest</a>.
               </p>
               <p className="text-xs leading-relaxed text-dust" lang="he" dir="rtl">
-                מסירת הפרטים היא מרצון. אין חובה חוקית למסור אותם. פתיחת חשבון אינה בקשה שייצרו איתך קשר. אנו משתמשים ב-Zoho (ZeptoMail לדוא״ל הפתיחה, ו-Zoho CRM רק אם ביקשת שייצרו איתך קשר), והם עשויים לשמור נתונים מחוץ לישראל.
+                מסירת הפרטים היא מרצון. אין חובה חוקית למסור אותם. פתיחת חשבון אינה בקשה שייצרו איתך קשר. אנו משתמשים ב-Zoho (ZeptoMail לדוא״ל הפתיחה, ו-Zoho CRM רק אם ביקשת שייצרו איתך קשר), והם עשויים לשמור נתונים מחוץ לישראל. אנו שומרים את שמך, את כתובת הדוא״ל, ואת הטלפון והמדינה אם מסרת אותם, כדי לנהל את החשבון. מספר הטלפון נשלח ל-Zoho CRM רק אם ביקשת שייצרו איתך קשר. הנתונים נשמרים כל עוד החשבון פתוח. לסגירת החשבון ולמחיקת הנתונים, כתוב אל <a href="mailto:hrc@humanity-ai.quest" className="text-aurora hover:underline">hrc@humanity-ai.quest</a>.
               </p>
               <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
                 <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="mt-1" />

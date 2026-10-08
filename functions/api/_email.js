@@ -15,11 +15,12 @@
  * template copy can be managed without code changes.
  *
  * Every send gets an unsubscribe link (see complianceFooter in _consent.js).
- * Newsletter, donation, and other promo sends must pass advertising: true so the
- * footer says the message is advertising. There is no bulk newsletter sender yet;
- * do not add one without that flag.
+ * Newsletter, donation, and other promo sends must pass advertising: true.
+ * sendTemplate then starts the subject with פרסומת and adds the sender name,
+ * contact address, and a reply-to-refuse line. There is no bulk newsletter
+ * sender yet; do not add one without that flag.
  */
-import { complianceFooter, publicOrigin, unsubscribeToken } from "./_consent.js";
+import { advertisingIdentityHtml, advertisingSubject, complianceFooter, publicOrigin, unsubscribeToken } from "./_consent.js";
 
 export async function ensureEmailSchema(env) {
   if (!env?.DB) return;
@@ -82,6 +83,7 @@ export async function sendTemplate(env, key, { to, toName, vars, advertising = f
     await ensureEmailSchema(env);
     const t = await env.DB.prepare("SELECT subject, html FROM email_templates WHERE key = ?").bind(key).first();
     if (!t) return { skipped: true, reason: "template missing" };
+    let subject = fill(t.subject, vars);
     let html = fill(t.html, vars);
     if (!html.includes("/api/unsubscribe")) {
       let unsubscribeUrl = "";
@@ -91,7 +93,18 @@ export async function sendTemplate(env, key, { to, toName, vars, advertising = f
       } catch (e) { /* link falls back to the hrc@ address inside the footer */ }
       html += complianceFooter({ unsubscribeUrl, advertising });
     }
-    return await sendEmail(env, { to, toName, subject: fill(t.subject, vars), html });
+    // s.30A is enforced here, not left to the caller: advertising subjects start
+    // with פרסומת, and the body names the sender, a contact address, and reply-to-refuse.
+    if (advertising) {
+      subject = advertisingSubject(subject);
+      if (!html.includes('data-s30a="1"')) {
+        html += advertisingIdentityHtml({
+          senderName: env?.EMAIL_FROM_NAME || "Humanity-AI",
+          contactAddress: env?.EMAIL_FROM || "hrc@humanity-ai.quest",
+        });
+      }
+    }
+    return await sendEmail(env, { to, toName, subject, html });
   } catch (e) {
     return { ok: false, error: e.message };
   }

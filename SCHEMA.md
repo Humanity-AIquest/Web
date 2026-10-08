@@ -145,6 +145,15 @@ calls it after removing the signature. That is the deletion path for a withdrawa
 `hrc@humanity-ai.quest` — there is no public self-serve delete. Live rows only: a D1 backup,
 if enabled, can still hold the row until the next backup cycle ages out.
 
+### Withdrawal runbook (hrc@)
+
+When someone writes to `hrc@humanity-ai.quest` to withdraw a signature or close an account:
+
+1. Admin delete of the signature (`POST /api/admin/signatures`, `{ action: "delete", id }`, ACL 4) removes the D1 signature and purges the matching interactions-index rows. It also runs `purgeExpiredConsentLog` (see Comms).
+2. **Zoho CRM is not deleted by that call.** If the person had ticked “Contact me about volunteering, events and the Humanity-AI project” (`contactMe` / `crm_opt_in`), delete the matching lead in Zoho CRM by hand (search by email, source “Petition signature” or “Account signup”) and note the date next to the request. There is no CRM-delete call in `_zoho.js`.
+3. Account closure is the same mailbox. Delete or disable the `users` row through the admin console, and delete a Zoho “Account signup” lead the same way if they had opted in.
+4. D1 backups, if enabled, can still hold deleted rows until the next backup cycle ages out.
+
 ### `conversation_notes`
 Admin notes attached to a conversation.
 
@@ -387,10 +396,21 @@ CREATE TABLE IF NOT EXISTS newsletter_tokens (
 );
 ```
 
-`GET` or `POST /api/unsubscribe?token=` sets `newsletter = 0` on `signatures` and `users`
-for that email and appends a withdrawal row to `consent_log`. It does not delete the signature.
-Set `PUBLIC_ORIGIN` (or `SITE_URL`) on Staging so the link hits the staging host. The fallback
-origin is `https://humanity-ai.quest`.
+`GET /api/unsubscribe?token=` shows a confirm page and does not change data (email scanners
+must not opt anyone out). `POST` with that token sets `newsletter = 0` on `signatures` and
+`users`, appends a withdrawal row to `consent_log`, and runs `purgeExpiredConsentLog`. It does
+not delete the signature. Set `PUBLIC_ORIGIN` (or `SITE_URL`) on Staging so the link hits the
+staging host. The fallback origin is `https://humanity-ai.quest`.
+
+`consent_log` is kept as proof of consent, including after a signature is deleted. Rows with
+`withdrawn_at` set are deleted **3 years after that withdrawal** by `purgeExpiredConsentLog`
+in `_consent.js`. Rows with no `withdrawn_at` stay. There is no scheduler; the helper runs on
+admin signature delete and on confirmed unsubscribe, and should be called from any future job.
+
+Advertising sends (`sendTemplate` with `advertising: true`) always start the subject with
+`פרסומת` and append the sender name, a contact address, and a reply-to-refuse line. Callers
+cannot skip that. The sender name is the public brand “Humanity-AI” until Antony names the
+legal operator. Welcome and signature thank-you stay `advertising: false`.
 
 ---
 

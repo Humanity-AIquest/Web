@@ -84,6 +84,42 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+/** Israel Communications Law s.30A: an advertising subject must start with this word. */
+export const ADVERTISING_SUBJECT_PREFIX = "פרסומת";
+
+export function advertisingSubject(subject) {
+  const s = String(subject || "").replace(/^\s+/, "");
+  if (s.startsWith(ADVERTISING_SUBJECT_PREFIX)) return s;
+  return s ? `${ADVERTISING_SUBJECT_PREFIX} ${s}` : ADVERTISING_SUBJECT_PREFIX;
+}
+
+/**
+ * Sender name, contact address, and reply-to-refuse. Applied by sendTemplate
+ * whenever advertising is true, so a caller cannot skip it.
+ * Name stays the public brand until Antony names the legal operator (D25).
+ */
+export function advertisingIdentityHtml({ senderName, contactAddress }) {
+  const name = senderName || "Humanity-AI";
+  const contact = contactAddress || "hrc@humanity-ai.quest";
+  return `<p data-s30a="1" style="margin-top:16px;font-size:12px;line-height:1.5;color:#666">Sender: ${esc(name)}. Contact: ${esc(contact)}. To refuse, reply to this email and write unsubscribe.<br><span dir="rtl" lang="he">שולח: ${esc(name)}. ליצירת קשר: ${esc(contact)}. לסירוב, השיבו למייל זה וכתבו unsubscribe.</span></p>`;
+}
+
+/**
+ * Drop consent_log rows withdrawn more than 3 years ago. Rows with no
+ * withdrawn_at stay — they are still live consent. There is no scheduler;
+ * call this from withdrawal and admin-deletion paths, and from any future job.
+ */
+export async function purgeExpiredConsentLog(env) {
+  if (!env?.DB) return { purged: 0 };
+  await ensureConsentSchema(env);
+  const result = await env.DB.prepare(
+    `DELETE FROM consent_log
+     WHERE withdrawn_at IS NOT NULL
+       AND withdrawn_at <= datetime('now', '-3 years')`
+  ).run();
+  return { purged: result?.meta?.changes ?? null };
+}
+
 /**
  * Footer for every outbound message.
  * Pass advertising=true for newsletter, donation, or other promo mail

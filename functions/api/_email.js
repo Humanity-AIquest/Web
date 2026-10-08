@@ -13,7 +13,13 @@
  *
  * Admin-editable templates live in the email_templates table (D1), so personalised
  * template copy can be managed without code changes.
+ *
+ * Every send gets an unsubscribe link (see complianceFooter in _consent.js).
+ * Newsletter, donation, and other promo sends must pass advertising: true so the
+ * footer says the message is advertising. There is no bulk newsletter sender yet;
+ * do not add one without that flag.
  */
+import { complianceFooter, publicOrigin, unsubscribeToken } from "./_consent.js";
 
 export async function ensureEmailSchema(env) {
   if (!env?.DB) return;
@@ -70,12 +76,22 @@ export async function sendEmail(env, { to, toName, subject, html }) {
 }
 
 // Send a managed template by key with {{variable}} substitution.
-export async function sendTemplate(env, key, { to, toName, vars }) {
+// advertising: true marks donation/promo/newsletter mail (Communications Law s.30A).
+export async function sendTemplate(env, key, { to, toName, vars, advertising = false }) {
   try {
     await ensureEmailSchema(env);
     const t = await env.DB.prepare("SELECT subject, html FROM email_templates WHERE key = ?").bind(key).first();
     if (!t) return { skipped: true, reason: "template missing" };
-    return await sendEmail(env, { to, toName, subject: fill(t.subject, vars), html: fill(t.html, vars) });
+    let html = fill(t.html, vars);
+    if (!html.includes("/api/unsubscribe")) {
+      let unsubscribeUrl = "";
+      try {
+        const token = await unsubscribeToken(env, to);
+        if (token) unsubscribeUrl = `${publicOrigin(env)}/api/unsubscribe?token=${encodeURIComponent(token)}`;
+      } catch (e) { /* link falls back to the hrc@ address inside the footer */ }
+      html += complianceFooter({ unsubscribeUrl, advertising });
+    }
+    return await sendEmail(env, { to, toName, subject: fill(t.subject, vars), html });
   } catch (e) {
     return { ok: false, error: e.message };
   }

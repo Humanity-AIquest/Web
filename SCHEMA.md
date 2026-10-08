@@ -58,6 +58,10 @@ CREATE UNIQUE INDEX idx_users_email_lower ON users(LOWER(email));
 Back-filled on older databases via `ALTER TABLE`: `ban_reason`, `phone`, `country`, `newsletter`,
 `created_at`, `updated_at` (also re-asserted in `admin/members.js`).
 
+`POST /api/auth/signup` stores `newsletter` as `1` only when the JSON value is boolean `true`.
+A Zoho CRM lead (`Lead_Source: "Account signup"`) is created only when `contactMe` or
+`crm_opt_in` is boolean `true`. Opening an account does not create a lead.
+
 ### `sessions`
 Login sessions, 30-day expiry. 64-hex token in the `hrc_session` cookie or `Authorization: Bearer`.
 
@@ -133,6 +137,13 @@ CREATE INDEX idx_inter_ref ON interactions(ref_type, ref_id);
 CREATE INDEX idx_inter_kind ON interactions(kind);
 CREATE INDEX idx_inter_created ON interactions(created_at);
 ```
+
+A petition signature writes `kind = 'signature'`, `participant` = the signer email, and a
+summary like `"<name> signed the petition"`. `purgeSignatureInteractions(env, email)` in
+`_conversations.js` deletes those rows. Admin `POST /api/admin/signatures` `{ action: "delete", id }`
+calls it after removing the signature. That is the deletion path for a withdrawal sent to
+`hrc@humanity-ai.quest` — there is no public self-serve delete. Live rows only: a D1 backup,
+if enabled, can still hold the row until the next backup cycle ages out.
 
 ### `conversation_notes`
 Admin notes attached to a conversation.
@@ -211,6 +222,12 @@ ALTER TABLE signatures ADD COLUMN newsletter INTEGER DEFAULT 0;
 the JSON value is boolean `true` (otherwise `0`; column default remains `0`). A Zoho CRM lead
 (`Lead_Source: "Petition signature"`) is created only when `contactMe` or `crm_opt_in` is
 boolean `true`. A missing or false flag creates no lead.
+
+Signer names are not on any public page. `GET /api/count` returns a total and a count of
+distinct countries, not names. Names are visible in the admin console only.
+
+When `newsletter` or `contactMe` is boolean `true`, a row is appended to `consent_log` with
+the canonical checkbox text from `_consent.js` (the same strings the UI shows).
 
 ### `quests`, `quest_pitches`, `quest_questions`
 
@@ -348,7 +365,32 @@ CREATE TABLE IF NOT EXISTS email_templates (
 );
 ```
 Rendered with `{{variable}}` substitution and sent via ZeptoMail (`_email.js`). No-ops until
-`ZEPTOMAIL_TOKEN` / `EMAIL_FROM` are set.
+`ZEPTOMAIL_TOKEN` / `EMAIL_FROM` are set. Every send appends an unsubscribe link
+(`/api/unsubscribe?token=`). Pass `advertising: true` for newsletter, donation, or other
+promo mail so the footer states that the message is advertising. Welcome and signature
+thank-you stay transactional (`advertising` false). There is no bulk newsletter sender yet.
+
+```sql
+CREATE TABLE IF NOT EXISTS consent_log (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  purpose TEXT NOT NULL,                    -- 'newsletter' | 'contact'
+  source TEXT NOT NULL,                     -- 'petition' | 'signup' | 'unsubscribe'
+  consent_text TEXT NOT NULL,               -- exact checkbox text, or the unsubscribe label
+  consented_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  withdrawn_at DATETIME
+);
+CREATE TABLE IF NOT EXISTS newsletter_tokens (
+  email TEXT PRIMARY KEY,
+  token TEXT NOT NULL UNIQUE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+`GET` or `POST /api/unsubscribe?token=` sets `newsletter = 0` on `signatures` and `users`
+for that email and appends a withdrawal row to `consent_log`. It does not delete the signature.
+Set `PUBLIC_ORIGIN` (or `SITE_URL`) on Staging so the link hits the staging host. The fallback
+origin is `https://humanity-ai.quest`.
 
 ---
 
@@ -473,7 +515,7 @@ shared modules, not routes.
 |---|---|
 | Auth | `auth/signup`, `auth/login`, `auth/logout`, `auth/me` |
 | Agent | `chat` |
-| Public content | `content`, `count`, `ideas`, `sign` |
+| Public content | `content`, `count`, `ideas`, `sign`, `unsubscribe` |
 | Movement | `quests`, `quests/[id]`, `quests/[id]/pitch`, `quests/[id]/questions`, `events`, `events/[id]/rsvp`, `surveys`, `surveys/[id]`, `surveys/[id]/vote`, `surveys/[id]/results`, `surveys/[id]/statements` |
 | Admin | `admin/users`, `admin/members`, `admin/segments`, `admin/conversations`, `admin/comments`, `admin/ideas`, `admin/notes`, `admin/surveys`, `admin/signatures`, `admin/quests`, `admin/events`, `admin/content`, `admin/audit` |
 

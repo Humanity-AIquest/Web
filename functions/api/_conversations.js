@@ -90,6 +90,24 @@ export async function ensureConversationSchema(env) {
 }
 
 /**
+ * Remove petition-signature rows from the interactions index for one email.
+ * Called when a signature is deleted (admin delete today; that is how a
+ * withdrawal email to hrc@ is carried out). Live rows only: if Cloudflare D1
+ * backups are enabled, a copy can remain until the next backup cycle ages out.
+ * consent_log is kept — it is the record of what was agreed, not the signature.
+ */
+export async function purgeSignatureInteractions(env, email) {
+  if (!env?.DB || !email) return { purged: 0 };
+  await ensureConversationSchema(env);
+  const clean = String(email).trim().toLowerCase();
+  const result = await env.DB.prepare(
+    `DELETE FROM interactions
+     WHERE kind = 'signature' AND ref_type = 'petition' AND lower(participant) = ?`
+  ).bind(clean).run();
+  return { purged: result?.meta?.changes ?? null };
+}
+
+/**
  * Append one row to the interactions index. Never throws — interactions is a
  * convenience index, not source of truth, so a failure here must not break the
  * primary write (the chat reply, the vote, the signature).

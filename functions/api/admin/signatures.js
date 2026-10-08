@@ -7,6 +7,7 @@
  */
 import { json, jsonError, optionsResponse, getUser, requireACL, newId, CORS_HEADERS } from "../_shared.js";
 import { ensureMovementSchema } from "../_movement.js";
+import { purgeSignatureInteractions } from "../_conversations.js";
 
 const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
@@ -70,7 +71,13 @@ export async function onRequestPost(context) {
     const { action, id } = await request.json();
     if (action !== "delete" || !id) return jsonError("Invalid action. Use: delete { id }.");
 
+    const row = await env.DB.prepare("SELECT email FROM signatures WHERE id = ?").bind(id).first();
+    if (!row) return jsonError("Signature not found.");
+
     await env.DB.prepare("DELETE FROM signatures WHERE id = ?").bind(id).run();
+    // Drop "<name> signed the petition" from the interactions index. D1 backups,
+    // if enabled, can still hold that row until the next backup cycle.
+    try { await purgeSignatureInteractions(env, row.email); } catch (e) { /* index purge is best-effort */ }
     try {
       await env.DB.prepare(
         "INSERT INTO admin_actions (id, admin_id, action_type, target_type, target_id, details) VALUES (?, ?, 'delete', 'signature', ?, 'Deleted signature')"

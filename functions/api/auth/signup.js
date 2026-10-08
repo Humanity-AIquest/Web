@@ -1,11 +1,15 @@
 /**
  * POST /api/auth/signup
  * Register a new user account
- * Body: { email, password, display_name, phone, country, newsletter }
+ * Body: { email, password, display_name, phone, country, newsletter, contactMe }
+ * `crm_opt_in` is an alias of `contactMe`.
+ * A Zoho CRM lead is created only when contactMe or crm_opt_in is boolean true.
+ * Opening an account is not consent to sales contact.
  */
 import { json, jsonError, optionsResponse, hashPassword, generateToken, newId, ensureAuthSchema } from "../_shared.js";
 import { sendTemplate } from "../_email.js";
 import { createLead } from "../_zoho.js";
+import { CONTACT_TEXT, SIGNUP_NEWSLETTER_TEXT, logConsent } from "../_consent.js";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -13,7 +17,9 @@ export async function onRequestPost(context) {
   try {
     await ensureAuthSchema(env);
     const body = await request.json();
-    const { email, password, display_name, phone, country, newsletter } = body;
+    const { email, password, display_name, phone, country, newsletter, contactMe, crm_opt_in } = body;
+    const newsletterOptIn = newsletter === true;
+    const contactOptIn = contactMe === true || crm_opt_in === true;
 
     // Validate
     if (!email || !password) {
@@ -43,7 +49,7 @@ export async function onRequestPost(context) {
 
     await env.DB.prepare(
       "INSERT INTO users (id, email, password_hash, display_name, role, acl_level, status, phone, country, newsletter) VALUES (?, ?, ?, ?, 'user', 0, 'active', ?, ?, ?)"
-    ).bind(userId, cleanEmail, passHash, name, (phone || "").trim() || null, (country || "").trim() || null, newsletter ? 1 : 0).run();
+    ).bind(userId, cleanEmail, passHash, name, (phone || "").trim() || null, (country || "").trim() || null, newsletterOptIn ? 1 : 0).run();
 
     // Create session
     const token = generateToken();
@@ -53,11 +59,20 @@ export async function onRequestPost(context) {
       "INSERT INTO sessions (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)"
     ).bind(newId(), userId, token, expiresAt).run();
 
-    // Best-effort: welcome email + CRM lead (both no-op until env secrets are set).
+    // Best-effort welcome email (no-op until env secrets are set). Not a sales lead.
     try { await sendTemplate(env, "welcome", { to: cleanEmail, toName: name, vars: { name } }); } catch (e) { /* non-critical */ }
-    try {
-      await createLead(env, { firstName: name, lastName: name, email: cleanEmail, phone, country, source: "Account signup" });
-    } catch (e) { /* non-critical */ }
+    // CRM lead only when the person ticked the separate contact box.
+    if (contactOptIn) {
+      try {
+        await createLead(env, { firstName: name, lastName: name, email: cleanEmail, phone, country, source: "Account signup" });
+      } catch (e) { /* non-critical */ }
+    }
+    if (newsletterOptIn) {
+      try { await logConsent(env, { email: cleanEmail, purpose: "newsletter", source: "signup", consentText: SIGNUP_NEWSLETTER_TEXT }); } catch (e) { /* non-critical */ }
+    }
+    if (contactOptIn) {
+      try { await logConsent(env, { email: cleanEmail, purpose: "contact", source: "signup", consentText: CONTACT_TEXT }); } catch (e) { /* non-critical */ }
+    }
 
     return json({
       success: true,

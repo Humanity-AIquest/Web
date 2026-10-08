@@ -98,6 +98,11 @@ function clearAuth() {
   localStorage.removeItem(AUTH_KEY);
 }
 
+// Consent checkbox labels. Must match functions/api/_consent.js exactly — the server logs those strings.
+const SIGNUP_NEWSLETTER_LABEL = 'Keep me updated by email about the movement';
+const PETITION_NEWSLETTER_LABEL = 'Email me updates about the movement';
+const CONTACT_LABEL = 'Contact me about volunteering, events and the Humanity-AI project';
+
 async function apiCall(path, method = 'GET', body = null, token = null) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -116,11 +121,18 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('');
   const [newsletter, setNewsletter] = useState(false);
+  const [contactMe, setContactMe] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (open) setMode(defaultMode); }, [open, defaultMode]);
+  useEffect(() => {
+    if (!open) return;
+    setMode(defaultMode);
+    setNewsletter(false);
+    setContactMe(false);
+    setAgreed(false);
+  }, [open, defaultMode]);
 
   if (!open) return null;
 
@@ -133,7 +145,7 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
       const body = mode === 'login'
         ? { email, password }
-        : { email, password, display_name: name || email.split('@')[0], phone, country, newsletter };
+        : { email, password, display_name: name || email.split('@')[0], phone, country, newsletter: newsletter === true, contactMe: contactMe === true };
       const data = await apiCall(endpoint, 'POST', body);
       if (data.success) {
         storeAuth({ user: data.user, token: data.token });
@@ -154,7 +166,7 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
       style={{ background: 'rgba(7, 16, 31, 0.8)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl p-8 grain animate-fade-up"
-        style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)' }}
+        style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', maxHeight: '90vh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}>
 
         <div className="flex items-center justify-between mb-6">
@@ -202,10 +214,20 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
 
           {mode === 'signup' && (
             <>
-              <label className="flex items-center gap-2 text-sm text-bone-dim cursor-pointer">
-                <input type="checkbox" checked={newsletter} onChange={e => setNewsletter(e.target.checked)} />
-                Keep me updated by email about the movement
+              <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
+                <input type="checkbox" checked={newsletter} onChange={e => setNewsletter(e.target.checked)} className="mt-1" />
+                <span>{SIGNUP_NEWSLETTER_LABEL}</span>
               </label>
+              <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
+                <input type="checkbox" checked={contactMe} onChange={e => setContactMe(e.target.checked)} className="mt-1" />
+                <span>{CONTACT_LABEL}</span>
+              </label>
+              <p className="text-xs leading-relaxed text-dust">
+                Giving your details is voluntary. There is no legal duty to provide them. Opening an account is not a request to be contacted. We use Zoho (ZeptoMail for the welcome email and, only if you ask to be contacted, Zoho CRM), which may store data outside Israel.
+              </p>
+              <p className="text-xs leading-relaxed text-dust" lang="he" dir="rtl">
+                מסירת הפרטים היא מרצון. אין חובה חוקית למסור אותם. פתיחת חשבון אינה בקשה שייצרו איתך קשר. אנו משתמשים ב-Zoho (ZeptoMail לדוא״ל הפתיחה, ו-Zoho CRM רק אם ביקשת שייצרו איתך קשר), והם עשויים לשמור נתונים מחוץ לישראל.
+              </p>
               <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
                 <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="mt-1" />
                 <span>I agree to the <a href="/?page=terms" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">Terms &amp; Conditions</a>.</span>
@@ -1733,14 +1755,18 @@ const SurveyRunner = ({ surveyId, embed }) => {
                   className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
                 <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
                   <input type="checkbox" checked={sign.newsletter} onChange={e => setSign(s => ({ ...s, newsletter: e.target.checked }))} className="mt-1" />
-                  <span>Email me updates about the movement</span>
+                  <span>{PETITION_NEWSLETTER_LABEL}</span>
                 </label>
                 <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
                   <input type="checkbox" checked={sign.contactMe} onChange={e => setSign(s => ({ ...s, contactMe: e.target.checked }))} className="mt-1" />
-                  <span>Contact me about Humanity-AI</span>
+                  <span>{CONTACT_LABEL}</span>
                 </label>
-                <p className="text-xs leading-relaxed text-dust">
-                  Humanity-AI, the operator of this site, records your name and email — and your country, if you give it — to count this signature. The record stays in the site database until you ask us to delete it. A one-time thank-you may be sent through Zoho ZeptoMail. Email updates, and a request to be contacted, are kept only if you tick those boxes. If you ask to be contacted, your name, email, and country are also sent to Zoho CRM, which stores data outside Israel. To withdraw your signature or ask for deletion, write to <a href="mailto:hrc@humanity-ai.quest" className="text-aurora hover:underline">hrc@humanity-ai.quest</a>. Other contacts are on the <a href="/?page=about" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">About</a> page. See also the <a href="/?page=terms" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">Terms</a>.
+                {/* Operator name is the public brand. Antony must confirm the legal entity or responsible person (D25). */}
+                <p className="text-xs leading-relaxed text-dust" lang="en">
+                  Giving your details is voluntary. There is no legal duty to provide them. Humanity-AI, the operator of this site, records your name and email — and your country, if you give it — to count this signature. Your name is not published. The public site may show how many people signed, not their names. The record stays in the site database until 12 months after the petition closes, or sooner if you ask. We use Zoho (ZeptoMail for the thank-you email and, only if you ask to be contacted, Zoho CRM), which may store data outside Israel. Email updates, and a request to be contacted, happen only if you tick those boxes. To withdraw your signature or ask for deletion, write to <a href="mailto:hrc@humanity-ai.quest" className="text-aurora hover:underline">hrc@humanity-ai.quest</a>. Other contacts are on the <a href="/?page=about" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">About</a> page. See also the <a href="/?page=terms" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">Terms</a>.
+                </p>
+                <p className="text-xs leading-relaxed text-dust" lang="he" dir="rtl">
+                  מסירת הפרטים היא מרצון. אין חובה חוקית למסור אותם. Humanity-AI, מפעיל האתר, שומר את שמך ואת כתובת הדוא״ל — ואת המדינה, אם ציינת — כדי לספור את החתימה. שמך אינו מתפרסם. האתר הציבורי עשוי להציג כמה אנשים חתמו, לא את שמותיהם. הרשומה נשמרת במסד הנתונים של האתר עד 12 חודשים לאחר סגירת העצומה, או מוקדם יותר אם תבקש. אנו משתמשים ב-Zoho (ZeptoMail לדוא״ל התודה, ו-Zoho CRM רק אם ביקשת שייצרו איתך קשר), והם עשויים לשמור נתונים מחוץ לישראל. עדכוני דוא״ל ובקשה ליצירת קשר נשמרים רק אם סימנת את התיבות. למשיכת החתימה או לבקשת מחיקה, כתוב אל <a href="mailto:hrc@humanity-ai.quest" className="text-aurora hover:underline">hrc@humanity-ai.quest</a>. אנשי קשר נוספים ב<a href="/?page=about" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">עמוד אודות</a>. ראה גם את <a href="/?page=terms" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">התנאים</a>.
                 </p>
                 {signMsg && <p className="text-sm" style={{ color: 'var(--terra)' }}>{signMsg}</p>}
                 <button onClick={submitSign} className="btn-aurora w-full justify-center">Add my name <ArrowRight size={16} /></button>

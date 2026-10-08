@@ -12,6 +12,7 @@ import { ensureMovementSchema } from "./_movement.js";
 import { ensureConversationSchema, logInteraction } from "./_conversations.js";
 import { sendTemplate } from "./_email.js";
 import { createLead } from "./_zoho.js";
+import { CONTACT_TEXT, PETITION_NEWSLETTER_TEXT, logConsent } from "./_consent.js";
 
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || "");
 
@@ -53,6 +54,12 @@ export async function onRequestPost(context) {
       // Sales lead only when the signer ticked a separate contact box. A signature is not that consent.
       if (contactOptIn) {
         try { await createLead(env, { firstName: name.trim(), lastName: name.trim(), email: cleanEmail, country, source: "Petition signature" }); } catch (e) { /* non-critical */ }
+      }
+      if (newsletterOptIn) {
+        try { await logConsent(env, { email: cleanEmail, purpose: "newsletter", source: "petition", consentText: PETITION_NEWSLETTER_TEXT }); } catch (e) { /* non-critical */ }
+      }
+      if (contactOptIn) {
+        try { await logConsent(env, { email: cleanEmail, purpose: "contact", source: "petition", consentText: CONTACT_TEXT }); } catch (e) { /* non-critical */ }
       }
     }
 

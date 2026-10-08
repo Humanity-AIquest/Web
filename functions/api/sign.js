@@ -1,6 +1,10 @@
 /**
  * /api/sign
- * POST — Add a signature to the Founding Memo. Body: { name, email, side, country }
+ * POST — Add a signature to the Founding Memo.
+ * Body: { name, email, side, country, newsletter, contactMe }
+ * `crm_opt_in` is accepted as an alias of `contactMe`.
+ * newsletter and contact opt-in are stored / forwarded only when the JSON value is boolean true.
+ * A Zoho CRM lead is created only for that explicit contact opt-in — never from the signature alone.
  * Returns { success, number, count } where number = this signatory's position.
  */
 import { json, jsonError, optionsResponse, newId } from "./_shared.js";
@@ -16,7 +20,10 @@ export async function onRequestPost(context) {
   try {
     await ensureMovementSchema(env);
     try { await env.DB.prepare("ALTER TABLE signatures ADD COLUMN newsletter INTEGER DEFAULT 0").run(); } catch (e) { /* exists */ }
-    const { name, email, side, country, newsletter } = await request.json();
+    const { name, email, side, country, newsletter, contactMe, crm_opt_in } = await request.json();
+    // Missing, false, and any non-boolean are not consent.
+    const newsletterOptIn = newsletter === true;
+    const contactOptIn = contactMe === true || crm_opt_in === true;
 
     if (!name || name.trim().length < 2) return jsonError("Please add your name.");
     if (!validEmail(email)) return jsonError("Please add a valid email.");
@@ -32,7 +39,7 @@ export async function onRequestPost(context) {
       const cleanEmail = email.trim().toLowerCase();
       await env.DB.prepare(
         "INSERT INTO signatures (id, name, email, side, country, newsletter) VALUES (?,?,?,?,?,?)"
-      ).bind(newId(), name.trim(), cleanEmail, cleanSide, country || null, newsletter ? 1 : 0).run();
+      ).bind(newId(), name.trim(), cleanEmail, cleanSide, country || null, newsletterOptIn ? 1 : 0).run();
       try {
         await ensureConversationSchema(env);
         await logInteraction(env, {
@@ -41,9 +48,12 @@ export async function onRequestPost(context) {
           summary: `${name.trim()} signed the petition (${cleanSide})`,
         });
       } catch (e) { /* index write is best-effort */ }
-      // Best-effort thank-you email + CRM lead (no-op until env secrets are set).
+      // Best-effort thank-you email (no-op until env secrets are set).
       try { await sendTemplate(env, "signature_thanks", { to: cleanEmail, toName: name.trim(), vars: { name: name.trim() } }); } catch (e) { /* non-critical */ }
-      try { await createLead(env, { firstName: name.trim(), lastName: name.trim(), email: cleanEmail, country, source: "Petition signature" }); } catch (e) { /* non-critical */ }
+      // Sales lead only when the signer ticked a separate contact box. A signature is not that consent.
+      if (contactOptIn) {
+        try { await createLead(env, { firstName: name.trim(), lastName: name.trim(), email: cleanEmail, country, source: "Petition signature" }); } catch (e) { /* non-critical */ }
+      }
     }
 
     const count = (await env.DB.prepare("SELECT COUNT(*) AS n FROM signatures").first())?.n || 0;

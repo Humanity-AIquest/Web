@@ -206,6 +206,12 @@ CREATE TABLE IF NOT EXISTS signatures (
 ALTER TABLE signatures ADD COLUMN newsletter INTEGER DEFAULT 0;
 ```
 
+`POST /api/sign` body: `{ name, email, side, country, newsletter, contactMe }`.
+`crm_opt_in` is accepted as an alias of `contactMe`. `newsletter` is stored as `1` only when
+the JSON value is boolean `true` (otherwise `0`; column default remains `0`). A Zoho CRM lead
+(`Lead_Source: "Petition signature"`) is created only when `contactMe` or `crm_opt_in` is
+boolean `true`. A missing or false flag creates no lead.
+
 ### `quests`, `quest_pitches`, `quest_questions`
 
 ```sql

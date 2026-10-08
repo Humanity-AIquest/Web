@@ -115,7 +115,7 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('');
-  const [newsletter, setNewsletter] = useState(true);
+  const [newsletter, setNewsletter] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1647,11 +1647,11 @@ const SurveyRunner = ({ surveyId, embed }) => {
   const [idx, setIdx] = useState(0);
   const [results, setResults] = useState(null);
   const [copied, setCopied] = useState('');
-  const [sign, setSign] = useState({ name: '', email: '', country: '' });
+  const [sign, setSign] = useState({ name: '', email: '', country: '', newsletter: false, contactMe: false });
   const [signMsg, setSignMsg] = useState('');
 
   useEffect(() => {
-    setSurvey(null); setIdx(0); setResults(null); setSign({ name: '', email: '', country: '' });
+    setSurvey(null); setIdx(0); setResults(null); setSign({ name: '', email: '', country: '', newsletter: false, contactMe: false });
     fetch(`/api/surveys/${surveyId}`).then(r => r.json()).then(d => setSurvey(d.survey || null)).catch(() => {});
   }, [surveyId]);
 
@@ -1670,7 +1670,14 @@ const SurveyRunner = ({ surveyId, embed }) => {
   const vote = async (value) => { if (cur) { try { await postJSON(`/api/surveys/${surveyId}/vote`, { statementId: cur.id, value }); } catch {} } next(); };
   const submitSign = async () => {
     if (sign.name.trim().length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sign.email)) { setSignMsg('Add your name and a valid email.'); return; }
-    try { await postJSON('/api/sign', { name: sign.name, email: sign.email, country: sign.country, side: 'human' }); setSignMsg(''); next(); }
+    try {
+      await postJSON('/api/sign', {
+        name: sign.name, email: sign.email, country: sign.country, side: 'human',
+        newsletter: sign.newsletter === true,
+        contactMe: sign.contactMe === true,
+      });
+      setSignMsg(''); next();
+    }
     catch { setSignMsg('Something went wrong — please try again.'); }
   };
 
@@ -1724,6 +1731,17 @@ const SurveyRunner = ({ surveyId, embed }) => {
                   className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
                 <input value={sign.country} onChange={e => setSign(s => ({ ...s, country: e.target.value }))} placeholder="Country (optional)"
                   className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+                <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
+                  <input type="checkbox" checked={sign.newsletter} onChange={e => setSign(s => ({ ...s, newsletter: e.target.checked }))} className="mt-1" />
+                  <span>Email me updates about the movement</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
+                  <input type="checkbox" checked={sign.contactMe} onChange={e => setSign(s => ({ ...s, contactMe: e.target.checked }))} className="mt-1" />
+                  <span>Contact me about Humanity-AI</span>
+                </label>
+                <p className="text-xs leading-relaxed text-dust">
+                  Humanity-AI, the operator of this site, records your name and email — and your country, if you give it — to count this signature. The record stays in the site database until you ask us to delete it. A one-time thank-you may be sent through Zoho ZeptoMail. Email updates, and a request to be contacted, are kept only if you tick those boxes. If you ask to be contacted, your name, email, and country are also sent to Zoho CRM, which stores data outside Israel. To withdraw your signature or ask for deletion, write to <a href="mailto:hrc@humanity-ai.quest" className="text-aurora hover:underline">hrc@humanity-ai.quest</a>. Other contacts are on the <a href="/?page=about" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">About</a> page. See also the <a href="/?page=terms" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">Terms</a>.
+                </p>
                 {signMsg && <p className="text-sm" style={{ color: 'var(--terra)' }}>{signMsg}</p>}
                 <button onClick={submitSign} className="btn-aurora w-full justify-center">Add my name <ArrowRight size={16} /></button>
               </div>

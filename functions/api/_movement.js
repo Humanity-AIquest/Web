@@ -366,4 +366,15 @@ async function seedIfEmpty(env) {
       ).bind(id, title, when_text, type, blurb).run();
     }
   }
+
+  // First real event of the crowdfunding release (idempotent; the frontend features it by id).
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO events (id, title, when_text, type, blurb) VALUES (?,?,?,?,?)`
+  ).bind(
+    "flash-mob-2026-10-20",
+    "Flash Mob Lunch-time Tuesday",
+    "Tuesday 20 October 2026 · lunchtime",
+    "Flash mob",
+    "Step away from your screen at lunchtime and stand together for humanity’s rights in the age of AI. Register and we will send you the time, the meeting point and what to bring."
+  ).run();
 }

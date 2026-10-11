@@ -19,6 +19,14 @@ export async function onRequestPost(context) {
     if (!name || name.trim().length < 2) return jsonError("Please add your name.");
     if (!validEmail(email)) return jsonError("Please add a valid email.");
 
+    // One registration per email per event: a repeat submit succeeds without a duplicate row.
+    const existing = await env.DB.prepare(
+      "SELECT id FROM event_rsvps WHERE event_id = ? AND email = ?"
+    ).bind(params.id, email.trim().toLowerCase()).first();
+    if (existing) {
+      return json({ success: true, already: true, message: "You're already on the list." });
+    }
+
     await env.DB.prepare(
       `INSERT INTO event_rsvps (id, event_id, name, email) VALUES (?,?,?,?)`
     ).bind(newId(), params.id, name.trim(), email.trim().toLowerCase()).run();

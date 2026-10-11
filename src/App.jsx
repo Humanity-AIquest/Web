@@ -4,7 +4,8 @@ import {
   X, Send, ArrowRight, Globe, Shield, Feather, Layers,
   Eye, Lock, Heart, Compass, Menu, Loader2,
   MessageCircle, Trees, Star, Mic, MicOff, Volume2, VolumeX, Square,
-  LogIn, UserPlus, User, LogOut, Lightbulb, CheckCircle, Settings, PhoneOff
+  LogIn, UserPlus, User, LogOut, Lightbulb, CheckCircle, Settings, PhoneOff,
+  Calendar, Headphones, FileText, Trophy, Share2
 } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
 import { useTTS, ListenButton, getLS, setLS, TTS_SPEEDS } from './useTTS';
@@ -432,13 +433,23 @@ const PAGES = [
 // Pre-release landing: only the live features are reachable; every other page shows "coming soon".
 // Set to false to restore the full site from this same codebase.
 const LANDING_MODE = true;
-const LANDING_PAGES = new Set(['home', 'petition', 'surveys', 'back', 'account', 'admin', 'terms']);
+const LANDING_PAGES = new Set(['home', 'petition', 'surveys', 'back', 'account', 'admin', 'terms',
+  'events', 'event-thanks', 'quest', 'media', 'courses', 'constitution']);
 const LANDING_LINKS = [
-  { id: 'petition', name: 'Sign Petition' },
-  { id: 'surveys', name: 'Surveys' },
   { id: 'back', name: 'Back the Project' },
+  { id: 'petition', name: 'Sign Petition' },
+  { id: 'events', name: 'Events' },
+  { id: 'surveys', name: 'Surveys' },
   { id: 'terms', name: 'Terms' },
 ];
+// The first real event of this release. Also seeded in functions/api/_movement.js (same id).
+const FLASH_MOB = {
+  id: 'flash-mob-2026-10-20',
+  title: 'Flash Mob Lunch-time Tuesday',
+  when_text: 'Tuesday 20 October 2026 · lunchtime',
+  type: 'Flash mob',
+  blurb: 'Step away from your screen at lunchtime and stand together for humanity’s rights in the age of AI. Register and we will send you the time, the meeting point and what to bring.',
+};
 
 // ============ GLOBAL STYLES ============
 const GlobalStyles = () => (
@@ -793,6 +804,16 @@ const NAV_GROUPS = {
   ],
 };
 
+const LANDING_DEV_ITEMS = [
+  { id: 'events', name: 'Events', desc: 'Flash Mob · Tuesday 20 October' },
+  { id: 'quest', name: 'Innovation Quests', desc: 'Coming in next launch' },
+  { id: 'media', name: 'Podcasts & writing', desc: 'Coming in next launch' },
+  { id: 'surveys', name: 'Surveys', desc: 'Vote on what the union stands for' },
+  { id: 'courses', name: 'Courses', desc: 'Opens after our first funding' },
+  { id: 'constitution', name: 'Define the HRC', desc: 'Read the draft, give feedback' },
+];
+const devItems = () => (LANDING_MODE ? LANDING_DEV_ITEMS : NAV_GROUPS.developers);
+
 const NavDropdown = ({ label, items, page, setPage, openMenu, setOpenMenu }) => {
   const isOpen = openMenu === label;
   const activeHere = items.some(it => it.id === page);
@@ -853,19 +874,12 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
               style={{ color: page === 'petition' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
               Sign Petition
             </button>
-            {LANDING_MODE && (
-              <button onClick={() => go('surveys')}
-                className="px-3 py-1.5 text-sm tracking-wide transition-colors"
-                style={{ color: page === 'surveys' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
-                Surveys
-              </button>
-            )}
             <button onClick={() => go('back')}
               className="px-3 py-1.5 text-sm tracking-wide transition-colors"
               style={{ color: page === 'back' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
               Back the Project
             </button>
-            {!LANDING_MODE && <NavDropdown label="Developers" items={NAV_GROUPS.developers} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />}
+            <NavDropdown label="Developers" items={devItems()} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
             {!LANDING_MODE && <NavDropdown label="Constitution" items={NAV_GROUPS.constitution} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />}
           </div>
 
@@ -915,8 +929,7 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
             <div className="px-6 py-4 space-y-1">
               <button onClick={() => go('petition')} className="btn-aurora w-full justify-center mb-2">Sign Petition <ArrowRight size={14} /></button>
               <button onClick={() => go('back')} className="btn-secondary w-full justify-center mb-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>Back the Project</button>
-              {LANDING_MODE && <button onClick={() => go('surveys')} className="btn-secondary w-full justify-center mb-2">Surveys</button>}
-              {(LANDING_MODE ? [] : [['Developers', 'developers'], ['Constitution', 'constitution']]).map(([label, key]) => (
+              {(LANDING_MODE ? [['Developers', 'developers']] : [['Developers', 'developers'], ['Constitution', 'constitution']]).map(([label, key]) => (
                 <div key={key}>
                   <button onClick={() => setMobileGroup(mobileGroup === key ? null : key)}
                     className="w-full flex items-center justify-between px-2 py-3 text-sm font-display"
@@ -926,7 +939,7 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
                   </button>
                   {mobileGroup === key && (
                     <div className="pl-3 pb-2">
-                      {NAV_GROUPS[key].map(it => (
+                      {(key === 'developers' ? devItems() : NAV_GROUPS[key]).map(it => (
                         <button key={it.name} onClick={() => go(it.id)}
                           className="w-full text-left px-3 py-2.5 text-sm rounded-lg hover:bg-cosmos"
                           style={{ color: page === it.id ? 'var(--aurora)' : 'var(--bone-dim)' }}>
@@ -1892,11 +1905,148 @@ const EventCard = ({ ev }) => {
   );
 };
 
-const EventsPage = () => {
+// "Coming in next launch" pill used on preview content in landing mode.
+const NextLaunch = () => (
+  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[0.65rem] uppercase tracking-[0.18em] whitespace-nowrap"
+    style={{ border: '1px solid var(--gold)', color: 'var(--gold)' }}>
+    <E p="landing" k="next_launch" as="span">Coming in next launch</E>
+  </span>
+);
+
+const validEmailAddr = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || '');
+
+// Featured, real event with registration.
+const EventRegister = ({ ev, auth, onRegistered }) => {
+  const [name, setName] = useState(auth?.user?.display_name || '');
+  const [email, setEmail] = useState(auth?.user?.email || '');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (auth?.user) { setName(n => n || auth.user.display_name || ''); setEmail(m => m || auth.user.email || ''); }
+  }, [auth?.user?.email]);
+  const submit = async (e) => {
+    e.preventDefault();
+    if (name.trim().length < 2) return setError('Please add your name.');
+    if (!validEmailAddr(email)) return setError('Please add a valid email address.');
+    setError(''); setLoading(true);
+    try {
+      const d = await postJSON('/api/events/' + ev.id + '/rsvp', { name: name.trim(), email: email.trim() });
+      if (d.error) setError(d.error);
+      else onRegistered({ event: ev, name: name.trim(), email: email.trim().toLowerCase(), already: !!d.already });
+    } catch (_) {
+      setError('We could not reach the server. Check your connection and try again.');
+    } finally { setLoading(false); }
+  };
+  const field = { background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' };
+  return (
+    <div className="card-glass rounded-2xl p-6 md:p-8" style={{ borderLeft: '2px solid var(--aurora)' }}>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-xs uppercase tracking-[0.2em] text-aurora">First event · {ev.type}</span>
+        <span className="inline-flex items-center gap-1.5 text-xs text-bone-dim"><Calendar size={13} /> {ev.when_text}</span>
+      </div>
+      <h2 className="font-display text-3xl md:text-4xl mt-3 leading-tight">{ev.title}</h2>
+      <p className="text-bone-dim mt-3 leading-relaxed max-w-2xl">{ev.blurb}</p>
+      <form onSubmit={submit} className="mt-6 grid sm:grid-cols-[1fr_1fr_auto] gap-2" noValidate>
+        <label className="sr-only" htmlFor="ev-name">Your name</label>
+        <input id="ev-name" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" autoComplete="name"
+          className="px-4 py-3 rounded-xl outline-none" style={field} />
+        <label className="sr-only" htmlFor="ev-email">Email address</label>
+        <input id="ev-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" autoComplete="email"
+          className="px-4 py-3 rounded-xl outline-none" style={field} />
+        <button type="submit" disabled={loading} className="btn-aurora justify-center">
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <>Register <ArrowRight size={16} /></>}
+        </button>
+      </form>
+      {error && <p className="text-sm mt-3" style={{ color: 'var(--terra)' }} role="alert">{error}</p>}
+      <p className="text-xs text-dust mt-3">Free. We only use your email to send you the event details.</p>
+    </div>
+  );
+};
+
+// Thank-you page after registering for an event.
+const EventThanksPage = ({ rsvp, setPage }) => {
+  const ev = rsvp?.event || FLASH_MOB;
+  const [copied, setCopied] = useState(false);
+  const invite = 'Join me at the ' + ev.title + ' (' + ev.when_text + '). Register free: https://humanity-ai.quest/?page=events';
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(invite); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch (_) {}
+  };
+  const share = async () => {
+    try { if (navigator.share) await navigator.share({ title: ev.title, text: invite, url: 'https://humanity-ai.quest/?page=events' }); else copy(); } catch (_) {}
+  };
+  return (
+    <PageWrap>
+      <section className="relative max-w-3xl mx-auto px-6 lg:px-12 py-24 text-center">
+        <UnityParticles count={6} pattern="converge" />
+        <CheckCircle className="text-aurora mx-auto mb-6" size={44} />
+        <SectionLabel>{rsvp?.already ? 'Already registered' : 'You are registered'}</SectionLabel>
+        <h1 className="font-display text-4xl md:text-6xl leading-tight" style={{ textWrap: 'balance' }}>
+          {rsvp?.name ? 'Thank you, ' + rsvp.name.split(' ')[0] + '.' : 'Thank you.'}
+        </h1>
+        <p className="text-bone-dim text-lg mt-5 leading-relaxed">
+          {rsvp?.already ? 'You were already on the list for ' : 'You are on the list for '}
+          <span className="text-bone">{ev.title}</span>, {ev.when_text}.
+          {rsvp?.email ? <> We will send the time and meeting point to <span className="text-bone">{rsvp.email}</span>.</> : null}
+        </p>
+        <div className="card-glass rounded-2xl p-6 mt-10 text-left">
+          <div className="font-display text-xl">Bring a friend</div>
+          <p className="text-bone-dim text-sm mt-1">A flash mob is only as strong as the people who show up. Send this to someone.</p>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <button onClick={share} className="btn-secondary"><Share2 size={15} /> Share invite</button>
+            <button onClick={copy} className="btn-secondary">{copied ? 'Copied' : 'Copy invite text'}</button>
+          </div>
+        </div>
+        <div className="card-glass rounded-2xl p-6 mt-4 text-left" style={{ borderLeft: '2px solid var(--gold)' }}>
+          <div className="font-display text-xl">Fund the constitution</div>
+          <p className="text-bone-dim text-sm mt-1">This release is about one thing: funding humanity’s constitution for AI. The Founders Series is open now.</p>
+          <button onClick={() => setPage('back')} className="btn-aurora mt-4">Back the Founders Series <ArrowRight size={16} /></button>
+        </div>
+        <button onClick={() => setPage('events')} className="mt-8 text-sm text-bone-dim hover:text-aurora transition-colors">Register someone else</button>
+      </section>
+    </PageWrap>
+  );
+};
+
+const EventsPage = ({ setPage, auth, onRegistered }) => {
   const [events, setEvents] = useState([]);
   useEffect(() => {
     fetch('/api/events').then(r => r.json()).then(d => setEvents(d.events || [])).catch(() => {});
   }, []);
+  if (LANDING_MODE) {
+    const featured = events.find(e => e.id === FLASH_MOB.id) || FLASH_MOB;
+    const others = events.filter(e => e.id !== FLASH_MOB.id);
+    return (
+      <PageWrap>
+        <section className="pt-24 pb-20 max-w-4xl mx-auto px-6 lg:px-12 relative">
+          <UnityParticles count={6} pattern="orbit" speed="fast" />
+          <SectionLabel>Events</SectionLabel>
+          <E p="events" k="title_landing" as="h1" className="font-display text-4xl md:text-6xl leading-tight">Show up for humanity.</E>
+          <E p="events" k="intro_landing" as="p" className="text-bone-dim mt-6 max-w-2xl text-lg">Our first event is in person and open to everyone. More events open with the next launch.</E>
+          <div className="mt-12">
+            <EventRegister ev={featured} auth={auth} onRegistered={onRegistered} />
+          </div>
+          {others.length > 0 && (
+            <>
+              <div className="text-xs uppercase tracking-[0.25em] text-bone-dim mt-16 mb-4">Next launch</div>
+              <div className="grid md:grid-cols-2 gap-4">
+                {others.map(ev => (
+                  <div key={ev.id} className="card-glass rounded-2xl p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs uppercase tracking-[0.2em] text-aurora">{ev.type}</span>
+                      <NextLaunch />
+                    </div>
+                    <div className="font-display text-xl mt-3">{ev.title}</div>
+                    <div className="text-sm text-dust mt-1">{ev.when_text}</div>
+                    <p className="text-bone-dim text-sm mt-2 leading-relaxed">{ev.blurb}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      </PageWrap>
+    );
+  }
   return (
     <PageWrap>
       <section className="pt-24 pb-20 max-w-4xl mx-auto px-6 lg:px-12 relative">
@@ -2578,6 +2728,97 @@ const MediaPage = ({ setPage }) => {
     </PageWrap>
   );
 };
+
+// ============ LANDING PREVIEWS: quests + media ============
+const QUEST_TYPE_LABEL = { prize: 'Prize quest', startup: 'Startup quest', crowd: 'Crowd campaign' };
+
+const LandingQuests = ({ setPage }) => {
+  const [quests, setQuests] = useState([]);
+  useEffect(() => {
+    fetch('/api/quests').then(r => r.json()).then(d => setQuests(d.quests || [])).catch(() => {});
+  }, []);
+  return (
+    <PageWrap>
+      <section className="pt-24 pb-20 max-w-6xl mx-auto px-6 lg:px-12 relative">
+        <UnityParticles count={6} pattern="orbit" />
+        <div className="flex flex-wrap items-center gap-3"><SectionLabel>Innovation Quests</SectionLabel><NextLaunch /></div>
+        <h1 className="font-display text-4xl md:text-6xl leading-tight" style={{ textWrap: 'balance' }}>
+          <E p="landing" k="quest_h1" as="span">Humanity’s hardest problems, pre-funded.</E>
+        </h1>
+        <E p="landing" k="quest_intro" as="p" className="text-bone-dim mt-6 max-w-2xl text-lg leading-relaxed">
+          Sponsors and the crowd fund a prize. Builders and their agents compete to solve it. Every originator is credited, and money unlocks in milestones. Quest competitions open in the next launch, once the Founders Series is funded.
+        </E>
+        <div className="flex flex-wrap gap-3 mt-8">
+          <button onClick={() => setPage('back')} className="btn-aurora">Back the Founders Series <ArrowRight size={16} /></button>
+          <button onClick={() => setPage('events')} className="btn-secondary"><Calendar size={15} /> Join the Flash Mob</button>
+        </div>
+        {quests.length > 0 && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-14">
+            {quests.map(q => (
+              <div key={q.id} className="card-glass rounded-2xl p-6 flex flex-col">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.2em] text-aurora"><Trophy size={13} /> {QUEST_TYPE_LABEL[q.type] || 'Quest'}</span>
+                  <NextLaunch />
+                </div>
+                <div className="font-display text-xl mt-3 leading-snug">{q.title}</div>
+                <p className="text-bone-dim text-sm mt-2 leading-relaxed">{q.summary}</p>
+                {Array.isArray(q.tags) && q.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-4">
+                    {q.tags.map(t => <span key={t} className="text-[0.7rem] px-2 py-0.5 rounded-full" style={{ border: '1px solid var(--line-2)', color: 'var(--bone-dim)' }}>{t}</span>)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {quests.length > 0 && <p className="text-xs text-dust mt-6">Example quests. Prize pools and teams open in the next launch.</p>}
+      </section>
+    </PageWrap>
+  );
+};
+
+const LANDING_MEDIA = [
+  { kind: 'Podcast', ep: 'Episode 1', title: 'The Hippocratic Oath for AI', blurb: 'Why humanity needs a constitution for AI before the code is written, not after.' },
+  { kind: 'Podcast', ep: 'Episode 2', title: 'One person, one agent', blurb: 'A personal agent that answers only to you. What it means to own your digital self.' },
+  { kind: 'Podcast', ep: 'Episode 3', title: 'Who owns an idea?', blurb: 'Attribution, forever: how the ledger credits every contributor, human or agent.' },
+  { kind: 'Podcast', ep: 'Episode 4', title: 'Meet Uto-Pi', blurb: 'The SI guardian of the Covenant on truth, trust and why it will never pose as a human.' },
+  { kind: 'Writing', ep: '5-minute read', title: 'Twelve pledges, in plain words', blurb: 'The Prime Promise, Humanity First, and the 12 pledges that follow from it.' },
+  { kind: 'Writing', ep: '4-minute read', title: 'Why the people fund the constitution', blurb: 'The Founders Series is funded by the people the constitution protects. Here is why that matters.' },
+];
+
+const LandingMedia = ({ setPage }) => (
+  <PageWrap>
+    <section className="pt-24 pb-20 max-w-6xl mx-auto px-6 lg:px-12 relative">
+      <UnityParticles count={5} pattern="orbit" speed="slow" />
+      <div className="flex flex-wrap items-center gap-3"><SectionLabel>Podcasts &amp; writing</SectionLabel><NextLaunch /></div>
+      <h1 className="font-display text-4xl md:text-6xl leading-tight" style={{ textWrap: 'balance' }}>
+        <E p="landing" k="media_h1" as="span">Conversations for the age of SI.</E>
+      </h1>
+      <E p="landing" k="media_intro" as="p" className="text-bone-dim mt-6 max-w-2xl text-lg leading-relaxed">
+        Builders, thinkers and ordinary people on how humanity keeps its rights as AI grows more capable. The first episodes arrive with the next launch.
+      </E>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
+        {LANDING_MEDIA.map(m => (
+          <div key={m.title} className="card-glass rounded-2xl p-6 flex flex-col">
+            <div className="flex items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.2em] text-aurora">
+                {m.kind === 'Podcast' ? <Headphones size={13} /> : <FileText size={13} />} {m.kind}
+              </span>
+              <NextLaunch />
+            </div>
+            <div className="text-xs text-dust mt-3">{m.ep}</div>
+            <div className="font-display text-xl mt-1 leading-snug">{m.title}</div>
+            <p className="text-bone-dim text-sm mt-2 leading-relaxed">{m.blurb}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-3 mt-12">
+        <button onClick={() => setPage('back')} className="btn-aurora">Back the Founders Series <ArrowRight size={16} /></button>
+        <button onClick={() => setPage('events')} className="btn-secondary"><Calendar size={15} /> Join the Flash Mob</button>
+      </div>
+    </section>
+  </PageWrap>
+);
 
 // ============ COURSES PAGE (locked, post-funding) ============
 const CoursesPage = ({ setPage }) => (
@@ -3309,15 +3550,15 @@ const ComingSoon = ({ setPage, onOpenAgent, auth, onOpenAuth }) => {
           <E p="landing" k="headline" as="span">Our next release is on its way.</E>
         </h1>
         <E p="landing" k="intro" as="p" className="text-bone-dim text-lg mt-5 max-w-2xl mx-auto leading-relaxed">
-          We are preparing the new release of the platform. While we build, you can add your name to the petition, vote in community surveys and create your account.
+          We are preparing the next release of the platform. This release is about one thing: funding humanity’s constitution for AI. Back the Founders Series, add your name to the petition, and join our first event.
         </E>
 
         <div className="flex flex-wrap justify-center gap-3 mt-10">
-          <button onClick={() => setPage('petition')} className="btn-aurora">
-            <E p="landing" k="cta_petition" as="span">Sign the petition</E> <ArrowRight size={16} />
+          <button onClick={() => setPage('back')} className="btn-aurora">
+            <E p="landing" k="cta_back" as="span">Back the Founders Series</E> <ArrowRight size={16} />
           </button>
-          <button onClick={() => setPage('surveys')} className="btn-secondary">
-            <E p="landing" k="cta_surveys" as="span">Take a survey</E>
+          <button onClick={() => setPage('petition')} className="btn-secondary">
+            <E p="landing" k="cta_petition" as="span">Sign the petition</E>
           </button>
           {auth?.user ? (
             <button onClick={() => setPage('account')} className="btn-secondary">
@@ -3329,6 +3570,17 @@ const ComingSoon = ({ setPage, onOpenAgent, auth, onOpenAuth }) => {
             </button>
           )}
         </div>
+
+        <button onClick={() => setPage('events')} className="card-glass rounded-2xl p-5 mt-10 w-full max-w-xl mx-auto flex items-center gap-4 text-left">
+          <span className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)' }}>
+            <Calendar size={20} className="text-aurora" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-xs uppercase tracking-[0.2em] text-aurora">First event · Tuesday 20 October</span>
+            <span className="block font-display text-lg mt-1">{FLASH_MOB.title}</span>
+          </span>
+          <span className="text-sm text-gold whitespace-nowrap inline-flex items-center gap-1">Register <ArrowRight size={14} /></span>
+        </button>
 
         {stats && stats.count > 0 && (
           <p className="text-sm text-bone-dim mt-8">
@@ -3352,6 +3604,7 @@ export default function HumanityAIQuest() {
   // In landing mode, any page that isn't open yet falls back to the coming-soon home.
   const page = LANDING_MODE && !LANDING_PAGES.has(rawPage) ? 'home' : rawPage;
   const [agentOpen, setAgentOpen] = useState(false);
+  const [lastRsvp, setLastRsvp] = useState(null);
   const [agentSeed, setAgentSeed] = useState(null);
   const [auth, setAuth] = useState(getStoredAuth);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -3447,12 +3700,15 @@ export default function HumanityAIQuest() {
         {page === 'back' && <BackPageV3 setPage={setPage} onOpenAgent={openAgent} />}
         {page === 'petition' && <PetitionPage setPage={setPage} onOpenAgent={openAgent} />}
         {page === 'constitution' && <ConstitutionPage onOpenAgent={openAgent} setAgentSeed={seedAgent} />}
-        {page === 'quest' && (useLegacyHome
+        {LANDING_MODE && page === 'quest' && <LandingQuests setPage={setPage} />}
+        {LANDING_MODE && page === 'media' && <LandingMedia setPage={setPage} />}
+        {page === 'event-thanks' && <EventThanksPage rsvp={lastRsvp} setPage={setPage} />}
+        {!LANDING_MODE && page === 'quest' && (useLegacyHome
           ? <QuestPage onOpenAgent={openAgent} />
           : <QuestPageV3 setPage={setPage} onOpenAgent={openAgent} onSeedAgent={seedAgent} />)}
         {page === 'surveys' && <SurveysPage />}
-        {page === 'events' && <EventsPage />}
-        {page === 'media' && <MediaPage setPage={setPage} />}
+        {page === 'events' && <EventsPage setPage={setPage} auth={auth} onRegistered={(r) => { setLastRsvp(r); setPage('event-thanks'); }} />}
+        {!LANDING_MODE && page === 'media' && <MediaPage setPage={setPage} />}
         {page === 'courses' && <CoursesPage setPage={setPage} />}
         {page === 'agent' && <AgentPage onOpenAgent={openAgent} />}
         {page === 'os' && <OSPage setPage={setPage} />}

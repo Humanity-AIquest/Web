@@ -45,7 +45,7 @@ export default function HomeLanding({ setPage, onOpenAgent, ui, single = false, 
           <div className="hl-pill"><span className="hl-dot" /> <E p="home2" k="eyebrow" as="span">An open-source upgrade for society</E></div>
           <h1 className="hl-h1 font-display">
             <E p="home2" k="h1_a" as="span" className="hl-h1-small">To the Startup Nation in every nation:</E>
-            <E p="home2" k="h1v2_a" as="span">We built the internet for users. Build </E><E p="home2" k="h1v2_b" as="span" className="hl-gold">humanity-centric AI</E><E p="home2" k="h1v2_c" as="span"> for Open-AI-Regulation.</E>
+            <E p="home2" k="h1v3_a" as="span">Together we built the internet. Join to build the </E><E p="home2" k="h1v3_b" as="span" className="hl-gold" style={{ whiteSpace: 'nowrap' }}>Open-Regulatory OS</E><E p="home2" k="h1v3_c" as="span"> to reinvent it.</E>
           </h1>
           <E p="home2" k="sub" as="p" className="hl-sub">A Hippocratic Oath for AI, written in the open and funded by the people it protects. No VC.</E>
           <div className="hl-ctas">

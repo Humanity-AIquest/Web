@@ -131,13 +131,15 @@ export async function ensureAuthSchema(env) {
         phone TEXT,
         country TEXT,
         newsletter INTEGER DEFAULT 1,
+        join_as TEXT,
+        developer_track TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `).run();
 
     // Add missing columns to users (idempotent)
-    const userCols = ['ban_reason', 'phone', 'country', 'newsletter', 'created_at', 'updated_at'];
+    const userCols = ['ban_reason', 'phone', 'country', 'newsletter', 'created_at', 'updated_at', 'join_as', 'developer_track'];
     for (const col of userCols) {
       try {
         if (col === 'ban_reason') await env.DB.prepare('ALTER TABLE users ADD COLUMN ban_reason TEXT').run();
@@ -146,6 +148,8 @@ export async function ensureAuthSchema(env) {
         if (col === 'newsletter') await env.DB.prepare('ALTER TABLE users ADD COLUMN newsletter INTEGER DEFAULT 1').run();
         if (col === 'created_at') await env.DB.prepare('ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP').run();
         if (col === 'updated_at') await env.DB.prepare('ALTER TABLE users ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP').run();
+        if (col === 'join_as') await env.DB.prepare('ALTER TABLE users ADD COLUMN join_as TEXT').run();
+        if (col === 'developer_track') await env.DB.prepare('ALTER TABLE users ADD COLUMN developer_track TEXT').run();
       } catch (e) {
         // Column already exists, that's fine
       }

@@ -427,7 +427,7 @@ const UsersTab = ({ auth, level }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['Name', 'Email', 'Role', 'Status', 'Joined', 'Actions'].map(h => (
+                {['Name', 'Email', 'Role', 'Joined as', 'Status', 'Joined', 'Actions'].map(h => (
                   <th key={h} style={{ ...tableHeadStyle, textAlign: 'left' }}>{h}</th>
                 ))}
               </tr>
@@ -445,6 +445,11 @@ const UsersTab = ({ auth, level }) => {
                   </td>
                   <td style={tdStyle}>{u.email || '—'}</td>
                   <td style={tdStyle}>{statusBadge(u.role || 'user')}</td>
+                  <td style={{ ...tdStyle, fontSize: 12 }}>
+                    {u.join_as === 'developer'
+                      ? <span style={{ color: 'var(--aurora)' }}>Developer{u.developer_track ? ' · ' + (u.developer_track === 'open_to_contribute' ? 'Open to contribute' : 'Tech-workers & humans') : ''}</span>
+                      : u.join_as === 'citizen' ? <span style={{ color: 'var(--gold)' }}>Citizen</span> : <span style={{ color: 'var(--dust)' }}>—</span>}
+                  </td>
                   <td style={tdStyle}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {statusBadge(u.status || 'active')}

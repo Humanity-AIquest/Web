@@ -21,7 +21,7 @@ export async function onRequestGet(context) {
     const limit = 50;
     const offset = (page - 1) * limit;
 
-    let query = "SELECT id, email, display_name, role, acl_level, status, ban_reason, created_at FROM users WHERE 1=1";
+    let query = "SELECT id, email, display_name, role, acl_level, status, ban_reason, created_at, join_as, developer_track FROM users WHERE 1=1";
     const params = [];
 
     if (status) { query += " AND status = ?"; params.push(status); }

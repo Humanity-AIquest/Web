@@ -133,6 +133,8 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
   const [country, setCountry] = useState('');
   const [newsletter, setNewsletter] = useState(true);
   const [agreed, setAgreed] = useState(false);
+  const [joinAs, setJoinAs] = useState('');
+  const [devTrack, setDevTrack] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -143,13 +145,16 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    if (mode === 'signup' && !joinAs) { setError('Please choose how you are joining: citizen or developer community.'); return; }
+    if (mode === 'signup' && joinAs === 'developer' && !devTrack) { setError('Please choose your developer group.'); return; }
     if (mode === 'signup' && !agreed) { setError('Please accept the Terms & Conditions to continue.'); return; }
     setLoading(true);
     try {
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
       const body = mode === 'login'
         ? { email, password }
-        : { email, password, display_name: name || email.split('@')[0], phone, country, newsletter };
+        : { email, password, display_name: name || email.split('@')[0], phone, country, newsletter,
+            join_as: joinAs, developer_track: joinAs === 'developer' ? devTrack : null };
       const data = await apiCall(endpoint, 'POST', body);
       if (data.success) {
         storeAuth({ user: data.user, token: data.token });
@@ -169,8 +174,9 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: 'rgba(7, 16, 31, 0.8)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-8 grain animate-fade-up"
-        style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)' }}
+      <style>{'.auth-modal input:-webkit-autofill,.auth-modal input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 40px var(--void-2) inset;-webkit-text-fill-color:var(--bone);caret-color:var(--bone)}.auth-modal select option{background:var(--void-2);color:var(--bone)}'}</style>
+      <div className="auth-modal w-full max-w-md rounded-2xl p-8 grain animate-fade-up overflow-y-auto"
+        style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', maxHeight: 'calc(100vh - 2rem)' }}
         onClick={e => e.stopPropagation()}>
 
         <div className="flex items-center justify-between mb-6">
@@ -195,6 +201,26 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
                 onChange={e => setName(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
                 style={{ border: '1px solid var(--line-2)' }} />
+              <label className="sr-only" htmlFor="auth-join-as">Joining as</label>
+              <select id="auth-join-as" value={joinAs} onChange={e => { setJoinAs(e.target.value); if (e.target.value !== 'developer') setDevTrack(''); }}
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                style={{ border: '1px solid ' + (joinAs ? 'var(--line-2)' : 'var(--gold)'), background: 'var(--void-2)', color: joinAs ? 'var(--bone)' : 'var(--dust)' }}>
+                <option value="" disabled>I'm joining as…</option>
+                <option value="citizen">Citizen</option>
+                <option value="developer">Developer community</option>
+              </select>
+              {joinAs === 'developer' && (
+                <>
+                  <label className="sr-only" htmlFor="auth-dev-track">Developer group</label>
+                  <select id="auth-dev-track" value={devTrack} onChange={e => setDevTrack(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                    style={{ border: '1px solid ' + (devTrack ? 'var(--line-2)' : 'var(--gold)'), background: 'var(--void-2)', color: devTrack ? 'var(--bone)' : 'var(--dust)' }}>
+                    <option value="" disabled>Choose your developer group…</option>
+                    <option value="open_to_contribute">Developer · Open to contribute</option>
+                    <option value="tech_workers">Tech-workers &amp; humans</option>
+                  </select>
+                </>
+              )}
               <div className="flex gap-3">
                 <input type="tel" placeholder="Mobile phone" value={phone}
                   onChange={e => setPhone(e.target.value)}
@@ -233,7 +259,7 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
 
           <button type="submit" disabled={loading} className="btn-aurora w-full flex items-center justify-center gap-2">
             {loading ? <Loader2 size={16} className="animate-spin" /> : (mode === 'login' ? <LogIn size={16} /> : <UserPlus size={16} />)}
-            {mode === 'login' ? 'Sign In' : 'Create Account'}
+            {mode === 'login' ? 'Sign In' : 'Create New Account'}
           </button>
         </form>
 
@@ -934,11 +960,11 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
                 </button>
               </>
             ) : (
-              <button onClick={() => onOpenAuth('login')}
-                className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all"
+              <button onClick={() => onOpenAuth('signup')}
+                className="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm rounded-full border transition-all whitespace-nowrap"
                 style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
-                <LogIn size={14} />
-                <span>Sign In</span>
+                <UserPlus size={14} />
+                <span>Join / Sign in</span>
               </button>
             )}
             <button onClick={() => setOpen(!open)} className="lg:hidden p-2">
@@ -2677,9 +2703,14 @@ const TermsPage = ({ setPage }) => (
       <UnityParticles count={4} pattern="drift" />
       <SectionLabel>Legal</SectionLabel>
       <E p="terms" k="h1" as="h1" className="font-display text-4xl md:text-5xl leading-tight mb-6">Terms &amp; Conditions</E>
-      <E p="terms" k="intro" as="p" className="text-bone-dim leading-relaxed mb-6">
-        This is placeholder text for the Humanity-AI Terms &amp; Conditions. Final terms will be published before launch. By creating an account or signing the petition you agree to these terms once finalised.
-      </E>
+      <div className="card-glass rounded-2xl p-6 mb-10" style={{ borderLeft: '2px solid var(--gold)' }}>
+        <NextLaunch />
+        <E p="terms" k="next_h" as="p" className="font-display text-2xl text-bone mt-4">Full terms are coming in the next release.</E>
+        <E p="terms" k="next_body" as="p" className="text-bone-dim leading-relaxed mt-2">
+          Humanity-AI will form as an NGO once crowdfunding has demonstrated demand. The full Terms &amp; Conditions will be published by that organisation.
+        </E>
+      </div>
+      <E p="terms" k="interim_h" as="h2" className="text-xs uppercase tracking-[0.25em] text-bone-dim mb-5">Until then, our commitments to you</E>
       <div className="space-y-5 text-bone-dim leading-relaxed">
         <div><h2 className="font-display text-xl text-bone mb-2">1. Your data</h2><E p="terms" k="s1" as="p">We process your data per our privacy commitments and Clause I.2 of the Constitution — explicit, revocable consent, with the right to deletion.</E></div>
         <div><h2 className="font-display text-xl text-bone mb-2">2. Contributions</h2><E p="terms" k="s2" as="p">Ideas and inputs you submit are attributed to you on the immutable ledger per Clause I.1.</E></div>

@@ -1,7 +1,8 @@
 /**
  * POST /api/auth/signup
  * Register a new user account
- * Body: { email, password, display_name, phone, country, newsletter }
+ * Body: { email, password, display_name, phone, country, newsletter, join_as, developer_track }
+ *   join_as: 'citizen' | 'developer'; developer_track (developers only): 'open_to_contribute' | 'tech_workers'
  */
 import { json, jsonError, optionsResponse, hashPassword, generateToken, newId, ensureAuthSchema } from "../_shared.js";
 import { sendTemplate } from "../_email.js";
@@ -14,6 +15,12 @@ export async function onRequestPost(context) {
     await ensureAuthSchema(env);
     const body = await request.json();
     const { email, password, display_name, phone, country, newsletter } = body;
+    const joinAs = body.join_as === 'developer' ? 'developer' : 'citizen';
+    const DEV_TRACKS = ['open_to_contribute', 'tech_workers'];
+    const devTrack = joinAs === 'developer' ? body.developer_track : null;
+    if (joinAs === 'developer' && !DEV_TRACKS.includes(devTrack)) {
+      return jsonError("Please choose your developer group.");
+    }
 
     // Validate
     if (!email || !password) {
@@ -42,8 +49,8 @@ export async function onRequestPost(context) {
     const cleanEmail = email.toLowerCase().trim();
 
     await env.DB.prepare(
-      "INSERT INTO users (id, email, password_hash, display_name, role, acl_level, status, phone, country, newsletter) VALUES (?, ?, ?, ?, 'user', 0, 'active', ?, ?, ?)"
-    ).bind(userId, cleanEmail, passHash, name, (phone || "").trim() || null, (country || "").trim() || null, newsletter ? 1 : 0).run();
+      "INSERT INTO users (id, email, password_hash, display_name, role, acl_level, status, phone, country, newsletter, join_as, developer_track) VALUES (?, ?, ?, ?, 'user', 0, 'active', ?, ?, ?, ?, ?)"
+    ).bind(userId, cleanEmail, passHash, name, (phone || "").trim() || null, (country || "").trim() || null, newsletter ? 1 : 0, joinAs, devTrack).run();
 
     // Create session
     const token = generateToken();
@@ -61,7 +68,7 @@ export async function onRequestPost(context) {
 
     return json({
       success: true,
-      user: { id: userId, email: cleanEmail, display_name: name, role: "user", acl_level: 0 },
+      user: { id: userId, email: cleanEmail, display_name: name, role: "user", acl_level: 0, join_as: joinAs, developer_track: devTrack },
       token: token,
     });
   } catch (err) {

@@ -5,7 +5,7 @@ import {
   Eye, Lock, Heart, Compass, Menu, Loader2,
   MessageCircle, Trees, Star, Mic, MicOff, Volume2, VolumeX, Square,
   LogIn, UserPlus, User, LogOut, Lightbulb, CheckCircle, Settings, PhoneOff,
-  Calendar, Headphones, FileText, Trophy, Share2
+  Calendar, Headphones, FileText, Trophy, Share2, Linkedin
 } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
 import { useTTS, ListenButton, getLS, setLS, TTS_SPEEDS } from './useTTS';
@@ -123,9 +123,65 @@ async function apiCall(path, method = 'GET', body = null, token = null) {
   return safeJson(res);
 }
 
-// ============ AUTH MODAL ============
-const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
-  const [mode, setMode] = useState(defaultMode);
+// ============ LINKS ============
+const LINKEDIN_URL = 'https://www.linkedin.com/company/humanity-ai';
+
+// ============ TURNSTILE ("I am human") ============
+// Site key: Cloudflare's always-pass test key on localhost; otherwise TURNSTILE_SITE_KEY from
+// /api/config, falling back to the public production key. The server only enforces the check
+// once TURNSTILE_SECRET_KEY is set (functions/api/_turnstile.js).
+const TURNSTILE_PUBLIC_KEY = '0x4AAAAAAFTg1rwPK_5vvMvq';
+const TURNSTILE_TEST_KEY = '1x00000000000000000000AA';
+let turnstileKeyPromise = null;
+let turnstileScriptPromise = null;
+function getTurnstileKey() {
+  if (typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) return Promise.resolve(TURNSTILE_TEST_KEY);
+  if (!turnstileKeyPromise) {
+    turnstileKeyPromise = fetch('/api/config').then(r => r.json()).then(d => d.turnstileSiteKey || TURNSTILE_PUBLIC_KEY).catch(() => TURNSTILE_PUBLIC_KEY);
+  }
+  return turnstileKeyPromise;
+}
+function loadTurnstile() {
+  if (typeof window === 'undefined') return Promise.reject();
+  if (window.turnstile) return Promise.resolve(window.turnstile);
+  if (!turnstileScriptPromise) {
+    turnstileScriptPromise = new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      sc.async = true; sc.defer = true;
+      sc.onload = () => resolve(window.turnstile);
+      sc.onerror = reject;
+      document.head.appendChild(sc);
+    });
+  }
+  return turnstileScriptPromise;
+}
+// Renders the check; calls onToken(token) when passed and onToken('') when it expires.
+// Change resetKey after each submit, because a token can only be used once.
+const Turnstile = ({ onToken, resetKey = 0 }) => {
+  const ref = useRef(null);
+  useEffect(() => {
+    let id = null, cancelled = false;
+    onToken('');
+    Promise.all([loadTurnstile(), getTurnstileKey()]).then(([ts, sitekey]) => {
+      if (cancelled || !ref.current || !ts) return;
+      id = ts.render(ref.current, {
+        sitekey, theme: 'dark',
+        callback: (t) => onToken(t),
+        'expired-callback': () => onToken(''),
+        'error-callback': () => onToken(''),
+      });
+    }).catch(() => {});
+    return () => { cancelled = true; try { if (id !== null && window.turnstile) window.turnstile.remove(id); } catch (_) {} };
+  }, [resetKey]);
+  return <div ref={ref} className="min-h-[65px]" />;
+};
+
+// ============ AUTH MODAL (two-step join, PayPal-style) ============
+// Step 1: one question, one field. Step 2: details. Known emails go straight to sign-in.
+const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login', onBackProject }) => {
+  const [mode, setMode] = useState(defaultMode);   // 'signup' | 'login'
+  const [step, setStep] = useState('email');       // signup only: 'email' | 'details'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -136,17 +192,38 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
   const [joinAs, setJoinAs] = useState('');
   const [devTrack, setDevTrack] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
+  const [tsToken, setTsToken] = useState('');
+  const [tsKey, setTsKey] = useState(0);
 
-  useEffect(() => { if (open) setMode(defaultMode); }, [open, defaultMode]);
+  useEffect(() => { if (open) { setMode(defaultMode); setStep('email'); setError(''); setNotice(''); } }, [open, defaultMode]);
 
   if (!open) return null;
+
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const toLogin = () => { setMode('login'); setError(''); setNotice(''); };
+  const toSignup = () => { setMode('signup'); setStep('email'); setError(''); setNotice(''); };
+
+  const next = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!validEmail) { setError('Please enter a valid email address.'); return; }
+    setLoading(true);
+    try {
+      const d = await apiCall('/api/auth/exists', 'POST', { email: email.trim() });
+      if (d.exists) { setMode('login'); setNotice('Welcome back. Enter your password to sign in.'); }
+      else setStep('details');
+    } catch (_) { setStep('details'); }
+    finally { setLoading(false); }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
     if (mode === 'signup' && !joinAs) { setError('Please choose how you are joining: citizen or developer community.'); return; }
     if (mode === 'signup' && joinAs === 'developer' && !devTrack) { setError('Please choose your developer group.'); return; }
+    if (mode === 'signup' && password.length < 8) { setError('Your password needs at least 8 characters.'); return; }
     if (mode === 'signup' && !agreed) { setError('Please accept the Terms & Conditions to continue.'); return; }
     setLoading(true);
     try {
@@ -154,7 +231,7 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
       const body = mode === 'login'
         ? { email, password }
         : { email, password, display_name: name || email.split('@')[0], phone, country, newsletter,
-            join_as: joinAs, developer_track: joinAs === 'developer' ? devTrack : null };
+            join_as: joinAs, developer_track: joinAs === 'developer' ? devTrack : null, turnstile_token: tsToken };
       const data = await apiCall(endpoint, 'POST', body);
       if (data.success) {
         storeAuth({ user: data.user, token: data.token });
@@ -162,6 +239,7 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
         onClose();
       } else {
         setError(data.error || 'Something went wrong.');
+        if (mode === 'signup') setTsKey(k => k + 1);
       }
     } catch (err) {
       setError('Connection failed. Please try again.');
@@ -170,105 +248,120 @@ const AuthModal = ({ open, onClose, onAuth, defaultMode = 'login' }) => {
     }
   };
 
+  const field = 'w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust';
+  const fieldStyle = { border: '1px solid var(--line-2)' };
+  const errorBox = error && <div className="text-sm px-3 py-2 rounded-lg" role="alert" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff6b6b' }}>{error}</div>;
+  const isJoinStart = mode === 'signup' && step === 'email';
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+    <div className="auth-wrap fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: 'rgba(7, 16, 31, 0.8)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}>
-      <style>{'.auth-modal input:-webkit-autofill,.auth-modal input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 40px var(--void-2) inset;-webkit-text-fill-color:var(--bone);caret-color:var(--bone)}.auth-modal select option{background:var(--void-2);color:var(--bone)}'}</style>
+      <style>{'.auth-modal input:-webkit-autofill,.auth-modal input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 40px var(--void-2) inset;-webkit-text-fill-color:var(--bone);caret-color:var(--bone)}.auth-modal select option{background:var(--void-2);color:var(--bone)}@media (max-width:640px){.auth-wrap{padding:0!important;align-items:stretch!important}.auth-modal{max-width:none!important;max-height:none!important;height:100%;border-radius:0!important}}'}</style>
       <div className="auth-modal w-full max-w-md rounded-2xl p-8 grain animate-fade-up overflow-y-auto"
         style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', maxHeight: 'calc(100vh - 2rem)' }}
-        onClick={e => e.stopPropagation()}>
+        role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
 
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-display text-xl">
-            {mode === 'login' ? 'Welcome Back' : 'Create Your Account'}
-          </h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-cosmos transition-colors">
+        <div className="flex items-start justify-between gap-4 mb-6">
+          {isJoinStart ? (
+            <E p="auth" k="join_h" as="h2" className="font-display text-3xl md:text-4xl leading-tight" style={{ textWrap: 'balance' }}>Join free to contribute to the OS dev, or back this project</E>
+          ) : (
+            <h2 className="font-display text-2xl">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h2>
+          )}
+          <button onClick={onClose} aria-label="Close" className="p-2 rounded-full hover:bg-cosmos transition-colors flex-shrink-0">
             <X size={18} />
           </button>
         </div>
 
-        <p className="text-sm text-bone-dim mb-6">
-          {mode === 'login'
-            ? 'Sign in to track your ideas and participate in shaping the HRC.'
-            : 'Create a free account to submit ideas, track their progress, and help shape the future of AI governance.'}
-        </p>
-
-        <form onSubmit={submit} className="space-y-4">
-          {mode === 'signup' && (
-            <>
-              <input type="text" placeholder="Display name" value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
-                style={{ border: '1px solid var(--line-2)' }} />
-              <label className="sr-only" htmlFor="auth-join-as">Joining as</label>
-              <select id="auth-join-as" value={joinAs} onChange={e => { setJoinAs(e.target.value); if (e.target.value !== 'developer') setDevTrack(''); }}
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                style={{ border: '1px solid ' + (joinAs ? 'var(--line-2)' : 'var(--gold)'), background: 'var(--void-2)', color: joinAs ? 'var(--bone)' : 'var(--dust)' }}>
-                <option value="" disabled>I'm joining as…</option>
-                <option value="citizen">Citizen</option>
-                <option value="developer">Developer community</option>
-              </select>
-              {joinAs === 'developer' && (
-                <>
-                  <label className="sr-only" htmlFor="auth-dev-track">Developer group</label>
-                  <select id="auth-dev-track" value={devTrack} onChange={e => setDevTrack(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                    style={{ border: '1px solid ' + (devTrack ? 'var(--line-2)' : 'var(--gold)'), background: 'var(--void-2)', color: devTrack ? 'var(--bone)' : 'var(--dust)' }}>
-                    <option value="" disabled>Choose your developer group…</option>
-                    <option value="open_to_contribute">Developer · Open to contribute</option>
-                    <option value="tech_workers">Tech-workers &amp; humans</option>
-                  </select>
-                </>
-              )}
-              <div className="flex gap-3">
-                <input type="tel" placeholder="Mobile phone" value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  className="w-1/2 px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
-                  style={{ border: '1px solid var(--line-2)' }} />
-                <input type="text" placeholder="Country" value={country}
-                  onChange={e => setCountry(e.target.value)}
-                  className="w-1/2 px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
-                  style={{ border: '1px solid var(--line-2)' }} />
+        {/* Step 1 — email only */}
+        {isJoinStart && (
+          <form onSubmit={next} className="space-y-4" noValidate>
+            <label className="sr-only" htmlFor="auth-email-1">Email address</label>
+            <input id="auth-email-1" type="email" placeholder="Email address" value={email} autoComplete="email" autoFocus
+              onChange={e => setEmail(e.target.value)} className={field + ' py-4 text-base'} style={fieldStyle} />
+            {errorBox}
+            <button type="submit" disabled={loading} className="btn-aurora w-full flex items-center justify-center gap-2" style={{ padding: '0.95rem 1.2rem' }}>
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <>Next <ArrowRight size={16} /></>}
+            </button>
+            <p className="text-center text-sm text-bone-dim">Already have an account? <button type="button" onClick={toLogin} className="text-aurora hover:underline">Log in</button></p>
+            {onBackProject && (
+              <div className="pt-4 mt-2 text-center text-sm" style={{ borderTop: '1px solid var(--line)' }}>
+                <span className="text-bone-dim">Only want to fund it? </span>
+                <button type="button" onClick={onBackProject} className="text-gold hover:underline">Back the Founders Series</button>
               </div>
-            </>
-          )}
-          <input type="email" placeholder="Email address" value={email} required
-            onChange={e => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
-            style={{ border: '1px solid var(--line-2)' }} />
-          <input type="password" placeholder="Password (min 8 characters)" value={password} required
-            onChange={e => setPassword(e.target.value)} minLength={8}
-            className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none text-bone placeholder:text-dust"
-            style={{ border: '1px solid var(--line-2)' }} />
+            )}
+          </form>
+        )}
 
-          {mode === 'signup' && (
-            <>
-              <label className="flex items-center gap-2 text-sm text-bone-dim cursor-pointer">
-                <input type="checkbox" checked={newsletter} onChange={e => setNewsletter(e.target.checked)} />
-                Keep me updated by email about the movement
-              </label>
-              <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
-                <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="mt-1" />
-                <span>I agree to the <a href="/?page=terms" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">Terms &amp; Conditions</a>.</span>
-              </label>
-            </>
-          )}
+        {/* Step 2 — details */}
+        {mode === 'signup' && step === 'details' && (
+          <form onSubmit={submit} className="space-y-4" noValidate>
+            <div className="flex items-center justify-between gap-3 text-sm px-4 py-3 rounded-xl" style={{ background: 'rgba(91,233,221,0.06)', border: '1px solid var(--line)' }}>
+              <span className="truncate text-bone">{email}</span>
+              <button type="button" onClick={() => setStep('email')} className="text-aurora hover:underline flex-shrink-0">Change</button>
+            </div>
+            <input type="text" placeholder="Display name" value={name} autoComplete="name" onChange={e => setName(e.target.value)} className={field} style={fieldStyle} />
+            <label className="sr-only" htmlFor="auth-join-as">Joining as</label>
+            <select id="auth-join-as" value={joinAs} onChange={e => { setJoinAs(e.target.value); if (e.target.value !== 'developer') setDevTrack(''); }}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={{ border: '1px solid ' + (joinAs ? 'var(--line-2)' : 'var(--gold)'), background: 'var(--void-2)', color: joinAs ? 'var(--bone)' : 'var(--dust)' }}>
+              <option value="" disabled>I'm joining as…</option>
+              <option value="citizen">Citizen</option>
+              <option value="developer">Developer community</option>
+            </select>
+            {joinAs === 'developer' && (
+              <>
+                <label className="sr-only" htmlFor="auth-dev-track">Developer group</label>
+                <select id="auth-dev-track" value={devTrack} onChange={e => setDevTrack(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                  style={{ border: '1px solid ' + (devTrack ? 'var(--line-2)' : 'var(--gold)'), background: 'var(--void-2)', color: devTrack ? 'var(--bone)' : 'var(--dust)' }}>
+                  <option value="" disabled>Choose your developer group…</option>
+                  <option value="open_to_contribute">Developer · Open to contribute</option>
+                  <option value="tech_workers">Tech-workers &amp; humans</option>
+                </select>
+              </>
+            )}
+            <input type="password" placeholder="Password (min 8 characters)" value={password} autoComplete="new-password"
+              onChange={e => setPassword(e.target.value)} className={field} style={fieldStyle} />
+            <div className="flex gap-3">
+              <input type="tel" placeholder="Mobile (optional)" value={phone} autoComplete="tel" onChange={e => setPhone(e.target.value)} className={field + ' w-1/2'} style={fieldStyle} />
+              <input type="text" placeholder="Country (optional)" value={country} autoComplete="country-name" onChange={e => setCountry(e.target.value)} className={field + ' w-1/2'} style={fieldStyle} />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-bone-dim cursor-pointer">
+              <input type="checkbox" checked={newsletter} onChange={e => setNewsletter(e.target.checked)} />
+              Keep me updated by email about the movement
+            </label>
+            <label className="flex items-start gap-2 text-sm text-bone-dim cursor-pointer">
+              <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="mt-1" />
+              <span>I agree to the <a href="/?page=terms" target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">Terms &amp; Conditions</a>.</span>
+            </label>
+            <Turnstile onToken={setTsToken} resetKey={tsKey} />
+            {errorBox}
+            <button type="submit" disabled={loading} className="btn-aurora w-full flex items-center justify-center gap-2">
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+              Create New Account
+            </button>
+            <p className="text-center text-sm text-bone-dim">Already have an account? <button type="button" onClick={toLogin} className="text-aurora hover:underline">Log in</button></p>
+          </form>
+        )}
 
-          {error && <div className="text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff6b6b' }}>{error}</div>}
-
-          <button type="submit" disabled={loading} className="btn-aurora w-full flex items-center justify-center gap-2">
-            {loading ? <Loader2 size={16} className="animate-spin" /> : (mode === 'login' ? <LogIn size={16} /> : <UserPlus size={16} />)}
-            {mode === 'login' ? 'Sign In' : 'Create New Account'}
-          </button>
-        </form>
-
-        <div className="text-center mt-4">
-          <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }}
-            className="text-sm text-aurora hover:underline">
-            {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-          </button>
-        </div>
+        {/* Sign in */}
+        {mode === 'login' && (
+          <form onSubmit={submit} className="space-y-4" noValidate>
+            {notice
+              ? <p className="text-sm text-aurora">{notice}</p>
+              : <p className="text-sm text-bone-dim">Sign in to track your ideas and take part in shaping the constitution.</p>}
+            <input type="email" placeholder="Email address" value={email} autoComplete="email" onChange={e => setEmail(e.target.value)} className={field} style={fieldStyle} />
+            <input type="password" placeholder="Password" value={password} autoComplete="current-password" autoFocus={!!notice}
+              onChange={e => setPassword(e.target.value)} className={field} style={fieldStyle} />
+            {errorBox}
+            <button type="submit" disabled={loading} className="btn-aurora w-full flex items-center justify-center gap-2">
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
+              Sign In
+            </button>
+            <p className="text-center text-sm text-bone-dim">New here? <button type="button" onClick={toSignup} className="text-aurora hover:underline">Join free</button></p>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -1718,7 +1811,7 @@ const QuestsBoard = () => {
 };
 
 // ============ SURVEY RUNNER (one survey: vote → results, share/embed) ============
-const CROWDFUND_URL = 'https://gogetfunding.com/?p=9622734';
+const CROWDFUND_URL = 'https://gogetfunding.com/?p=9731648';
 
 // Multi-step survey runner. Renders each statement by its TYPE:
 //   vote        → agree / pass / disagree
@@ -1733,6 +1826,8 @@ const SurveyRunner = ({ surveyId, embed }) => {
   const [signMsg, setSignMsg] = useState('');
   const [signing, setSigning] = useState(false);
   const [signedNo, setSignedNo] = useState(null);
+  const [tsToken, setTsToken] = useState('');
+  const [tsKey, setTsKey] = useState(0);
 
   useEffect(() => {
     setSurvey(null); setIdx(0); setResults(null); setSign({ name: '', email: '', country: '' }); setSignedNo(null);
@@ -1756,7 +1851,8 @@ const SurveyRunner = ({ surveyId, embed }) => {
     if (sign.name.trim().length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sign.email)) { setSignMsg('Add your name and a valid email.'); return; }
     setSigning(true);
     try {
-      const d = await postJSON('/api/sign', { name: sign.name, email: sign.email, country: sign.country, side: 'human' });
+      const d = await postJSON('/api/sign', { name: sign.name, email: sign.email, country: sign.country, side: 'human', turnstile_token: tsToken });
+      setTsKey(k => k + 1);
       if (d.error) { setSignMsg(d.error); return; }
       setSignMsg(''); setSignedNo(d.number || null); next();
     }
@@ -1814,6 +1910,7 @@ const SurveyRunner = ({ surveyId, embed }) => {
                   className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
                 <input value={sign.country} onChange={e => setSign(s => ({ ...s, country: e.target.value }))} placeholder="Country (optional)"
                   className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
+                <Turnstile onToken={setTsToken} resetKey={tsKey} />
                 {signMsg && <p className="text-sm" style={{ color: 'var(--terra)' }}>{signMsg}</p>}
                 <button onClick={submitSign} disabled={signing} className="btn-aurora w-full justify-center">{signing ? <Loader2 size={16} className="animate-spin" /> : <>Add my name <ArrowRight size={16} /></>}</button>
               </div>
@@ -1987,6 +2084,8 @@ const EventRegister = ({ ev, auth, onRegistered }) => {
   const [email, setEmail] = useState(auth?.user?.email || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [tsToken, setTsToken] = useState('');
+  const [tsKey, setTsKey] = useState(0);
   useEffect(() => {
     if (auth?.user) { setName(n => n || auth.user.display_name || ''); setEmail(m => m || auth.user.email || ''); }
   }, [auth?.user?.email]);
@@ -1996,7 +2095,8 @@ const EventRegister = ({ ev, auth, onRegistered }) => {
     if (!validEmailAddr(email)) return setError('Please add a valid email address.');
     setError(''); setLoading(true);
     try {
-      const d = await postJSON('/api/events/' + ev.id + '/rsvp', { name: name.trim(), email: email.trim() });
+      const d = await postJSON('/api/events/' + ev.id + '/rsvp', { name: name.trim(), email: email.trim(), turnstile_token: tsToken });
+      setTsKey(k => k + 1);
       if (d.error) setError(d.error);
       else onRegistered({ event: ev, name: name.trim(), email: email.trim().toLowerCase(), already: !!d.already });
     } catch (_) {
@@ -2023,6 +2123,7 @@ const EventRegister = ({ ev, auth, onRegistered }) => {
           {loading ? <Loader2 size={16} className="animate-spin" /> : <>Register <ArrowRight size={16} /></>}
         </button>
       </form>
+      <div className="mt-3"><Turnstile onToken={setTsToken} resetKey={tsKey} /></div>
       {error && <p className="text-sm mt-3" style={{ color: 'var(--terra)' }} role="alert">{error}</p>}
       <p className="text-xs text-dust mt-3">Free. We only use your email to send you the event details.</p>
     </div>
@@ -2776,6 +2877,7 @@ const AboutPage = () => (
           <div>Press · <span className="text-aurora">press@humanity-ai.quest</span></div>
           <div>Builders · <span className="text-aurora">build@humanity-ai.quest</span></div>
           <div>Governance · <span className="text-aurora">hrc@humanity-ai.quest</span></div>
+          <div>LinkedIn · <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="text-aurora hover:underline">Humanity-AI company page</a></div>
         </div>
       </div>
     </section>
@@ -3031,6 +3133,7 @@ const Footer = ({ setPage }) => (
       <div className="pt-8 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-xs text-dust"
         style={{ borderColor: 'var(--line)' }}>
         <div>© Humanity-AI · Open source · Constitutional license · {new Date().getFullYear()}</div>
+        <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-aurora transition-colors"><Linkedin size={14} /> Follow us on LinkedIn</a>
         <E p="global" k="footer_motto" as="div" className="font-display italic">"The Hippocratic Oath, for AI."</E>
       </div>
     </div>
@@ -3868,6 +3971,7 @@ export default function HumanityAIQuest() {
         onClose={() => setAuthModalOpen(false)}
         onAuth={(data) => setAuth(data)}
         defaultMode={authModalMode}
+        onBackProject={() => { setAuthModalOpen(false); setPage('back'); }}
       />
     </div>
     </CMSProvider>

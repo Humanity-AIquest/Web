@@ -26,7 +26,7 @@ const PLEDGE_ICONS = {
   'I.07': Baby, 'I.08': Scale, 'I.09': Link2, 'I.10': Telescope, 'I.11': Sprout, 'I.12': Landmark,
 };
 
-const DEFAULT_FUND_URL = 'https://gogetfunding.com/?p=9622734';
+const DEFAULT_FUND_URL = 'https://gogetfunding.com/?p=9731648';
 
 // ---------- tiny helpers ----------
 const lcg = (seed) => () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };

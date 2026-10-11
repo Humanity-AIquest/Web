@@ -188,7 +188,10 @@ const QuestDetail = ({ q, onBack, setPage, onAsk }) => {
               <p>Talk with backers, teams and the sponsor. Every quest gets its own channel when quests open.</p>
               {q.community_url
                 ? <a className="qd-founders" href={q.community_url} target="_blank" rel="noreferrer">Join the community <ArrowRight size={14} /></a>
-                : <span className="qd-soon">Community opens with the next launch</span>}
+                : <>
+                    <span className="qd-soon">Quest channels open with the next launch</span>
+                    <div><a className="qd-founders" href="https://www.linkedin.com/company/humanity-ai" target="_blank" rel="noreferrer">Follow Humanity-AI on LinkedIn <ArrowRight size={14} /></a></div>
+                  </>}
             </div>
           </div>
           <div className="qd-com-card">

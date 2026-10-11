@@ -7,6 +7,7 @@
 import { json, jsonError, optionsResponse, hashPassword, generateToken, newId, ensureAuthSchema } from "../_shared.js";
 import { sendTemplate } from "../_email.js";
 import { createLead } from "../_zoho.js";
+import { verifyTurnstile, TURNSTILE_FAIL } from "../_turnstile.js";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -32,6 +33,9 @@ export async function onRequestPost(context) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return jsonError("Please provide a valid email address.");
     }
+
+    const human = await verifyTurnstile(env, request, body.turnstile_token);
+    if (!human.ok) return jsonError(TURNSTILE_FAIL);
 
     // Check if email already exists
     const existing = await env.DB.prepare(

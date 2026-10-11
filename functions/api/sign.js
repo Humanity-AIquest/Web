@@ -8,6 +8,7 @@ import { ensureMovementSchema } from "./_movement.js";
 import { ensureConversationSchema, logInteraction } from "./_conversations.js";
 import { sendTemplate } from "./_email.js";
 import { createLead } from "./_zoho.js";
+import { verifyTurnstile, TURNSTILE_FAIL } from "./_turnstile.js";
 
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || "");
 
@@ -16,10 +17,12 @@ export async function onRequestPost(context) {
   try {
     await ensureMovementSchema(env);
     try { await env.DB.prepare("ALTER TABLE signatures ADD COLUMN newsletter INTEGER DEFAULT 0").run(); } catch (e) { /* exists */ }
-    const { name, email, side, country, newsletter } = await request.json();
+    const { name, email, side, country, newsletter, turnstile_token } = await request.json();
 
     if (!name || name.trim().length < 2) return jsonError("Please add your name.");
     if (!validEmail(email)) return jsonError("Please add a valid email.");
+    const human = await verifyTurnstile(env, request, turnstile_token);
+    if (!human.ok) return jsonError(TURNSTILE_FAIL);
 
     const cleanSide = side === "developer" ? "developer" : "human";
 

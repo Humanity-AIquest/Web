@@ -1844,7 +1844,7 @@ const CommsTab = ({ auth, level }) => {
 /* ============================================================
    MEMBERS — unified Member Profile / CRM (use cases 1,7,9,10,13,14,16,27)
    ============================================================ */
-const FOUNDING_LINK = 'https://gogetfunding.com/?p=9622734';
+const FOUNDING_LINK = 'https://gogetfunding.com/?p=9731648';
 const TIMELINE_ICON = {
   agent: MessageCircle, idea: Lightbulb, survey_vote: CheckCircle,
   signature: Star, quest_pitch: Zap, quest_question: MessageCircle, event_rsvp: Clock,

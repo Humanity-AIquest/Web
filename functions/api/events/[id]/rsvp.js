@@ -5,6 +5,7 @@
 import { json, jsonError, optionsResponse, newId } from "../../_shared.js";
 import { ensureMovementSchema } from "../../_movement.js";
 import { ensureConversationSchema, logInteraction } from "../../_conversations.js";
+import { verifyTurnstile, TURNSTILE_FAIL } from "../../_turnstile.js";
 
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || "");
 
@@ -15,9 +16,11 @@ export async function onRequestPost(context) {
     const event = await env.DB.prepare("SELECT id FROM events WHERE id = ?").bind(params.id).first();
     if (!event) return jsonError("Event not found.", 404);
 
-    const { name, email } = await request.json();
+    const { name, email, turnstile_token } = await request.json();
     if (!name || name.trim().length < 2) return jsonError("Please add your name.");
     if (!validEmail(email)) return jsonError("Please add a valid email.");
+    const human = await verifyTurnstile(env, request, turnstile_token);
+    if (!human.ok) return jsonError(TURNSTILE_FAIL);
 
     // One registration per email per event: a repeat submit succeeds without a duplicate row.
     const existing = await env.DB.prepare(

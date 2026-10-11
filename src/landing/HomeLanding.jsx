@@ -7,7 +7,7 @@
 // Every visible string is CMS-editable through <E p="home2" k="…">.
 // ============================================================
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, ChevronDown, Calendar, Mic, PenLine, Vote, Lock, CheckCircle, Loader2, X as XIcon, Check } from 'lucide-react';
+import { ArrowRight, ChevronDown, Calendar, Mic, PenLine, Vote, Lock, CheckCircle, Loader2, X as XIcon, Check, Share2, Copy, Users } from 'lucide-react';
 import { PRIME_PROMISE, PLEDGES } from '../v3/pledges.js';
 
 const LEGACY = ['Nails', 'Snails', 'Corporate fiduciary duty', 'Quarterly earnings', 'Engagement metrics'];
@@ -20,10 +20,13 @@ const STEPS = [
   { icon: Lock, k: 'seal', t: 'Seal', d: 'The new version is sealed on the Ledger.' },
 ];
 
-export default function HomeLanding({ setPage, onOpenAgent, ui }) {
-  const { E, Turnstile, postJSON, flashMob, PiEmblem } = ui;
+export default function HomeLanding({ setPage, onOpenAgent, ui, single = false, fundUrl, backLabel = 'Back this Project' }) {
+  const { E, Turnstile, postJSON, flashMob, PiEmblem, linkedinUrl } = ui;
   const [stats, setStats] = useState(null);
-  const [openPledge, setOpenPledge] = useState(0);
+  const [openPledge, setOpenPledge] = useState(single ? -1 : 0);
+  const BackBtn = ({ className = '' }) => (
+    <a href={fundUrl} target="_blank" rel="noopener noreferrer" className={'btn-aurora ' + className}>{backLabel} <ArrowRight size={16} /></a>
+  );
 
   useEffect(() => {
     let live = true;
@@ -46,10 +49,14 @@ export default function HomeLanding({ setPage, onOpenAgent, ui }) {
           </h1>
           <E p="home2" k="sub" as="p" className="hl-sub">A Hippocratic Oath for AI, written in the open and funded by the people it protects. No VC.</E>
           <div className="hl-ctas">
-            <a href="#co-sign" className="btn-aurora"><E p="home2" k="cta_sign" as="span">Co-sign the Covenant</E> <ArrowRight size={16} /></a>
-            <button type="button" onClick={() => setPage('back')} className="btn-secondary"><E p="home2" k="cta_back" as="span">Back the Founders Series</E></button>
+            {single ? <BackBtn /> : (
+              <>
+                <a href="#co-sign" className="btn-aurora"><E p="home2" k="cta_sign" as="span">Co-sign the Covenant</E> <ArrowRight size={16} /></a>
+                <button type="button" onClick={() => setPage('back')} className="btn-secondary"><E p="home2" k="cta_back" as="span">Back the Founders Series</E></button>
+              </>
+            )}
           </div>
-          {stats && stats.count > 0 && (
+          {!single && stats && stats.count > 0 && (
             <p className="hl-proof"><b>{Number(stats.count).toLocaleString()}</b> people have co-signed{stats.nations > 1 ? <> from <b className="hl-gold">{stats.nations}</b> nations</> : null}.</p>
           )}
         </div>
@@ -108,7 +115,7 @@ export default function HomeLanding({ setPage, onOpenAgent, ui }) {
               );
             })}
           </div>
-          <button type="button" onClick={() => setPage('constitution')} className="hl-link">Read the full Covenant, with the technical detail <ArrowRight size={14} /></button>
+          {!single && <button type="button" onClick={() => setPage('constitution')} className="hl-link">Read the full Covenant, with the technical detail <ArrowRight size={14} /></button>}
         </div>
       </section>
 
@@ -130,11 +137,24 @@ export default function HomeLanding({ setPage, onOpenAgent, ui }) {
               );
             })}
           </ol>
-          <button type="button" onClick={onOpenAgent} className="btn-secondary hl-mt"><Mic size={15} /> <E p="home2" k="rule_cta" as="span">Tell Pi what you think</E></button>
+          {single ? <BackBtn className="hl-mt" /> : <button type="button" onClick={onOpenAgent} className="btn-secondary hl-mt"><Mic size={15} /> <E p="home2" k="rule_cta" as="span">Tell Pi what you think</E></button>}
         </div>
       </section>
 
+      {/* 5 (single page) — BACK THIS PROJECT */}
+      {single && (
+        <section className="hl-section hl-alt">
+          <div className="hl-wrap hl-center">
+            <div className="hl-label">The Founders Series</div>
+            <h2 className="hl-h2 font-display" style={{ margin: '0 auto' }}><E p="home2" k="back_h" as="span">Fund the hard fork.</E></h2>
+            <E p="home2" k="back_sub" as="p" className="hl-lede" style={{ margin: '.9rem auto 0' }}>No VC. The people fund the constitution that protects them. The Founders Series pre-funding round is open now.</E>
+            <div className="hl-ctas"><BackBtn /></div>
+          </div>
+        </section>
+      )}
+
       {/* 5 — CO-SIGN + STICKER PACK */}
+      {!single && (
       <section id="co-sign" className="hl-section hl-alt">
         <div className="hl-wrap hl-cosign">
           <div>
@@ -152,10 +172,14 @@ export default function HomeLanding({ setPage, onOpenAgent, ui }) {
           <CoSignForm E={E} Turnstile={Turnstile} postJSON={postJSON} setPage={setPage} />
         </div>
       </section>
+      )}
 
       {/* COMMUNITY — October 20 */}
       <section className="hl-section">
         <div className="hl-wrap">
+          {single ? (
+            <FlashMobRegister ev={flashMob} E={E} Turnstile={Turnstile} postJSON={postJSON} fundUrl={fundUrl} backLabel={backLabel} linkedinUrl={linkedinUrl} />
+          ) : (
           <button type="button" onClick={() => setPage('events')} className="hl-event">
             <span className="hl-step-icon"><Calendar size={20} /></span>
             <span className="hl-event-text">
@@ -165,11 +189,118 @@ export default function HomeLanding({ setPage, onOpenAgent, ui }) {
             </span>
             <span className="hl-event-cta">Register <ArrowRight size={15} /></span>
           </button>
+          )}
         </div>
       </section>
     </div>
   );
 }
+
+// Inline Flash Mob registration: Register → form → thank-you, all inside one card.
+const FlashMobRegister = ({ ev, E, Turnstile, postJSON, fundUrl, backLabel, linkedinUrl }) => {
+  const [stage, setStage] = useState('idle');       // idle | form | done
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [tsToken, setTsToken] = useState('');
+  const [tsKey, setTsKey] = useState(0);
+
+  const invite = 'Join me at the ' + ev.title + ' (Tuesday 20 October, lunchtime). Register free: https://humanity-ai.quest/#flash-mob';
+  const submit = async (e) => {
+    e.preventDefault();
+    if (name.trim().length < 2) return setError('Please add your name.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Please add a valid email address.');
+    setError(''); setLoading(true);
+    try {
+      const d = await postJSON('/api/events/' + ev.id + '/rsvp', { name: name.trim(), email: email.trim(), turnstile_token: tsToken });
+      setTsKey(k => k + 1);
+      if (d.error) { setError(d.error); return; }
+      setResult({ first: name.trim().split(' ')[0], email: email.trim().toLowerCase(), already: !!d.already });
+      setStage('done');
+    } catch (_) {
+      setError('We could not reach the server. Check your connection and try again.');
+    } finally { setLoading(false); }
+  };
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(invite); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch (_) {}
+  };
+  const share = async () => {
+    try { if (navigator.share) await navigator.share({ title: ev.title, text: invite }); else await copy(); } catch (_) {}
+  };
+  const field = 'w-full px-4 py-3 rounded-xl text-sm outline-none';
+  const fs = { background: 'var(--void)', border: '1px solid var(--line-2)', color: 'var(--bone)' };
+
+  return (
+    <div id="flash-mob" className="hl-fm">
+      <div className="hl-fm-head">
+        <span className="hl-step-icon"><Calendar size={20} /></span>
+        <div className="hl-event-text">
+          <span className="hl-mono hl-gold">First event · Tuesday 20 October · lunchtime</span>
+          <span className="font-display hl-event-t">{ev.title}</span>
+          <E p="home2" k="fm_d" as="span" className="hl-step-d">Step outside your office at lunch and stand with tech creators everywhere. Free to join. Register and we will send you the time, the meeting point and what to bring.</E>
+        </div>
+        {stage === 'idle' && (
+          <button type="button" className="hl-fm-btn" onClick={() => setStage('form')}>
+            <Users size={16} /> Register for the Flash Mob
+          </button>
+        )}
+      </div>
+
+      {stage === 'form' && (
+        <form onSubmit={submit} className="hl-fm-form" noValidate>
+          <div className="hl-fm-fields">
+            <div>
+              <label className="hl-fm-label" htmlFor="fm-name">Your name</label>
+              <input id="fm-name" value={name} onChange={e => setName(e.target.value)} placeholder="Full name" autoComplete="name" autoFocus className={field} style={fs} />
+            </div>
+            <div>
+              <label className="hl-fm-label" htmlFor="fm-email">Email for the details</label>
+              <input id="fm-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" autoComplete="email" className={field} style={fs} />
+            </div>
+          </div>
+          <Turnstile onToken={setTsToken} resetKey={tsKey} />
+          {error && <p className="hl-error" role="alert">{error}</p>}
+          <div className="hl-fm-actions">
+            <button type="submit" disabled={loading} className="hl-fm-btn">
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <><Check size={16} /> Confirm my place</>}
+            </button>
+            <button type="button" className="hl-fm-cancel" onClick={() => { setStage('idle'); setError(''); }}>Cancel</button>
+          </div>
+          <p className="hl-fine">We use your email only for this event and movement updates. One registration per email.</p>
+        </form>
+      )}
+
+      {stage === 'done' && result && (
+        <div className="hl-fm-done" role="status">
+          <div className="hl-fm-done-head">
+            <CheckCircle size={30} className="hl-gold" />
+            <div>
+              <div className="font-display hl-h3">{result.already ? 'You’re already registered, ' : 'You’re in, '}{result.first}.</div>
+              <p className="hl-step-d">We’ll send the time and meeting point to <b style={{ color: 'var(--bone)' }}>{result.email}</b> before Tuesday 20 October.</p>
+            </div>
+          </div>
+          <div className="hl-fm-next">
+            <div>
+              <div className="hl-fm-label">Bring a friend</div>
+              <div className="hl-fm-row">
+                <button type="button" className="btn-secondary" onClick={share}><Share2 size={15} /> Share invite</button>
+                <button type="button" className="btn-secondary" onClick={copy}><Copy size={15} /> {copied ? 'Copied' : 'Copy invite'}</button>
+              </div>
+            </div>
+            <div>
+              <div className="hl-fm-label">Fund the movement</div>
+              <a href={fundUrl} target="_blank" rel="noopener noreferrer" className="btn-aurora">{backLabel} <ArrowRight size={16} /></a>
+            </div>
+          </div>
+          <button type="button" className="hl-fm-cancel" onClick={() => { setStage('form'); setName(''); setEmail(''); setResult(null); }}>Register someone else</button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const CoSignForm = ({ E, Turnstile, postJSON, setPage }) => {
   const [name, setName] = useState('');
@@ -318,6 +449,24 @@ const HomeStyles = () => (
   .hl-event-text { flex: 1; min-width: 0; display: grid; gap: .2rem; }
   .hl-event-t { font-size: 1.5rem; color: var(--bone); }
   .hl-event-cta { display: inline-flex; align-items: center; gap: .3rem; color: var(--gold); white-space: nowrap; font-size: .95rem; }
+  .hl-fm { padding: 1.6rem; border-radius: 1.25rem; border: 1px solid rgba(91,233,221,.35); background: linear-gradient(160deg, rgba(91,233,221,.08), transparent 60%), var(--void-2); scroll-margin-top: 120px; }
+  .hl-fm-head { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
+  .hl-fm-head .hl-event-text { flex: 1 1 320px; }
+  .hl-fm-btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .85rem 1.3rem; border-radius: 999px; font-weight: 700; font-size: .95rem; color: var(--void); background: var(--aurora); box-shadow: 0 10px 30px -12px rgba(91,233,221,.7); white-space: nowrap; transition: transform .15s, box-shadow .15s; }
+  .hl-fm-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 34px -12px rgba(91,233,221,.85); }
+  .hl-fm-btn:disabled { opacity: .7; transform: none; }
+  .hl-fm-form { display: grid; gap: .9rem; margin-top: 1.4rem; padding-top: 1.4rem; border-top: 1px solid var(--line); }
+  .hl-fm-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+  .hl-fm-label { display: block; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--bone-dim); margin-bottom: .4rem; }
+  .hl-fm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+  .hl-fm-cancel { font-size: .88rem; color: var(--bone-dim); text-decoration: underline; text-underline-offset: 3px; }
+  .hl-fm-cancel:hover { color: var(--bone); }
+  .hl-fm-done { display: grid; gap: 1.3rem; margin-top: 1.4rem; padding-top: 1.4rem; border-top: 1px solid var(--line); }
+  .hl-fm-done-head { display: flex; gap: .9rem; align-items: flex-start; }
+  .hl-fm-next { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  .hl-fm-next > div { padding: 1rem; border-radius: 1rem; background: var(--void); border: 1px solid var(--line); }
+  .hl-fm-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+  @media (max-width: 640px) { .hl-fm-fields, .hl-fm-next { grid-template-columns: minmax(0, 1fr); } .hl-fm-btn { width: 100%; } }
   @media (max-width: 900px) {
     .hl-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .hl-step::after { display: none; }

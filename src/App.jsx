@@ -568,8 +568,14 @@ const PAGES = [
 // Pre-release landing: only the live features are reachable; every other page shows "coming soon".
 // Set to false to restore the full site from this same codebase.
 const LANDING_MODE = true;
-const LANDING_PAGES = new Set(['home', 'petition', 'surveys', 'back', 'account', 'admin', 'terms',
-  'events', 'event-thanks', 'quest', 'media', 'courses', 'constitution', 'about', 'vision2770', 'merch']);
+// SINGLE_PAGE: launch-day mode. One vertical landing page, one call to action ("Back this Project").
+// Set to false to bring back the multi-page landing (menus, events, quests, etc.).
+const SINGLE_PAGE = true;
+const LANDING_PAGES = SINGLE_PAGE
+  ? new Set(['home', 'admin'])
+  : new Set(['home', 'petition', 'surveys', 'back', 'account', 'admin', 'terms',
+    'events', 'event-thanks', 'quest', 'media', 'courses', 'constitution', 'about', 'vision2770', 'merch']);
+const BACK_LABEL = 'Back this Project';
 const LANDING_LINKS = [
   { id: 'back', name: 'Back the Project' },
   { id: 'petition', name: 'Sign Petition' },
@@ -3904,6 +3910,72 @@ export default function HumanityAIQuest() {
       <CMSProvider>
         <GlobalStyles />
         <SurveysPage embedId={embedSurvey} />
+      </CMSProvider>
+    );
+  }
+
+  // Launch-day single page: everything except a signed-in admin's console.
+  if (SINGLE_PAGE && !(page === 'admin' && auth?.user?.role === 'admin')) {
+    const backBtn = (extra = '') => (
+      <a href={CROWDFUND_URL} target="_blank" rel="noopener noreferrer" className={'btn-aurora ' + extra}>{BACK_LABEL} <ArrowRight size={16} /></a>
+    );
+    return (
+      <CMSProvider>
+      <div className="bg-void text-bone min-h-screen font-body">
+        <GlobalStyles />
+        <V3Styles />
+        <header className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md" style={{ background: 'rgba(7, 16, 31, 0.75)', borderBottom: '1px solid var(--line)' }}>
+          <div className="max-w-7xl mx-auto px-6 lg:px-12 h-16 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <svg width="32" height="32" viewBox="0 0 32 32" className="animate-glow-breathe" aria-hidden="true">
+                <circle cx="16" cy="16" r="6" fill="var(--aurora)" opacity="0.9" />
+                <circle cx="16" cy="16" r="11" fill="none" stroke="var(--gold)" strokeWidth="0.6" opacity="0.5" />
+                <circle cx="16" cy="16" r="14.5" fill="none" stroke="var(--bone)" strokeWidth="0.3" opacity="0.3" />
+                <circle cx="27" cy="16" r="1.4" fill="var(--gold)" />
+              </svg>
+              <span className="font-display text-lg tracking-tight text-bone hidden sm:inline">Humanity-AI<span className="text-aurora">.</span>Quest</span>
+            </div>
+            <a href={CROWDFUND_URL} target="_blank" rel="noopener noreferrer" className="btn-aurora whitespace-nowrap" style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem' }}>{BACK_LABEL} <ArrowRight size={14} /></a>
+          </div>
+        </header>
+        <div className="h-16" />
+        <main>
+          <div className="v3-demo" role="note">
+            <span className="v3-demo-tag v3-mono"><E p="global" k="v3_demo_tag" as="span">Demo</E></span>
+            <E p="global" k="v3_demo_text" as="span">The Founders Series pre-funding round is the only live function. Everything else on this site demonstrates the proof of concept.</E>
+            <a href={CROWDFUND_URL} target="_blank" rel="noopener noreferrer" className="v3-demo-link">{BACK_LABEL} <ArrowRight size={12} /></a>
+          </div>
+          {page === 'admin' ? (
+            <div className="max-w-md mx-auto px-6 py-32 text-center">
+              <h1 className="font-display text-3xl text-bone mb-3">Admin sign in</h1>
+              <p className="text-bone-dim mb-8">The admin console is for the Humanity-AI team.</p>
+              <button onClick={() => openAuthModal('login')} className="btn-aurora">Sign in</button>
+            </div>
+          ) : (
+            <HomeLanding setPage={setPage} onOpenAgent={openAgent} single fundUrl={CROWDFUND_URL} backLabel={BACK_LABEL}
+              ui={{ E, Turnstile, postJSON, flashMob: FLASH_MOB, PiEmblem, linkedinUrl: LINKEDIN_URL }} />
+          )}
+        </main>
+        <footer className="border-t py-12" style={{ borderColor: 'var(--line)', background: 'var(--void-2)' }}>
+          <div className="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row md:items-center md:justify-between gap-6 text-sm">
+            <div>
+              <div className="font-display text-xl">Humanity-AI<span className="text-aurora">.</span>Quest</div>
+              <E p="global" k="footer_tagline" as="p" className="text-bone-dim mt-1">Gifted to humanity. Owned by no one. Protected by all of us.</E>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-bone-dim hover:text-aurora transition-colors"><Linkedin size={15} /> LinkedIn</a>
+              {backBtn()}
+            </div>
+          </div>
+          <div className="max-w-7xl mx-auto px-6 lg:px-12 mt-8 text-xs text-dust">© Humanity-AI · {new Date().getFullYear()}</div>
+        </footer>
+        <AuthModal
+          open={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          onAuth={(data) => setAuth(data)}
+          defaultMode="login"
+        />
+      </div>
       </CMSProvider>
     );
   }

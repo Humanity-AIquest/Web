@@ -434,12 +434,14 @@ const PAGES = [
 // Set to false to restore the full site from this same codebase.
 const LANDING_MODE = true;
 const LANDING_PAGES = new Set(['home', 'petition', 'surveys', 'back', 'account', 'admin', 'terms',
-  'events', 'event-thanks', 'quest', 'media', 'courses', 'constitution']);
+  'events', 'event-thanks', 'quest', 'media', 'courses', 'constitution', 'about', 'vision2770', 'merch']);
 const LANDING_LINKS = [
   { id: 'back', name: 'Back the Project' },
   { id: 'petition', name: 'Sign Petition' },
   { id: 'events', name: 'Events' },
   { id: 'surveys', name: 'Surveys' },
+  { id: 'about', name: 'About us' },
+  { id: 'vision2770', name: 'Vision 2770' },
   { id: 'terms', name: 'Terms' },
 ];
 // The first real event of this release. Also seeded in functions/api/_movement.js (same id).
@@ -794,13 +796,15 @@ const NAV_GROUPS = {
     { id: 'constitution', name: 'Define the HRC', desc: 'Read the draft, give feedback' },
   ],
   constitution: [
-    { id: 'constitution', name: 'The Constitution', desc: 'The 12 pledges' },
-    { id: 'back', name: 'Back the Project', desc: 'Founding campaign' },
+    { id: 'constitution', name: 'The Open-Regulation', desc: 'The 12 pledges of the Humanity Rights Constitution' },
+    { id: 'back', name: 'Back the Project', desc: 'Founders Series, open now' },
+    { id: 'about', name: 'About us', desc: 'A letter from the founder' },
+    { id: 'vision2770', name: 'Vision 2770', desc: 'The world the constitution is building' },
+    { id: 'merch', name: 'Merch', desc: 'Coming in next launch' },
     { id: 'os', name: 'The OS', desc: 'How the system runs' },
     { id: 'ledger', name: 'The Ledger', desc: 'Attribution, forever' },
     { id: 'manifesto', name: 'Manifesto', desc: 'Why we build' },
     { id: 'agent', name: 'Your Agent', desc: 'Your digital self' },
-    { id: 'about', name: 'About', desc: 'Origin & governance' },
   ],
 };
 
@@ -813,6 +817,8 @@ const LANDING_DEV_ITEMS = [
   { id: 'constitution', name: 'Define the HRC', desc: 'Read the draft, give feedback' },
 ];
 const devItems = () => (LANDING_MODE ? LANDING_DEV_ITEMS : NAV_GROUPS.developers);
+const regItems = () => (LANDING_MODE ? NAV_GROUPS.constitution.filter(it => LANDING_PAGES.has(it.id)) : NAV_GROUPS.constitution);
+const groupItems = (key) => (key === 'developers' ? devItems() : regItems());
 
 const NavDropdown = ({ label, items, page, setPage, openMenu, setOpenMenu }) => {
   const isOpen = openMenu === label;
@@ -820,7 +826,7 @@ const NavDropdown = ({ label, items, page, setPage, openMenu, setOpenMenu }) => 
   return (
     <div className="relative" onMouseEnter={() => setOpenMenu(label)} onMouseLeave={() => setOpenMenu(null)}>
       <button onClick={() => setOpenMenu(isOpen ? null : label)}
-        className="px-3 py-1.5 text-sm tracking-wide flex items-center gap-1 transition-colors"
+        className="px-3 py-1.5 text-sm tracking-wide flex items-center gap-1 transition-colors whitespace-nowrap"
         style={{ color: (isOpen || activeHere) ? 'var(--aurora)' : 'var(--bone-dim)' }}>
         {label}
         <ChevronDown size={14} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
@@ -869,18 +875,20 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
           </button>
 
           <div className="hidden lg:flex items-center gap-1">
-            <button onClick={() => go('petition')}
-              className="px-3 py-1.5 text-sm tracking-wide transition-colors"
-              style={{ color: page === 'petition' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
-              Sign Petition
-            </button>
+            {!LANDING_MODE && (
+              <button onClick={() => go('petition')}
+                className="px-3 py-1.5 text-sm tracking-wide transition-colors whitespace-nowrap"
+                style={{ color: page === 'petition' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
+                Sign Petition
+              </button>
+            )}
             <button onClick={() => go('back')}
-              className="px-3 py-1.5 text-sm tracking-wide transition-colors"
+              className="px-3 py-1.5 text-sm tracking-wide transition-colors whitespace-nowrap"
               style={{ color: page === 'back' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
               Back the Project
             </button>
             <NavDropdown label="Developers" items={devItems()} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
-            {!LANDING_MODE && <NavDropdown label="Constitution" items={NAV_GROUPS.constitution} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />}
+            <NavDropdown label="Open-Regulation" items={regItems()} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -929,7 +937,7 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
             <div className="px-6 py-4 space-y-1">
               <button onClick={() => go('petition')} className="btn-aurora w-full justify-center mb-2">Sign Petition <ArrowRight size={14} /></button>
               <button onClick={() => go('back')} className="btn-secondary w-full justify-center mb-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>Back the Project</button>
-              {(LANDING_MODE ? [['Developers', 'developers']] : [['Developers', 'developers'], ['Constitution', 'constitution']]).map(([label, key]) => (
+              {[['Developers', 'developers'], ['Open-Regulation', 'constitution']].map(([label, key]) => (
                 <div key={key}>
                   <button onClick={() => setMobileGroup(mobileGroup === key ? null : key)}
                     className="w-full flex items-center justify-between px-2 py-3 text-sm font-display"
@@ -939,7 +947,7 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
                   </button>
                   {mobileGroup === key && (
                     <div className="pl-3 pb-2">
-                      {(key === 'developers' ? devItems() : NAV_GROUPS[key]).map(it => (
+                      {groupItems(key).map(it => (
                         <button key={it.name} onClick={() => go(it.id)}
                           className="w-full text-left px-3 py-2.5 text-sm rounded-lg hover:bg-cosmos"
                           style={{ color: page === it.id ? 'var(--aurora)' : 'var(--bone-dim)' }}>
@@ -2654,10 +2662,27 @@ const AboutPage = () => (
   <PageWrap>
     <section className="pt-24 pb-16 max-w-3xl mx-auto px-6 lg:px-12 relative">
       <UnityParticles count={5} pattern="converge" />
-      <SectionLabel>About</SectionLabel>
+      <SectionLabel>About us</SectionLabel>
       <h1 className="font-display text-5xl md:text-6xl leading-[1.0]">
         <E p="about" k="h1_a" as="span">Origin. Governance. </E><E p="about" k="h1_b" as="span" className="font-italic">Promise.</E>
       </h1>
+    </section>
+
+    <section className="pb-16 max-w-3xl mx-auto px-6 lg:px-12">
+      <article className="card-glass rounded-2xl p-8 md:p-10" style={{ borderLeft: '2px solid var(--gold)' }}>
+        <E p="about" k="letter_label" as="div" className="text-xs uppercase tracking-[0.25em] text-gold mb-6">A letter from the founder</E>
+        <div className="space-y-5 text-bone leading-relaxed text-lg">
+          <E p="about" k="letter_greeting" as="p" className="font-display text-2xl">Dear friend,</E>
+          <E p="about" k="letter_p1" as="p">I started Humanity-AI with one question: if the people building AI gave humanity a set of rights before the technology outran us, what would those rights say?</E>
+          <E p="about" k="letter_p2" as="p">This site is the first answer, and it is unfinished on purpose. The Humanity Rights Constitution is written in the open, by anyone who wants to help, and credited to everyone who does, including Uto-Pi, the SI agent that helped draft it.</E>
+          <E p="about" k="letter_p3" as="p">This release asks one thing of you: help fund it. Back the Founders Series, add your name to the petition, and bring a friend to our first Flash Mob on Tuesday 20 October.</E>
+          <E p="about" k="letter_closing" as="p" className="text-bone-dim">With hope for the centuries ahead,</E>
+        </div>
+        <div className="mt-6">
+          <E p="about" k="letter_name" as="div" className="font-display text-xl">Antony</E>
+          <E p="about" k="letter_role" as="div" className="text-sm text-bone-dim">Founder, Humanity-AI.Quest</E>
+        </div>
+      </article>
     </section>
 
     <section className="pb-24 max-w-3xl mx-auto px-6 lg:px-12 space-y-16">
@@ -2815,6 +2840,86 @@ const LandingMedia = ({ setPage }) => (
       <div className="flex flex-wrap gap-3 mt-12">
         <button onClick={() => setPage('back')} className="btn-aurora">Back the Founders Series <ArrowRight size={16} /></button>
         <button onClick={() => setPage('events')} className="btn-secondary"><Calendar size={15} /> Join the Flash Mob</button>
+      </div>
+    </section>
+  </PageWrap>
+);
+
+// ============ OPEN-REGULATION: Vision 2770 + Merch ============
+// Add a milestone = add a row. Text is CMS-editable per row (k = 'm' + index).
+const VISION_MILESTONES = [
+  { year: '2026', title: 'The Covenant is written in the open', body: 'The people draft humanity’s rights for the age of AI, credit every contributor, and fund the work themselves.' },
+  { year: '2030', title: 'One person, one agent', body: 'Every person can have a personal agent that answers only to them and votes with their voice.' },
+  { year: '2050', title: 'AI answers to the pledges', body: 'Systems that touch human lives are audited against the constitution, in public, by people from every nation.' },
+  { year: '2100', title: 'Ideas are credited forever', body: 'Every contribution, human or agent, is attributed on the ledger and shares in the value it creates.' },
+  { year: '2300', title: 'Rights travel with us', body: 'Wherever humanity lives, on Earth or beyond it, the same rights come along.' },
+  { year: '2770', title: 'Humanity first, still', body: 'Superintelligence has served humanity for centuries without ruling it. The constitution is still amended by the people: one person, one voice.' },
+];
+
+const Vision2770Page = ({ setPage }) => (
+  <PageWrap>
+    <section className="pt-24 pb-12 max-w-4xl mx-auto px-6 lg:px-12 relative">
+      <UnityParticles count={7} pattern="orbit" speed="slow" />
+      <SectionLabel>Vision 2770</SectionLabel>
+      <h1 className="font-display text-4xl md:text-6xl leading-tight" style={{ textWrap: 'balance' }}>
+        <E p="vision2770" k="h1" as="span">The world the constitution is building.</E>
+      </h1>
+      <E p="vision2770" k="intro" as="p" className="text-bone-dim mt-6 max-w-2xl text-lg leading-relaxed">
+        Constitutions are written for centuries, not quarters. Here is where the Humanity Rights Constitution can take us, from today to the year 2770.
+      </E>
+    </section>
+    <section className="pb-24 max-w-4xl mx-auto px-6 lg:px-12">
+      <ol className="relative" style={{ borderLeft: '1px solid var(--line-2)' }}>
+        {VISION_MILESTONES.map((m, i) => (
+          <li key={m.year} className="relative pl-8 pb-10 last:pb-0">
+            <span className="absolute -left-[5px] top-2 w-[9px] h-[9px] rounded-full" style={{ background: i === VISION_MILESTONES.length - 1 ? 'var(--gold)' : 'var(--aurora)' }} />
+            <div className="font-display text-3xl md:text-4xl" style={{ color: i === VISION_MILESTONES.length - 1 ? 'var(--gold)' : 'var(--aurora)', fontVariantNumeric: 'tabular-nums' }}>{m.year}</div>
+            <E p="vision2770" k={'m' + i + '_title'} as="div" className="font-display text-xl mt-1">{m.title}</E>
+            <E p="vision2770" k={'m' + i + '_body'} as="p" className="text-bone-dim mt-2 leading-relaxed max-w-2xl">{m.body}</E>
+          </li>
+        ))}
+      </ol>
+      <div className="card-glass rounded-2xl p-6 mt-14" style={{ borderLeft: '2px solid var(--gold)' }}>
+        <E p="vision2770" k="cta_h" as="div" className="font-display text-xl">It starts with the first funding round.</E>
+        <E p="vision2770" k="cta_body" as="p" className="text-bone-dim text-sm mt-1">Every milestone above depends on the one we are working on now.</E>
+        <button onClick={() => setPage('back')} className="btn-aurora mt-4">Back the Founders Series <ArrowRight size={16} /></button>
+      </div>
+    </section>
+  </PageWrap>
+);
+
+// Add a product = add a row.
+const MERCH_ITEMS = [
+  { name: 'Humanity First tee', desc: 'The Prime Promise, on organic cotton.' },
+  { name: 'Uto-Pi enamel pin', desc: 'The guardian of the Covenant, in gold and navy.' },
+  { name: 'The 12 Pledges print', desc: 'A wall print of the pledges, signed by the community.' },
+  { name: 'Founders Series hoodie', desc: 'For the people who funded the first chapter.' },
+];
+
+const MerchPage = ({ setPage }) => (
+  <PageWrap>
+    <section className="pt-24 pb-20 max-w-6xl mx-auto px-6 lg:px-12 relative">
+      <UnityParticles count={5} pattern="orbit" />
+      <div className="flex flex-wrap items-center gap-3"><SectionLabel>Merch</SectionLabel><NextLaunch /></div>
+      <h1 className="font-display text-4xl md:text-6xl leading-tight" style={{ textWrap: 'balance' }}>
+        <E p="merch" k="h1" as="span">Wear the Covenant.</E>
+      </h1>
+      <E p="merch" k="intro" as="p" className="text-bone-dim mt-6 max-w-2xl text-lg leading-relaxed">
+        The shop opens with the next launch. Every item will help fund the constitution.
+      </E>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-12">
+        {MERCH_ITEMS.map((m, i) => (
+          <div key={m.name} className="card-glass rounded-2xl p-6 flex flex-col">
+            <div className="rounded-xl mb-5 flex items-center justify-center" style={{ aspectRatio: '1 / 1', maxWidth: '100%', background: 'var(--void-2)', border: '1px solid var(--line-2)' }}>
+              <img src="/pi/pi-face.webp" alt="" width="96" height="96" className="rounded-full opacity-80" style={{ mixBlendMode: 'screen' }} />
+            </div>
+            <E p="merch" k={'item' + i + '_name'} as="div" className="font-display text-lg">{m.name}</E>
+            <E p="merch" k={'item' + i + '_desc'} as="p" className="text-bone-dim text-sm mt-1 leading-relaxed">{m.desc}</E>
+          </div>
+        ))}
+      </div>
+      <div className="mt-12">
+        <button onClick={() => setPage('back')} className="btn-aurora">Back the Founders Series <ArrowRight size={16} /></button>
       </div>
     </section>
   </PageWrap>
@@ -3717,6 +3822,8 @@ export default function HumanityAIQuest() {
         {page === 'manifesto' && <ManifestoPage setPage={setPage} />}
         {page === 'join' && <JoinPage setPage={setPage} />}
         {page === 'about' && <AboutPage />}
+        {page === 'vision2770' && <Vision2770Page setPage={setPage} />}
+        {page === 'merch' && <MerchPage setPage={setPage} />}
         {page === 'terms' && <TermsPage setPage={setPage} />}
         {page === 'account' && <AccountPage auth={auth} onLogout={handleLogout} onOpenAuth={openAuthModal} />}
         {page === 'admin' && (

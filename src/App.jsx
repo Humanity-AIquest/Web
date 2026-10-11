@@ -11,6 +11,7 @@ import AdminDashboard from './AdminDashboard';
 import { useTTS, ListenButton, getLS, setLS, TTS_SPEEDS } from './useTTS';
 import { createV3 } from './v3/PiV3.jsx';
 import { createQuestV3 } from './v3/QuestV3.jsx';
+import QuestDashboard from './landing/QuestDashboard.jsx';
 
 
 /* ============================================================
@@ -2755,53 +2756,6 @@ const MediaPage = ({ setPage }) => {
 };
 
 // ============ LANDING PREVIEWS: quests + media ============
-const QUEST_TYPE_LABEL = { prize: 'Prize quest', startup: 'Startup quest', crowd: 'Crowd campaign' };
-
-const LandingQuests = ({ setPage }) => {
-  const [quests, setQuests] = useState([]);
-  useEffect(() => {
-    fetch('/api/quests').then(r => r.json()).then(d => setQuests(d.quests || [])).catch(() => {});
-  }, []);
-  return (
-    <PageWrap>
-      <section className="pt-24 pb-20 max-w-6xl mx-auto px-6 lg:px-12 relative">
-        <UnityParticles count={6} pattern="orbit" />
-        <div className="flex flex-wrap items-center gap-3"><SectionLabel>Innovation Quests</SectionLabel><NextLaunch /></div>
-        <h1 className="font-display text-4xl md:text-6xl leading-tight" style={{ textWrap: 'balance' }}>
-          <E p="landing" k="quest_h1" as="span">Humanity’s hardest problems, pre-funded.</E>
-        </h1>
-        <E p="landing" k="quest_intro" as="p" className="text-bone-dim mt-6 max-w-2xl text-lg leading-relaxed">
-          Sponsors and the crowd fund a prize. Builders and their agents compete to solve it. Every originator is credited, and money unlocks in milestones. Quest competitions open in the next launch, once the Founders Series is funded.
-        </E>
-        <div className="flex flex-wrap gap-3 mt-8">
-          <button onClick={() => setPage('back')} className="btn-aurora">Back the Founders Series <ArrowRight size={16} /></button>
-          <button onClick={() => setPage('events')} className="btn-secondary"><Calendar size={15} /> Join the Flash Mob</button>
-        </div>
-        {quests.length > 0 && (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-14">
-            {quests.map(q => (
-              <div key={q.id} className="card-glass rounded-2xl p-6 flex flex-col">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.2em] text-aurora"><Trophy size={13} /> {QUEST_TYPE_LABEL[q.type] || 'Quest'}</span>
-                  <NextLaunch />
-                </div>
-                <div className="font-display text-xl mt-3 leading-snug">{q.title}</div>
-                <p className="text-bone-dim text-sm mt-2 leading-relaxed">{q.summary}</p>
-                {Array.isArray(q.tags) && q.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-4">
-                    {q.tags.map(t => <span key={t} className="text-[0.7rem] px-2 py-0.5 rounded-full" style={{ border: '1px solid var(--line-2)', color: 'var(--bone-dim)' }}>{t}</span>)}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        {quests.length > 0 && <p className="text-xs text-dust mt-6">Example quests. Prize pools and teams open in the next launch.</p>}
-      </section>
-    </PageWrap>
-  );
-};
-
 const LANDING_MEDIA = [
   { kind: 'Podcast', ep: 'Episode 1', title: 'The Hippocratic Oath for AI', blurb: 'Why humanity needs a constitution for AI before the code is written, not after.' },
   { kind: 'Podcast', ep: 'Episode 2', title: 'One person, one agent', blurb: 'A personal agent that answers only to you. What it means to own your digital self.' },
@@ -3805,7 +3759,7 @@ export default function HumanityAIQuest() {
         {page === 'back' && <BackPageV3 setPage={setPage} onOpenAgent={openAgent} />}
         {page === 'petition' && <PetitionPage setPage={setPage} onOpenAgent={openAgent} />}
         {page === 'constitution' && <ConstitutionPage onOpenAgent={openAgent} setAgentSeed={seedAgent} />}
-        {LANDING_MODE && page === 'quest' && <LandingQuests setPage={setPage} />}
+        {LANDING_MODE && page === 'quest' && <QuestDashboard setPage={setPage} onAsk={seedAgent} />}
         {LANDING_MODE && page === 'media' && <LandingMedia setPage={setPage} />}
         {page === 'event-thanks' && <EventThanksPage rsvp={lastRsvp} setPage={setPage} />}
         {!LANDING_MODE && page === 'quest' && (useLegacyHome

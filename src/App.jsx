@@ -100,13 +100,27 @@ function clearAuth() {
   localStorage.removeItem(AUTH_KEY);
 }
 
+// Server errors that mean "the backend is unavailable" (missing database binding, SQL failures,
+// code exceptions) get a plain message. Validation messages written for people pass through.
+const TECH_ERROR = /prepare|undefined|null|SQLITE|no such table|D1_|TypeError|Cannot read|is not a function|fetch failed/i;
+function friendlyError(msg) {
+  if (!msg) return msg;
+  return TECH_ERROR.test(String(msg))
+    ? 'This is temporarily unavailable. Please try again in a few minutes.'
+    : msg;
+}
+async function safeJson(res) {
+  try { const d = await res.json(); if (d && d.error) d.error = friendlyError(d.error); return d; }
+  catch { return { error: 'This is temporarily unavailable. Please try again in a few minutes.' }; }
+}
+
 async function apiCall(path, method = 'GET', body = null, token = null) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
-  return res.json();
+  return safeJson(res);
 }
 
 // ============ AUTH MODAL ============
@@ -1547,7 +1561,7 @@ const ConstitutionPage = ({ onOpenAgent, setAgentSeed }) => {
 // ============ LIVE QUEST BOARD (wired to /api/quests) ============
 const postJSON = async (url, body) => {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  return r.json();
+  return safeJson(r);
 };
 
 const QuestDetail = ({ quest, loading, onClose, facts }) => {
@@ -1691,9 +1705,11 @@ const SurveyRunner = ({ surveyId, embed }) => {
   const [copied, setCopied] = useState('');
   const [sign, setSign] = useState({ name: '', email: '', country: '' });
   const [signMsg, setSignMsg] = useState('');
+  const [signing, setSigning] = useState(false);
+  const [signedNo, setSignedNo] = useState(null);
 
   useEffect(() => {
-    setSurvey(null); setIdx(0); setResults(null); setSign({ name: '', email: '', country: '' });
+    setSurvey(null); setIdx(0); setResults(null); setSign({ name: '', email: '', country: '' }); setSignedNo(null);
     fetch(`/api/surveys/${surveyId}`).then(r => r.json()).then(d => setSurvey(d.survey || null)).catch(() => {});
   }, [surveyId]);
 
@@ -1712,8 +1728,14 @@ const SurveyRunner = ({ surveyId, embed }) => {
   const vote = async (value) => { if (cur) { try { await postJSON(`/api/surveys/${surveyId}/vote`, { statementId: cur.id, value }); } catch {} } next(); };
   const submitSign = async () => {
     if (sign.name.trim().length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sign.email)) { setSignMsg('Add your name and a valid email.'); return; }
-    try { await postJSON('/api/sign', { name: sign.name, email: sign.email, country: sign.country, side: 'human' }); setSignMsg(''); next(); }
-    catch { setSignMsg('Something went wrong — please try again.'); }
+    setSigning(true);
+    try {
+      const d = await postJSON('/api/sign', { name: sign.name, email: sign.email, country: sign.country, side: 'human' });
+      if (d.error) { setSignMsg(d.error); return; }
+      setSignMsg(''); setSignedNo(d.number || null); next();
+    }
+    catch { setSignMsg('We could not reach the server. Check your connection and try again.'); }
+    finally { setSigning(false); }
   };
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -1767,13 +1789,22 @@ const SurveyRunner = ({ surveyId, embed }) => {
                 <input value={sign.country} onChange={e => setSign(s => ({ ...s, country: e.target.value }))} placeholder="Country (optional)"
                   className="w-full px-4 py-3 rounded-xl outline-none" style={{ background: 'var(--void-2)', border: '1px solid var(--line-2)', color: 'var(--bone)' }} />
                 {signMsg && <p className="text-sm" style={{ color: 'var(--terra)' }}>{signMsg}</p>}
-                <button onClick={submitSign} className="btn-aurora w-full justify-center">Add my name <ArrowRight size={16} /></button>
+                <button onClick={submitSign} disabled={signing} className="btn-aurora w-full justify-center">{signing ? <Loader2 size={16} className="animate-spin" /> : <>Add my name <ArrowRight size={16} /></>}</button>
               </div>
             </>
           )}
         </div>
       ) : (
         <div className="mt-10">
+          {signedNo && (
+            <div className="card-glass rounded-2xl p-6 mb-8 flex items-center gap-4" style={{ borderLeft: '2px solid var(--gold)' }}>
+              <CheckCircle className="text-gold flex-shrink-0" size={28} />
+              <div>
+                <div className="font-display text-2xl">You are signatory <span className="text-gold">#{Number(signedNo).toLocaleString()}</span>.</div>
+                <p className="text-bone-dim text-sm mt-1">Thank you for adding your name. Share the petition so others can join you.</p>
+              </div>
+            </div>
+          )}
           <E p="surveys" k="results_heading" as="h2" className="font-display text-3xl font-italic text-aurora mb-2">That's the union, taking shape.</E>
           <E p="surveys" k="results_sub" as="p" className="text-bone-dim mb-8">Live tallies update as people vote.</E>
           <div className="space-y-3">

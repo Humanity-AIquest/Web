@@ -45,7 +45,7 @@ export default function HomeLanding({ setPage, onOpenAgent, ui, single = false, 
           <div className="hl-pill"><span className="hl-dot" /> <E p="home2" k="eyebrow" as="span">An open-source upgrade for society</E></div>
           <h1 className="hl-h1 font-display">
             <E p="home2" k="h1_a" as="span" className="hl-h1-small">To the Startup Nation in every nation:</E>
-            <E p="home2" k="h1_b" as="span">We built the internet. Now let’s code a </E><E p="home2" k="h1_c" as="span" className="hl-gold">hard fork</E><E p="home2" k="h1_d" as="span"> to save the humans.</E>
+            <E p="home2" k="h1v2_a" as="span">We built the internet for users. Build </E><E p="home2" k="h1v2_b" as="span" className="hl-gold">humanity-centric AI</E><E p="home2" k="h1v2_c" as="span"> for Open-AI-Regulation.</E>
           </h1>
           <E p="home2" k="sub" as="p" className="hl-sub">A Hippocratic Oath for AI, written in the open and funded by the people it protects. No VC.</E>
           <div className="hl-ctas">
@@ -380,7 +380,7 @@ const HomeStyles = () => (
   .hl-hero { padding: 6.5rem 0 5rem; background: radial-gradient(60% 70% at 50% 0%, rgba(232,177,79,.14), transparent 70%); }
   .hl-pill { display: inline-flex; align-items: center; gap: .5rem; padding: .4rem .9rem; border-radius: 999px; border: 1px solid var(--line-2); font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--bone-dim); }
   .hl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 12px var(--gold); }
-  .hl-h1 { font-size: clamp(2.4rem, 6vw, 4.6rem); line-height: 1.04; margin: 1.6rem auto 0; max-width: 18ch; text-wrap: balance; }
+  .hl-h1 { font-size: clamp(2.4rem, 6vw, 4.6rem); line-height: 1.04; margin: 1.6rem auto 0; max-width: 20ch; text-wrap: balance; }
   .hl-h1-small { display: block; font-size: .42em; line-height: 1.3; color: var(--bone-dim); font-style: italic; margin-bottom: .6rem; }
   .hl-sub { color: var(--bone-dim); font-size: 1.15rem; line-height: 1.6; max-width: 38rem; margin: 1.5rem auto 0; }
   .hl-ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: 2.25rem; }

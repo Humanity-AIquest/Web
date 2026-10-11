@@ -428,6 +428,18 @@ const PAGES = [
   { id: 'about', name: 'About' }
 ];
 
+// ============ LANDING MODE ============
+// Pre-release landing: only the live features are reachable; every other page shows "coming soon".
+// Set to false to restore the full site from this same codebase.
+const LANDING_MODE = true;
+const LANDING_PAGES = new Set(['home', 'petition', 'surveys', 'back', 'account', 'admin', 'terms']);
+const LANDING_LINKS = [
+  { id: 'petition', name: 'Sign Petition' },
+  { id: 'surveys', name: 'Surveys' },
+  { id: 'back', name: 'Back the Project' },
+  { id: 'terms', name: 'Terms' },
+];
+
 // ============ GLOBAL STYLES ============
 const GlobalStyles = () => (
   <style>{`
@@ -841,13 +853,20 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
               style={{ color: page === 'petition' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
               Sign Petition
             </button>
+            {LANDING_MODE && (
+              <button onClick={() => go('surveys')}
+                className="px-3 py-1.5 text-sm tracking-wide transition-colors"
+                style={{ color: page === 'surveys' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
+                Surveys
+              </button>
+            )}
             <button onClick={() => go('back')}
               className="px-3 py-1.5 text-sm tracking-wide transition-colors"
               style={{ color: page === 'back' ? 'var(--aurora)' : 'var(--bone-dim)' }}>
               Back the Project
             </button>
-            <NavDropdown label="Developers" items={NAV_GROUPS.developers} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
-            <NavDropdown label="Constitution" items={NAV_GROUPS.constitution} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />
+            {!LANDING_MODE && <NavDropdown label="Developers" items={NAV_GROUPS.developers} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />}
+            {!LANDING_MODE && <NavDropdown label="Constitution" items={NAV_GROUPS.constitution} page={page} setPage={go} openMenu={openMenu} setOpenMenu={setOpenMenu} />}
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -896,7 +915,8 @@ const Nav = ({ page, setPage, onOpenAgent, auth, onOpenAuth, onLogout }) => {
             <div className="px-6 py-4 space-y-1">
               <button onClick={() => go('petition')} className="btn-aurora w-full justify-center mb-2">Sign Petition <ArrowRight size={14} /></button>
               <button onClick={() => go('back')} className="btn-secondary w-full justify-center mb-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>Back the Project</button>
-              {[['Developers', 'developers'], ['Constitution', 'constitution']].map(([label, key]) => (
+              {LANDING_MODE && <button onClick={() => go('surveys')} className="btn-secondary w-full justify-center mb-2">Surveys</button>}
+              {(LANDING_MODE ? [] : [['Developers', 'developers'], ['Constitution', 'constitution']]).map(([label, key]) => (
                 <div key={key}>
                   <button onClick={() => setMobileGroup(mobileGroup === key ? null : key)}
                     className="w-full flex items-center justify-between px-2 py-3 text-sm font-display"
@@ -2602,6 +2622,16 @@ const Footer = ({ setPage }) => (
             Gifted to humanity. Owned by no one. Protected by all of us.
           </E>
         </div>
+        {LANDING_MODE ? (
+        <div className="md:col-span-2">
+          <div className="text-xs uppercase tracking-[0.25em] text-bone-dim mb-4">Open now</div>
+          <div className="space-y-2">
+            {LANDING_LINKS.map(p => (
+              <button key={p.id} onClick={() => setPage(p.id)} className="block text-bone hover:text-aurora transition-colors text-sm">{p.name}</button>
+            ))}
+          </div>
+        </div>
+        ) : (<>
         <div>
           <div className="text-xs uppercase tracking-[0.25em] text-bone-dim mb-4">Pages</div>
           <div className="space-y-2">
@@ -2618,9 +2648,10 @@ const Footer = ({ setPage }) => (
             ))}
           </div>
         </div>
+        </>)}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4 mb-12">
+      {!LANDING_MODE && <div className="grid md:grid-cols-3 gap-4 mb-12">
         <button onClick={() => setPage('constitution')} className="card-glass rounded-xl p-5 text-left">
           <div className="text-xs uppercase tracking-[0.2em] text-aurora mb-2">I</div>
           <div className="font-display text-lg">Sign the Constitution</div>
@@ -2633,7 +2664,7 @@ const Footer = ({ setPage }) => (
           <div className="text-xs uppercase tracking-[0.2em] text-terra mb-2">III</div>
           <div className="font-display text-lg">Build the OS</div>
         </button>
-      </div>
+      </div>}
 
       <div className="pt-8 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-xs text-dust"
         style={{ borderColor: 'var(--line)' }}>
@@ -3259,8 +3290,67 @@ const { V3Styles, HomeV3, BackPageV3, PledgeExplorer, DemoNotice, CovenantCredit
 const { QuestStylesV3, QuestPageV3 } = createQuestV3({ E, useCmsField, PageWrap, AgentNetwork, QuestDetail });
 
 // ============ ROOT ============
+// ============ COMING SOON (landing mode home) ============
+const ComingSoon = ({ setPage, onOpenAgent, auth, onOpenAuth }) => {
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    let live = true;
+    fetch('/api/count').then(r => r.json()).then(d => { if (live && !d.error) setStats(d); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  return (
+    <PageWrap>
+      <section className="relative max-w-4xl mx-auto px-6 lg:px-12 py-20 md:py-28 text-center">
+        <UnityParticles count={7} pattern="converge" />
+        <img src="/pi/pi-face.webp" alt="Uto-Pi, Guardian of the Covenant" width="140" height="140"
+          className="mx-auto mb-8 rounded-full" style={{ mixBlendMode: 'screen' }} />
+        <HeroPill><E p="landing" k="eyebrow" as="span">Coming soon</E></HeroPill>
+        <h1 className="font-display text-4xl md:text-6xl leading-tight mt-6" style={{ textWrap: 'balance' }}>
+          <E p="landing" k="headline" as="span">Our next release is on its way.</E>
+        </h1>
+        <E p="landing" k="intro" as="p" className="text-bone-dim text-lg mt-5 max-w-2xl mx-auto leading-relaxed">
+          We are preparing the new release of the platform. While we build, you can add your name to the petition, vote in community surveys and create your account.
+        </E>
+
+        <div className="flex flex-wrap justify-center gap-3 mt-10">
+          <button onClick={() => setPage('petition')} className="btn-aurora">
+            <E p="landing" k="cta_petition" as="span">Sign the petition</E> <ArrowRight size={16} />
+          </button>
+          <button onClick={() => setPage('surveys')} className="btn-secondary">
+            <E p="landing" k="cta_surveys" as="span">Take a survey</E>
+          </button>
+          {auth?.user ? (
+            <button onClick={() => setPage('account')} className="btn-secondary">
+              <User size={16} /> <span>Your account</span>
+            </button>
+          ) : (
+            <button onClick={() => onOpenAuth('signup')} className="btn-secondary">
+              <E p="landing" k="cta_signup" as="span">Create your account</E>
+            </button>
+          )}
+        </div>
+
+        {stats && stats.count > 0 && (
+          <p className="text-sm text-bone-dim mt-8">
+            <span className="text-aurora font-display text-xl">{Number(stats.count).toLocaleString()}</span> people have signed
+            {stats.nations > 1 ? <> from <span className="text-gold">{stats.nations}</span> nations</> : null}.
+          </p>
+        )}
+
+        <div>
+          <button onClick={onOpenAgent} className="mt-10 inline-flex items-center gap-2 text-sm text-bone-dim hover:text-aurora transition-colors">
+            <Sparkles size={14} className="text-aurora" /> <E p="landing" k="cta_agent" as="span">Questions? Ask Pi, our SI guide</E>
+          </button>
+        </div>
+      </section>
+    </PageWrap>
+  );
+};
+
 export default function HumanityAIQuest() {
-  const [page, setPage] = useState('home');
+  const [rawPage, setPage] = useState('home');
+  // In landing mode, any page that isn't open yet falls back to the coming-soon home.
+  const page = LANDING_MODE && !LANDING_PAGES.has(rawPage) ? 'home' : rawPage;
   const [agentOpen, setAgentOpen] = useState(false);
   const [agentSeed, setAgentSeed] = useState(null);
   const [auth, setAuth] = useState(getStoredAuth);
@@ -3350,7 +3440,8 @@ export default function HumanityAIQuest() {
 
       <main>
         {page !== 'admin' && <DemoNotice setPage={setPage} />}
-        {page === 'home' && (useLegacyHome
+        {LANDING_MODE && page === 'home' && <ComingSoon setPage={setPage} onOpenAgent={openAgent} auth={auth} onOpenAuth={openAuthModal} />}
+        {!LANDING_MODE && page === 'home' && (useLegacyHome
           ? <HomePage setPage={setPage} onOpenAgent={openAgent} />
           : <HomeV3 setPage={setPage} onOpenAgent={openAgent} onSeedAgent={seedAgent} />)}
         {page === 'back' && <BackPageV3 setPage={setPage} onOpenAgent={openAgent} />}

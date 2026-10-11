@@ -17,7 +17,8 @@ export async function onRequestPost(context) {
   try {
     await ensureMovementSchema(env);
     try { await env.DB.prepare("ALTER TABLE signatures ADD COLUMN newsletter INTEGER DEFAULT 0").run(); } catch (e) { /* exists */ }
-    const { name, email, side, country, newsletter, turnstile_token } = await request.json();
+    try { await env.DB.prepare("ALTER TABLE signatures ADD COLUMN sticker INTEGER DEFAULT 0").run(); } catch (e) { /* exists */ }
+    const { name, email, side, country, newsletter, sticker, turnstile_token } = await request.json();
 
     if (!name || name.trim().length < 2) return jsonError("Please add your name.");
     if (!validEmail(email)) return jsonError("Please add a valid email.");
@@ -34,8 +35,8 @@ export async function onRequestPost(context) {
     if (!existing) {
       const cleanEmail = email.trim().toLowerCase();
       await env.DB.prepare(
-        "INSERT INTO signatures (id, name, email, side, country, newsletter) VALUES (?,?,?,?,?,?)"
-      ).bind(newId(), name.trim(), cleanEmail, cleanSide, country || null, newsletter ? 1 : 0).run();
+        "INSERT INTO signatures (id, name, email, side, country, newsletter, sticker) VALUES (?,?,?,?,?,?,?)"
+      ).bind(newId(), name.trim(), cleanEmail, cleanSide, country || null, newsletter ? 1 : 0, sticker ? 1 : 0).run();
       try {
         await ensureConversationSchema(env);
         await logInteraction(env, {

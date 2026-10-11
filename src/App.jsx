@@ -12,6 +12,7 @@ import { useTTS, ListenButton, getLS, setLS, TTS_SPEEDS } from './useTTS';
 import { createV3 } from './v3/PiV3.jsx';
 import { createQuestV3 } from './v3/QuestV3.jsx';
 import QuestDashboard from './landing/QuestDashboard.jsx';
+import HomeLanding from './landing/HomeLanding.jsx';
 
 
 /* ============================================================
@@ -3748,7 +3749,7 @@ const AgentButton = ({ onClick }) => (
 );
 
 // ============ V3 (Pi) — plugged in via src/v3/PiV3.jsx ============
-const { V3Styles, HomeV3, BackPageV3, PledgeExplorer, DemoNotice, CovenantCredit } = createV3({
+const { V3Styles, HomeV3, BackPageV3, PledgeExplorer, DemoNotice, CovenantCredit, PiEmblem } = createV3({
   E, useCmsField, SectionLabel, PageWrap, AgentNetwork, useAspirationalCount, useAnimatedCount,
 });
 
@@ -3917,7 +3918,7 @@ export default function HumanityAIQuest() {
 
       <main>
         {page !== 'admin' && <DemoNotice setPage={setPage} />}
-        {LANDING_MODE && page === 'home' && <ComingSoon setPage={setPage} onOpenAgent={openAgent} auth={auth} onOpenAuth={openAuthModal} />}
+        {LANDING_MODE && page === 'home' && <HomeLanding setPage={setPage} onOpenAgent={openAgent} ui={{ E, Turnstile, postJSON, flashMob: FLASH_MOB, PiEmblem }} />}
         {!LANDING_MODE && page === 'home' && (useLegacyHome
           ? <HomePage setPage={setPage} onOpenAgent={openAgent} />
           : <HomeV3 setPage={setPage} onOpenAgent={openAgent} onSeedAgent={seedAgent} />)}

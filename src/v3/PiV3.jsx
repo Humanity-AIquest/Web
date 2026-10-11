@@ -778,5 +778,5 @@ export function createV3({ E, useCmsField, SectionLabel, PageWrap, AgentNetwork,
     );
   };
 
-  return { V3Styles, HomeV3, BackPageV3, PledgeExplorer, DemoNotice, CovenantCredit };
+  return { V3Styles, HomeV3, BackPageV3, PledgeExplorer, DemoNotice, CovenantCredit, PiEmblem };
 }

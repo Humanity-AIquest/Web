@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 const TYPES = {
-  prize: { label: 'Prize quest', icon: Trophy, hue: '#FFD60A' },
+  prize: { label: 'Prize quest', icon: Trophy, hue: '#5BE9DD' },
   startup: { label: 'Startup quest', icon: Rocket, hue: '#5BE9DD' },
   crowd: { label: 'Crowd campaign', icon: HandCoins, hue: '#C97B5B' },
 };
@@ -347,7 +347,7 @@ const QuestStyles = () => (
   .qd-lede { color: var(--bone-dim); max-width: 46rem; margin-top: .9rem; font-size: 1.08rem; line-height: 1.6; }
   .qd-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin-top: 1.75rem; }
   .qd-kpis > div { padding: .9rem 1rem; border-radius: 1rem; background: rgba(7,16,31,.55); border: 1px solid var(--line); }
-  .qd-kpis b { display: block; font-family: 'Fraunces', Georgia, serif; font-size: 1.5rem; font-variant-numeric: tabular-nums; color: var(--bone); }
+  .qd-kpis b { display: block; font-family: var(--f-display); font-weight: 800; font-size: 1.5rem; font-variant-numeric: tabular-nums; color: var(--bone); }
   .qd-kpis span { font-size: .75rem; color: var(--bone-dim); }
   .qd-shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 1.5rem; margin-top: 1.5rem; align-items: start; }
   .qd-side { position: sticky; top: 7.5rem; display: flex; flex-direction: column; gap: 1.25rem; padding: 1rem; border-radius: 1.25rem; background: var(--void-2); border: 1px solid var(--line); }
@@ -379,11 +379,11 @@ const QuestStyles = () => (
   .qd-flag { display: inline-flex; align-items: center; gap: .25rem; font-size: .68rem; padding: .2rem .5rem; border-radius: 999px; white-space: nowrap; }
   .qd-flag.ok { color: #7FE3A0; background: rgba(127,227,160,.12); }
   .qd-flag.hot { color: #FFB86B; background: rgba(255,184,107,.12); }
-  .qd-card-title { font-family: 'Fraunces', Georgia, serif; font-size: 1.2rem; line-height: 1.25; margin-top: .7rem; color: var(--bone); }
+  .qd-card-title { font-family: var(--f-display); font-weight: 800; font-size: 1.2rem; line-height: 1.25; margin-top: .7rem; color: var(--bone); }
   .qd-card-sum { color: var(--bone-dim); font-size: .86rem; line-height: 1.5; margin-top: .45rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .qd-card-fund { display: flex; align-items: center; gap: .85rem; margin-top: 1rem; }
   .qd-ring-empty { width: 54px; height: 54px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; border: 2px dashed var(--line-2); color: var(--bone-dim); }
-  .qd-big { font-family: 'Fraunces', Georgia, serif; font-size: 1.35rem; color: var(--bone); font-variant-numeric: tabular-nums; }
+  .qd-big { font-family: var(--f-display); font-weight: 800; font-size: 1.35rem; color: var(--bone); font-variant-numeric: tabular-nums; }
   .qd-dim { font-size: .75rem; color: var(--bone-dim); }
   .qd-card-meta { display: flex; flex-wrap: wrap; gap: .4rem .9rem; margin-top: 1rem; padding-top: .85rem; border-top: 1px solid var(--line); font-size: .75rem; color: var(--bone-dim); }
   .qd-card-meta span { display: inline-flex; align-items: center; gap: .3rem; }
@@ -404,7 +404,7 @@ const QuestStyles = () => (
   .qd-fund-stats b { display: block; font-size: 1.1rem; color: var(--bone); font-variant-numeric: tabular-nums; }
   .qd-fund-stats span { font-size: .68rem; color: var(--bone-dim); }
   .qd-pledge { width: 100%; padding: .7rem; border-radius: .8rem; font-size: .85rem; color: var(--bone-dim); border: 1px dashed var(--line-2); cursor: not-allowed; }
-  .qd-founders { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; margin-top: .5rem; padding: .6rem .95rem; border-radius: .8rem; font-size: .82rem; font-weight: 600; color: #0F1F3A; background: var(--gold); }
+  .qd-founders { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; margin-top: .5rem; padding: .6rem .95rem; border-radius: .8rem; font-size: .82rem; font-weight: 600; color: #05061A; background: var(--gold); }
   .qd-fundbox .qd-founders { width: 100%; }
   .qd-section-label { font-size: .65rem; letter-spacing: .22em; text-transform: uppercase; color: var(--bone-dim); margin: 1.75rem 0 .6rem; }
   .qd-tranches { display: flex; gap: .4rem; }
@@ -423,7 +423,7 @@ const QuestStyles = () => (
   .qd-news-meta b { color: var(--bone); font-weight: 600; }
   .qd-si { font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--aurora); border: 1px solid rgba(91,233,221,.4); padding: .05rem .4rem; border-radius: 999px; }
   .qd-kind { color: var(--gold); }
-  .qd-news-title { font-family: 'Fraunces', Georgia, serif; font-size: 1.05rem; color: var(--bone); margin-top: .2rem; }
+  .qd-news-title { font-family: var(--f-display); font-weight: 800; font-size: 1.05rem; color: var(--bone); margin-top: .2rem; }
   .qd-community { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1rem; }
   .qd-com-card { display: flex; gap: .85rem; padding: 1.1rem; border-radius: 1rem; background: rgba(7,16,31,.45); border: 1px solid var(--line); color: var(--aurora); }
   .qd-com-card p { font-size: .84rem; color: var(--bone-dim); margin: .25rem 0 .5rem; line-height: 1.5; }

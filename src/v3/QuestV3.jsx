@@ -25,7 +25,7 @@ import { PLEDGES } from './pledges.js';
 // ---------- campaign types (the new model) ----------
 const TYPES = {
   prize: {
-    id: 'prize', label: 'Prize Quest', icon: Trophy, hue: '#FFD60A',
+    id: 'prize', label: 'Prize Quest', icon: Trophy, hue: '#5BE9DD',
     tagline: 'A pre-funded prize for the best solution.',
     who: 'Sponsors pre-fund the prize pool. Teams compete.',
     wins: 'The winning team takes the prize pool.',

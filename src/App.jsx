@@ -597,22 +597,27 @@ const FLASH_MOB = {
 // ============ GLOBAL STYLES ============
 const GlobalStyles = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Manrope:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Archivo:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
     :root {
-      --void: #0F1F3A;
-      --void-2: #16284A;
-      --cosmos: #1E3358;
-      --bone: #FFFFFF;
-      --bone-dim: #C5CDDD;
-      --aurora: #FFD60A;
-      --aurora-deep: #E0B800;
-      --gold: #FFD60A;
-      --bronze: #CC9000;
-      --terra: #E0A458;
-      --forest: #234555;
-      --forest-2: #2E5A6E;
-      --dust: #8693AD;
+      /* Sister-brand family (Bishes · Agenti · Humanity-AI): Deep Ink + Bone, Commons Aqua, and Agenti orange. */
+      --void: #05061A;
+      --void-2: #0D1030;
+      --cosmos: #161A40;
+      --bone: #F4F2EC;
+      --bone-dim: #B9BDCC;
+      --aurora: #5BE9DD;
+      --aurora-deep: #2FC9BC;
+      --gold: #5BE9DD;
+      --bronze: #2FC9BC;
+      --terra: #FF8A6E;
+      --forest: #10324A;
+      --forest-2: #164560;
+      --dust: #8A91AD;
+      --agenti: #FF5A1F;
+      --f-display: 'Big Shoulders Display', 'Arial Narrow', Impact, sans-serif;
+      --f-body: 'Archivo', system-ui, sans-serif;
+      --f-mono: 'DM Mono', ui-monospace, monospace;
       --line: rgba(255, 255, 255, 0.09);
       --line-2: rgba(255, 255, 255, 0.18);
     }
@@ -621,18 +626,20 @@ const GlobalStyles = () => (
     html, body, #root { background: var(--void); }
     body {
       margin: 0;
-      font-family: 'Manrope', system-ui, sans-serif;
+      font-family: var(--f-body);
       color: var(--bone);
       -webkit-font-smoothing: antialiased;
-      letter-spacing: -0.01em;
+      letter-spacing: 0;
     }
 
     .font-display {
-      font-family: 'Fraunces', 'Times New Roman', serif;
-      font-variation-settings: "opsz" 144;
-      letter-spacing: -0.025em;
+      font-family: var(--f-display);
+      font-weight: 800;
+      letter-spacing: 0.005em;
+      line-height: 0.98;
     }
-    .font-body { font-family: 'Manrope', system-ui, sans-serif; }
+    .font-body { font-family: var(--f-body); }
+    .font-mono { font-family: var(--f-mono); }
     .font-italic { font-style: italic; }
 
     /* Color utilities */
@@ -688,7 +695,7 @@ const GlobalStyles = () => (
       box-shadow: 0 0 40px rgba(91, 233, 221, 0.15), 0 0 80px rgba(91, 233, 221, 0.08);
     }
     .glow-gold {
-      box-shadow: 0 0 30px rgba(232, 177, 79, 0.18);
+      box-shadow: 0 0 30px rgba(91, 233, 221, 0.18);
     }
 
     /* Scrollbar */
@@ -743,7 +750,7 @@ const GlobalStyles = () => (
       padding: 0.875rem 1.5rem;
       background: var(--bone); color: var(--void);
       font-weight: 500; letter-spacing: 0.02em;
-      border-radius: 9999px;
+      border-radius: 0;
       transition: transform 0.3s, box-shadow 0.3s;
       border: 1px solid var(--bone);
     }
@@ -753,31 +760,31 @@ const GlobalStyles = () => (
       padding: 0.875rem 1.5rem;
       background: transparent; color: var(--bone);
       font-weight: 500; letter-spacing: 0.02em;
-      border: 1px solid var(--line-2);
-      border-radius: 9999px;
+      border: 1.5px solid var(--line-2);
+      border-radius: 0;
       transition: all 0.3s;
     }
     .btn-secondary:hover { border-color: var(--aurora); color: var(--aurora); }
     .btn-aurora {
       display: inline-flex; align-items: center; gap: 0.5rem;
       padding: 0.875rem 1.5rem;
-      background: linear-gradient(135deg, var(--aurora) 0%, var(--aurora-deep) 100%);
+      background: var(--aurora);
       color: var(--void);
-      font-weight: 600; letter-spacing: 0.02em;
-      border-radius: 9999px;
+      font-family: var(--f-display); font-weight: 900; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.03em;
+      border-radius: 0;
       transition: transform 0.3s, box-shadow 0.3s;
     }
     .btn-aurora:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(91, 233, 221, 0.4); }
     .btn-gold {
       display: inline-flex; align-items: center; gap: 0.5rem;
       padding: 0.875rem 1.5rem;
-      background: linear-gradient(135deg, var(--gold) 0%, var(--bronze) 100%);
+      background: var(--agenti);
       color: var(--void);
       font-weight: 600; letter-spacing: 0.02em;
-      border-radius: 9999px;
+      border-radius: 0;
       transition: transform 0.3s, box-shadow 0.3s;
     }
-    .btn-gold:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(232, 177, 79, 0.4); }
+    .btn-gold:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(91, 233, 221, 0.4); }
 
     /* Cards */
     .card-glass {
@@ -823,7 +830,7 @@ const GlobalStyles = () => (
     .page-bg {
       background:
         radial-gradient(ellipse 60% 40% at 50% 0%, rgba(91, 233, 221, 0.06) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 30% at 80% 100%, rgba(232, 177, 79, 0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 30% at 80% 100%, rgba(255, 90, 31, 0.05) 0%, transparent 60%),
         var(--void);
     }
   `}</style>
@@ -863,7 +870,7 @@ const AgentNetwork = ({ density = 38, height = '100vh', planetary = true }) => {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ height }}>
       <div className="absolute inset-0" style={{
-        background: 'radial-gradient(ellipse 70% 50% at 50% 30%, rgba(91, 233, 221, 0.10) 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 80% 80%, rgba(232, 177, 79, 0.08) 0%, transparent 60%)'
+        background: 'radial-gradient(ellipse 70% 50% at 50% 30%, rgba(91, 233, 221, 0.10) 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 80% 80%, rgba(91, 233, 221, 0.08) 0%, transparent 60%)'
       }} />
 
       <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" className="absolute inset-0">
@@ -1246,7 +1253,7 @@ const HomePage = ({ setPage, onOpenAgent }) => {
 
   return (
     <PageWrap>
-      <div className="w-full text-center py-2 text-xs tracking-wide" style={{ background: 'rgba(232,177,79,0.1)', color: 'var(--gold)', borderBottom: '1px solid rgba(232,177,79,0.15)' }}>
+      <div className="w-full text-center py-2 text-xs tracking-wide" style={{ background: 'rgba(91, 233, 221,0.1)', color: 'var(--gold)', borderBottom: '1px solid rgba(91, 233, 221,0.15)' }}>
         <E p="home" k="beta_notice" as="span">Beta Preview — This platform is in early development. Some features are not yet available.</E>
       </div>
       <section className="relative min-h-[88vh] flex items-center grain">
@@ -2504,8 +2511,8 @@ const OSPage = ({ setPage }) => (
             The newest clause in the Constitution establishes truth as a positive human right. Every contributor — human, agent, or service — operates under a transparent reputational layer. The HRC itself governs it, as a covenant binding all signatories. No truth czar. No deletion. Just radical transparency.
           </E>
           <div className="mt-8 p-6 rounded-2xl" style={{
-            background: 'rgba(232, 177, 79, 0.05)',
-            border: '1px solid rgba(232, 177, 79, 0.25)'
+            background: 'rgba(91, 233, 221, 0.05)',
+            border: '1px solid rgba(91, 233, 221, 0.25)'
           }}>
             <div className="text-xs uppercase tracking-[0.25em] text-gold mb-3">The Pledge</div>
             <E p="os" k="truth_pledge" as="p" className="font-display italic text-lg leading-relaxed">
@@ -3702,7 +3709,7 @@ const HRCAgent = ({ open, onClose, seed, clearSeed, auth, onOpenAuth }) => {
             {/* Contextual status badge */}
             {(() => {
               const [label, color, bg, border] = loading
-                ? ['Auditing', 'var(--gold)', 'rgba(232,177,79,0.10)', 'rgba(232,177,79,0.25)']
+                ? ['Auditing', 'var(--gold)', 'rgba(91, 233, 221,0.10)', 'rgba(91, 233, 221,0.25)']
                 : listening
                 ? ['Listening', '#a8d8ff', 'rgba(100,180,255,0.10)', 'rgba(100,180,255,0.25)']
                 : tts.speakingId

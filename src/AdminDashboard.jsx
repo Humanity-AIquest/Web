@@ -35,7 +35,7 @@ const aclLevel = (auth) => auth?.user?.acl_level ?? 0;
 // ─── Tag helpers ─────────────────────────────────────────────
 const TAG_OPTIONS = [
   { value: 'process_hrc',  label: 'Process for HRC',   color: 'aurora',  bg: 'rgba(91,233,221,0.18)',  fg: 'var(--aurora)' },
-  { value: 'more_info',    label: 'More info needed',   color: 'gold',    bg: 'rgba(232,177,79,0.18)',  fg: 'var(--gold)' },
+  { value: 'more_info',    label: 'More info needed',   color: 'gold',    bg: 'rgba(91, 233, 221,0.18)',  fg: 'var(--gold)' },
   { value: 'warn_user',    label: 'Warn user',          color: 'orange',  bg: 'rgba(251,146,60,0.18)',  fg: '#fb923c' },
   { value: 'suspend_user', label: 'Suspend user',       color: 'red',     bg: 'rgba(220,60,60,0.18)',   fg: '#f87171' },
 ];
@@ -60,7 +60,7 @@ const Badge = ({ label, color = 'dust' }) => {
   const colors = {
     dust:    { bg: 'rgba(107,117,147,0.18)', text: 'var(--dust)' },
     aurora:  { bg: 'rgba(91,233,221,0.14)',  text: 'var(--aurora)' },
-    gold:    { bg: 'rgba(232,177,79,0.18)',  text: 'var(--gold)' },
+    gold:    { bg: 'rgba(91, 233, 221,0.18)',  text: 'var(--gold)' },
     red:     { bg: 'rgba(220,60,60,0.18)',   text: '#f87171' },
     green:   { bg: 'rgba(52,211,153,0.14)',  text: '#34d399' },
     orange:  { bg: 'rgba(251,146,60,0.18)',  text: '#fb923c' },
@@ -138,7 +138,7 @@ const btnStyle = (variant = 'ghost', small = false) => {
     primary: { ...base, background: 'var(--bone)', color: 'var(--void)' },
     aurora:  { ...base, background: 'rgba(91,233,221,0.15)', color: 'var(--aurora)', border: '1px solid rgba(91,233,221,0.25)' },
     blue:    { ...base, background: 'rgba(59,130,246,0.2)',  color: '#60a5fa',        border: '1px solid rgba(59,130,246,0.35)' },
-    gold:    { ...base, background: 'rgba(232,177,79,0.15)', color: 'var(--gold)',    border: '1px solid rgba(232,177,79,0.25)' },
+    gold:    { ...base, background: 'rgba(91, 233, 221,0.15)', color: 'var(--gold)',    border: '1px solid rgba(91, 233, 221,0.25)' },
     danger:  { ...base, background: 'rgba(220,60,60,0.2)',   color: '#f87171',        border: '1px solid rgba(220,60,60,0.3)' },
     orange:  { ...base, background: 'rgba(251,146,60,0.15)', color: '#fb923c',        border: '1px solid rgba(251,146,60,0.25)' },
     ghost:   { ...base, background: 'rgba(242,234,211,0.06)', color: 'var(--bone-dim)', border: '1px solid var(--line)' },
@@ -695,8 +695,8 @@ const ConversationsTab = ({ auth, level }) => {
                       expandedMsgs.map((m, i) => (
                         <div key={i} style={{
                           padding: '8px 12px', borderRadius: 8,
-                          background: m.role === 'user' ? 'rgba(91,233,221,0.06)' : 'rgba(232,177,79,0.06)',
-                          border: `1px solid ${m.role === 'user' ? 'rgba(91,233,221,0.12)' : 'rgba(232,177,79,0.12)'}`,
+                          background: m.role === 'user' ? 'rgba(91,233,221,0.06)' : 'rgba(91, 233, 221,0.06)',
+                          border: `1px solid ${m.role === 'user' ? 'rgba(91,233,221,0.12)' : 'rgba(91, 233, 221,0.12)'}`,
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: m.role === 'user' ? 'var(--aurora)' : 'var(--gold)', textTransform: 'uppercase' }}>{m.role}</span>
@@ -1030,7 +1030,7 @@ const NotesList = ({ auth, level, noteType }) => {
       </div>
 
       {error && (
-        <div style={{ ...cardStyle, border: '1px solid rgba(232,177,79,0.3)', background: 'rgba(232,177,79,0.06)', padding: '14px 16px' }}>
+        <div style={{ ...cardStyle, border: '1px solid rgba(91, 233, 221,0.3)', background: 'rgba(91, 233, 221,0.06)', padding: '14px 16px' }}>
           <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--gold)', fontWeight: 600 }}>
             {noteType === 'next_action' ? 'Next Actions' : 'Comments'} are stored per conversation.
           </p>
@@ -1110,8 +1110,8 @@ const NotesList = ({ auth, level, noteType }) => {
                     expandedMsgs.map((m, i) => (
                       <div key={i} style={{
                         padding: '8px 12px', borderRadius: 8,
-                        background: m.role === 'user' ? 'rgba(91,233,221,0.06)' : 'rgba(232,177,79,0.06)',
-                        border: `1px solid ${m.role === 'user' ? 'rgba(91,233,221,0.12)' : 'rgba(232,177,79,0.12)'}`,
+                        background: m.role === 'user' ? 'rgba(91,233,221,0.06)' : 'rgba(91, 233, 221,0.06)',
+                        border: `1px solid ${m.role === 'user' ? 'rgba(91,233,221,0.12)' : 'rgba(91, 233, 221,0.12)'}`,
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color: m.role === 'user' ? 'var(--aurora)' : 'var(--gold)', textTransform: 'uppercase' }}>{m.role}</span>
@@ -1449,7 +1449,7 @@ const TtsPluginManager = ({ auth }) => {
     if (type.includes('Open')) return { bg: 'rgba(52,211,153,0.12)', fg: '#34d399' };
     if (type.includes('Paid')) return { bg: 'rgba(251,146,60,0.12)', fg: '#fb923c' };
     if (type.includes('Non-commercial')) return { bg: 'rgba(167,139,250,0.12)', fg: '#a78bfa' };
-    return { bg: 'rgba(232,177,79,0.12)', fg: 'var(--gold)' };
+    return { bg: 'rgba(91, 233, 221,0.12)', fg: 'var(--gold)' };
   };
 
   const SE_VOICES = ['Brian','Ivy','Emma','Russell','Amy','Joey','Justin','Nicole','Geraint','Salli'];
@@ -1521,7 +1521,7 @@ const TtsPluginManager = ({ auth }) => {
                       {plugin.type}
                     </span>
                     {plugin.badge && (
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 9999, background: 'rgba(232,177,79,0.12)', color: 'var(--gold)', letterSpacing: '0.03em' }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 9999, background: 'rgba(91, 233, 221,0.12)', color: 'var(--gold)', letterSpacing: '0.03em' }}>
                         ★ {plugin.badge}
                       </span>
                     )}
@@ -1748,7 +1748,7 @@ const VoicePickerPanel = ({ tts }) => {
                 <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 9999, background: 'rgba(91,233,221,0.1)', color: 'var(--aurora)', fontWeight: 700 }}>NEURAL</span>
               )}
               {v.localService === false && (
-                <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 9999, background: 'rgba(232,177,79,0.1)', color: 'var(--gold)', fontWeight: 700 }}>ONLINE</span>
+                <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 9999, background: 'rgba(91, 233, 221,0.1)', color: 'var(--gold)', fontWeight: 700 }}>ONLINE</span>
               )}
             </button>
           );

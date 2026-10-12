@@ -111,7 +111,7 @@ export const V3Styles = () => (
     @media (max-width: 1023px) { .v3-tag-1 { left: 0; } .v3-tag-2 { right: 0; } }
 
     /* ---------- hero type ---------- */
-    .v3-h1 { font-family: 'Fraunces', serif; font-weight: 300; letter-spacing: -.035em; line-height: .92; font-variation-settings: "opsz" 144; }
+    .v3-h1 { font-family: var(--f-display); font-weight: 900; letter-spacing: 0; line-height: .9; text-transform: uppercase; }
     .v3-h1-glow { background: linear-gradient(100deg, #fff 0%, #fff 40%, var(--pi-teal) 62%, #fff 82%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: v3-shimmer 9s linear infinite; }
 
     /* ---------- HUD stat strip ---------- */

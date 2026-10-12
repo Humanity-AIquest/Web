@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowRight, ChevronDown, Calendar, Mic, PenLine, Vote, Lock, CheckCircle, Loader2, X as XIcon, Check, Share2, Copy, Users } from 'lucide-react';
 import { PRIME_PROMISE, PLEDGES } from '../v3/pledges.js';
 
+const AGENTI_URL = 'https://agenti-pm.humanity-ai-info.workers.dev/';
 const LEGACY = ['Nails', 'Snails', 'Corporate fiduciary duty', 'Quarterly earnings', 'Engagement metrics'];
 const HUMAN = ['Children first', 'Your data, owned by you', 'Your voice in every rule', 'Credit for your work, forever', 'A right to switch it off'];
 
@@ -38,29 +39,46 @@ export default function HomeLanding({ setPage, onOpenAgent, ui, single = false, 
     <div className="hl">
       <HomeStyles />
 
-      {/* 1 — HERO */}
+      {/* 1 — HERO (sister-brand family: Commons Aqua field, 52-tick constitution dial) */}
       <section className="hl-hero">
-        <div className="hl-wrap hl-center">
-          {PiEmblem && <div className="hl-emblem"><PiEmblem /></div>}
-          <div className="hl-pill"><span className="hl-dot" /> <E p="home2" k="eyebrow" as="span">An open-source upgrade for society</E></div>
-          <h1 className="hl-h1 font-display">
-            <E p="home2" k="h1_a" as="span" className="hl-h1-small">To the Startup Nation in every nation:</E>
-            <E p="home2" k="h1v3_a" as="span">Together we built the internet. Join to build the </E><E p="home2" k="h1v3_b" as="span" className="hl-gold" style={{ whiteSpace: 'nowrap' }}>Open-Regulatory OS</E><E p="home2" k="h1v3_c" as="span"> to reinvent it.</E>
-          </h1>
-          <E p="home2" k="sub" as="p" className="hl-sub">A Hippocratic Oath for AI, written in the open and funded by the people it protects. No VC.</E>
-          <div className="hl-ctas">
-            {single ? <BackBtn /> : (
-              <>
-                <a href="#co-sign" className="btn-aurora"><E p="home2" k="cta_sign" as="span">Co-sign the Covenant</E> <ArrowRight size={16} /></a>
-                <button type="button" onClick={() => setPage('back')} className="btn-secondary"><E p="home2" k="cta_back" as="span">Back the Founders Series</E></button>
-              </>
+        <span className="hl-vmark" aria-hidden="true">humanity-ai.quest</span>
+        <div className="hl-wrap hl-hero-grid">
+          <div className="hl-hero-copy">
+            <div className="hl-pill"><span className="hl-dot" /> <E p="home2" k="eyebrow" as="span">An open-source upgrade for society</E></div>
+            <div className="hl-wordmark" aria-hidden="true">Humanity<span>—</span>AI</div>
+            <h1 className="hl-h1 font-display">
+              <E p="home2" k="h1_a" as="span" className="hl-h1-small">To the Startup Nation in every nation:</E>
+              <E p="home2" k="h1v3_a" as="span">Together we built the internet. Join to build the </E><E p="home2" k="h1v3_b" as="span" className="hl-gold">Open-Regulatory OS</E><E p="home2" k="h1v3_c" as="span"> to reinvent it.</E>
+            </h1>
+            <E p="home2" k="sub" as="p" className="hl-sub">A Hippocratic Oath for AI, written in the open and funded by the people it protects. No VC.</E>
+            <div className="hl-ctas">
+              {single ? <BackBtn /> : (
+                <>
+                  <a href="#co-sign" className="btn-aurora"><E p="home2" k="cta_sign" as="span">Co-sign the Covenant</E> <ArrowRight size={16} /></a>
+                  <button type="button" onClick={() => setPage('back')} className="btn-secondary"><E p="home2" k="cta_back" as="span">Back the Founders Series</E></button>
+                </>
+              )}
+            </div>
+            {!single && stats && stats.count > 0 && (
+              <p className="hl-proof"><b>{Number(stats.count).toLocaleString()}</b> people have co-signed{stats.nations > 1 ? <> from <b className="hl-gold">{stats.nations}</b> nations</> : null}.</p>
             )}
           </div>
-          {!single && stats && stats.count > 0 && (
-            <p className="hl-proof"><b>{Number(stats.count).toLocaleString()}</b> people have co-signed{stats.nations > 1 ? <> from <b className="hl-gold">{stats.nations}</b> nations</> : null}.</p>
-          )}
+          <div className="hl-dial-wrap" aria-hidden="true">
+            <svg className="hl-dial" viewBox="0 0 200 200">
+              {Array.from({ length: 52 }, (_, i) => {
+                const a = i / 52 * Math.PI * 2, long = i % 13 === 0, r1 = long ? 80 : 86, r2 = 95;
+                return <line key={i} x1={100 + Math.sin(a) * r1} y1={100 - Math.cos(a) * r1} x2={100 + Math.sin(a) * r2} y2={100 - Math.cos(a) * r2} stroke="#05061A" strokeWidth={long ? 2.2 : 1.1} strokeOpacity={long ? 0.85 : 0.5} />;
+              })}
+              <circle cx="100" cy="5" r="3.6" fill="#FF5A1F" />
+            </svg>
+            <div className="hl-disc">{PiEmblem ? <div className="hl-emblem"><PiEmblem /></div> : <span className="hl-pi">π</span>}</div>
+            <span className="hl-dial-cap">52 clauses · guarded by Uto-Pi</span>
+          </div>
         </div>
       </section>
+      <a className="hl-agenti-strip" href={AGENTI_URL} target="_blank" rel="noopener noreferrer">
+        <span className="hl-agenti-bar" /> <span>Powered by Agenti</span><span className="hl-agenti-q">How is one person doing all this? It runs on Agenti.</span><ArrowRight size={16} />
+      </a>
 
       {/* 2 — THE CORE PROBLEM */}
       <section className="hl-section">
@@ -130,7 +148,7 @@ export default function HomeLanding({ setPage, onOpenAgent, ui, single = false, 
               const Icon = s.icon;
               return (
                 <li key={s.k} className="hl-step">
-                  <div className="hl-step-top"><span className="hl-step-icon"><Icon size={20} /></span><span className="hl-mono">0{i + 1}</span></div>
+                  <div className="hl-step-top"><span className="hl-step-icon"><Icon size={20} /></span><span className="hl-mono">0{i + 1}</span></div>{i === 3 && <span className="hl-pi-hunt" title="You found Uto-Pi">π</span>}
                   <E p="home2" k={'step_' + s.k + '_t'} as="div" className="font-display hl-step-t">{s.t}</E>
                   <E p="home2" k={'step_' + s.k + '_d'} as="p" className="hl-step-d">{s.d}</E>
                 </li>
@@ -138,6 +156,18 @@ export default function HomeLanding({ setPage, onOpenAgent, ui, single = false, 
             })}
           </ol>
           {single ? <BackBtn className="hl-mt" /> : <button type="button" onClick={onOpenAgent} className="btn-secondary hl-mt"><Mic size={15} /> <E p="home2" k="rule_cta" as="span">Tell Pi what you think</E></button>}
+        </div>
+      </section>
+
+      {/* RUNS ON AGENTI — the family rule: the orange is Agenti */}
+      <section className="hl-runs">
+        <div className="hl-wrap hl-runs-grid">
+          <div>
+            <div className="hl-label hl-ink">How is this possible?</div>
+            <h2 className="hl-h2 font-display">It runs on Agenti<span className="hl-cursor" aria-hidden="true" /></h2>
+            <p className="hl-lede hl-ink-dim">Humanity-AI takes on the giants because a fleet of Agenti agents does the work of a whole company: drafting, translating, answering, counting every signature. One founder, many agents. The orange on this page is the reminder.</p>
+          </div>
+          <a className="hl-runs-btn" href={AGENTI_URL} target="_blank" rel="noopener noreferrer">Get me Agenti by 2pm <ArrowRight size={18} /></a>
         </div>
       </section>
 
@@ -367,76 +397,121 @@ const CoSignForm = ({ E, Turnstile, postJSON, setPage }) => {
 
 const HomeStyles = () => (
   <style>{`
-  .hl { --hl-gold: var(--gold); }
-  .hl-wrap { max-width: 1120px; margin: 0 auto; padding-inline: 1.5rem; }
-  .hl-narrow { max-width: 820px; }
+  .hl { --hl-gold: var(--aurora); }
+  .hl-wrap { max-width: 1240px; margin: 0 auto; padding-inline: 1.25rem; }
+  @media (min-width: 760px) { .hl-wrap { padding-inline: 2.5rem; } }
+  .hl-narrow { max-width: 900px; }
   .hl-center { text-align: center; }
-  .hl-gold { color: var(--gold); }
-  .hl-mono { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--bone-dim); }
-  .hl-emblem { margin: -1.5rem auto .5rem; }
-  .hl-emblem .v3-emblem-wrap { width: min(300px, 64vw); }
-  .hl-emblem .v3-tag { font-size: .55rem; }
-  @media (max-width: 640px) { .hl-emblem .v3-tag { display: none; } }
-  .hl-hero { padding: 6.5rem 0 5rem; background: radial-gradient(60% 70% at 50% 0%, rgba(232,177,79,.14), transparent 70%); }
-  .hl-pill { display: inline-flex; align-items: center; gap: .5rem; padding: .4rem .9rem; border-radius: 999px; border: 1px solid var(--line-2); font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--bone-dim); }
-  .hl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 12px var(--gold); }
-  .hl-h1 { font-size: clamp(2.4rem, 6vw, 4.6rem); line-height: 1.04; margin: 1.6rem auto 0; max-width: 20ch; text-wrap: balance; }
-  .hl-h1-small { display: block; font-size: .42em; line-height: 1.3; color: var(--bone-dim); font-style: italic; margin-bottom: .6rem; }
-  .hl-sub { color: var(--bone-dim); font-size: 1.15rem; line-height: 1.6; max-width: 38rem; margin: 1.5rem auto 0; }
-  .hl-ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: 2.25rem; }
-  .hl-proof { margin-top: 1.75rem; font-size: .9rem; color: var(--bone-dim); }
-  .hl-proof b { color: var(--bone); font-variant-numeric: tabular-nums; }
-  .hl-section { padding: 5.5rem 0; }
+  .hl-gold { color: var(--aurora); }
+  .hl-mono { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--bone-dim); }
+  .hl .font-display { text-transform: uppercase; }
+
+  /* HERO: Commons Aqua field */
+  .hl-hero { position: relative; overflow: hidden; background: var(--aurora); color: var(--void); padding: 4.5rem 0 4rem; }
+  .hl-vmark { position: absolute; right: 8px; top: 7rem; writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--f-mono); font-size: 9px; letter-spacing: .32em; text-transform: uppercase; opacity: .45; }
+  .hl-hero-grid { display: grid; gap: 2.5rem; align-items: center; }
+  @media (min-width: 960px) { .hl-hero-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 3rem; } }
+  .hl-hero-copy { min-width: 0; }
+  .hl-pill { display: inline-flex; align-items: center; gap: .5rem; font-family: var(--f-mono); font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--void); }
+  .hl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--agenti); }
+  .hl-wordmark { font-family: var(--f-display); font-weight: 900; text-transform: uppercase; line-height: .8; font-size: clamp(3.4rem, 12.5vw, 9.5rem); letter-spacing: -.005em; margin-top: 1.1rem; white-space: nowrap; }
+  .hl-wordmark span { color: var(--agenti); }
+  .hl-h1 { font-size: clamp(1.8rem, 4.2vw, 3.2rem); line-height: .98; margin: 1.4rem 0 0; max-width: 22ch; text-wrap: balance; color: var(--void); }
+  .hl-h1 .hl-gold { color: var(--void); background: linear-gradient(transparent 62%, rgba(255,90,31,.55) 62%); }
+  .hl-h1-small { display: block; font-family: var(--f-mono); font-weight: 500; font-size: .32em; line-height: 1.4; letter-spacing: .14em; color: rgba(5,6,26,.7); margin-bottom: .7rem; }
+  .hl-sub { color: rgba(5,6,26,.78); font-size: 1.12rem; line-height: 1.6; max-width: 38rem; margin: 1.3rem 0 0; }
+  .hl-ctas { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 2rem; }
+  .hl-center .hl-ctas { justify-content: center; }
+  .hl-hero .btn-aurora { background: var(--void); color: var(--bone); }
+  .hl-hero .btn-aurora:hover { box-shadow: 0 10px 30px -10px rgba(5,6,26,.6); }
+  .hl-hero .btn-secondary { color: var(--void); border-color: var(--void); }
+  .hl-proof { margin-top: 1.5rem; font-size: .92rem; color: rgba(5,6,26,.75); }
+  .hl-proof b { color: var(--void); font-variant-numeric: tabular-nums; }
+  .hl-dial-wrap { position: relative; width: min(100%, 440px); aspect-ratio: 1; justify-self: center; display: grid; place-items: center; }
+  .hl-dial { position: absolute; inset: 0; width: 100%; height: 100%; animation: orbit 90s linear infinite; }
+  .hl-disc { width: 70%; aspect-ratio: 1; border-radius: 50%; background: var(--void); display: grid; place-items: center; overflow: hidden; box-shadow: 0 30px 60px -30px rgba(5,6,26,.7); }
+  .hl-emblem { width: 100%; }
+  .hl-emblem .v3-emblem-wrap { width: 100%; }
+  .hl-emblem .v3-tag { font-size: .5rem; }
+  .hl-pi { font-family: var(--f-display); font-weight: 900; font-size: 6rem; color: var(--aurora); }
+  .hl-dial-cap { position: absolute; bottom: -1.6rem; left: 0; right: 0; text-align: center; font-family: var(--f-mono); font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: rgba(5,6,26,.7); }
+  @media (max-width: 959px) { .hl-dial-wrap { width: min(80vw, 340px); margin-bottom: 1.5rem; } }
+
+  /* Powered by Agenti strip */
+  .hl-agenti-strip { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; background: var(--agenti); color: var(--void); padding: .9rem 1.25rem; font-family: var(--f-display); font-weight: 900; text-transform: uppercase; font-size: 1.15rem; letter-spacing: .03em; }
+  @media (min-width: 760px) { .hl-agenti-strip { padding-inline: 2.5rem; } }
+  .hl-agenti-bar { width: 34px; height: 6px; background: var(--void); display: inline-block; }
+  .hl-agenti-q { font-family: var(--f-body); font-weight: 500; text-transform: none; font-size: .95rem; letter-spacing: 0; flex: 1 1 260px; }
+  .hl-agenti-strip:hover .hl-agenti-q { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* Sections */
+  .hl-section { padding: 5rem 0; position: relative; }
   .hl-alt { background: var(--void-2); border-block: 1px solid var(--line); }
-  .hl-label { font-size: .7rem; letter-spacing: .25em; text-transform: uppercase; color: var(--gold); margin-bottom: .9rem; }
-  .hl-h2 { font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1.1; max-width: 24ch; text-wrap: balance; }
-  .hl-h3 { font-size: 1.6rem; line-height: 1.2; }
-  .hl-lede { color: var(--bone-dim); font-size: 1.1rem; margin-top: .9rem; max-width: 40rem; line-height: 1.6; }
+  .hl-label { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .2em; text-transform: uppercase; color: var(--aurora); margin-bottom: .9rem; }
+  .hl-h2 { font-size: clamp(2.2rem, 6vw, 4.6rem); line-height: .9; max-width: 20ch; text-wrap: balance; }
+  .hl-h3 { font-size: 1.9rem; line-height: 1; text-transform: uppercase; }
+  .hl-lede { color: var(--bone-dim); font-size: 1.1rem; margin-top: 1rem; max-width: 42rem; line-height: 1.6; }
   .hl-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 2.5rem; }
-  .hl-card { padding: 1.6rem; border-radius: 1.25rem; border: 1px solid var(--line); background: var(--void-2); min-width: 0; }
+  .hl-card { padding: 1.6rem; border: 1px solid var(--line-2); background: var(--void); min-width: 0; }
   .hl-card-top { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
-  .hl-tag { font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; padding: .25rem .6rem; border-radius: 999px; }
-  .hl-tag-bad { color: #F08A7A; background: rgba(240,138,122,.12); }
-  .hl-tag-good { color: var(--gold); background: rgba(232,177,79,.14); }
-  .hl-card-h { font-size: 1.35rem; margin-top: 1.1rem; }
+  .hl-tag { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; padding: .25rem .6rem; border: 1px solid currentColor; }
+  .hl-tag-bad { color: #FF8A6E; }
+  .hl-tag-good { color: var(--aurora); }
+  .hl-card-h { font-size: 1.7rem; margin-top: 1.1rem; }
   .hl-card ul { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .55rem; }
-  .hl-card li { display: flex; align-items: center; gap: .6rem; color: var(--bone); font-size: .95rem; }
-  .hl-legacy li { color: var(--bone-dim); }
-  .hl-legacy li svg { color: #F08A7A; flex-shrink: 0; }
-  .hl-human { border-color: rgba(232,177,79,.45); background: linear-gradient(160deg, rgba(232,177,79,.10), transparent 60%), var(--void-2); }
-  .hl-human li svg { color: var(--gold); flex-shrink: 0; }
-  .hl-code { margin-top: 1.4rem; padding: .7rem .9rem; border-radius: .7rem; background: var(--void); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85rem; color: var(--bone-dim); }
-  .hl-code em { font-style: normal; color: #F08A7A; }
-  .hl-code em.hl-gold { color: var(--gold); }
-  .hl-prime { margin-top: 2rem; padding: 1.3rem 1.4rem; border-radius: 1rem; border: 1px solid rgba(232,177,79,.45); background: linear-gradient(160deg, rgba(232,177,79,.08), transparent 70%); }
-  .hl-prime-name { font-size: 1.5rem; margin-top: .3rem; }
+  .hl-card li { display: flex; align-items: center; gap: .6rem; color: var(--bone); font-size: .98rem; }
+  .hl-legacy li { color: var(--bone-dim); text-decoration: line-through; text-decoration-color: rgba(255,138,110,.6); }
+  .hl-legacy li svg { color: #FF8A6E; flex-shrink: 0; }
+  .hl-human { border-color: var(--aurora); border-top: 6px solid var(--aurora); }
+  .hl-human li svg { color: var(--aurora); flex-shrink: 0; }
+  .hl-code { margin-top: 1.4rem; padding: .7rem .9rem; background: var(--void-2); font-family: var(--f-mono); font-size: .85rem; color: var(--bone-dim); }
+  .hl-code em { font-style: normal; color: #FF8A6E; }
+  .hl-code em.hl-gold { color: var(--aurora); }
+  .hl-prime { margin-top: 2rem; padding: 1.3rem 1.4rem; border: 1px solid var(--aurora); border-left: 6px solid var(--aurora); }
+  .hl-prime-name { font-size: 2rem; margin-top: .3rem; }
   .hl-prime p { color: var(--bone-dim); margin-top: .35rem; line-height: 1.55; }
-  .hl-acc { margin-top: 1rem; border-top: 1px solid var(--line); }
-  .hl-acc-row { border-bottom: 1px solid var(--line); }
+  .hl-acc { margin-top: 1rem; border-top: 2px solid var(--bone); }
+  .hl-acc-row { border-bottom: 1px solid var(--line-2); }
   .hl-acc-head { width: 100%; display: flex; align-items: center; gap: 1rem; padding: 1.05rem .25rem; text-align: left; }
-  .hl-acc-n { flex-shrink: 0; width: 3rem; color: var(--gold); }
+  .hl-acc-n { flex-shrink: 0; width: 3rem; color: var(--aurora); }
   .hl-acc-title { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .8rem; }
-  .hl-acc-title .font-display { font-size: 1.25rem; color: var(--bone); }
+  .hl-acc-title .font-display { font-size: 1.6rem; color: var(--bone); }
   .hl-acc-line { font-size: .92rem; color: var(--bone-dim); }
   .hl-acc-chev { flex-shrink: 0; color: var(--bone-dim); transition: transform .2s; }
-  .hl-acc-row.open .hl-acc-chev { transform: rotate(180deg); color: var(--gold); }
-  .hl-acc-head:hover .hl-acc-title .font-display { color: var(--gold); }
+  .hl-acc-row.open .hl-acc-chev { transform: rotate(180deg); color: var(--aurora); }
+  .hl-acc-head:hover .hl-acc-title .font-display { color: var(--aurora); }
   .hl-acc-body { padding: 0 .25rem 1.2rem 4.25rem; color: var(--bone-dim); line-height: 1.6; display: grid; gap: .6rem; }
-  .hl-link { display: inline-flex; align-items: center; gap: .35rem; margin-top: 1.5rem; color: var(--gold); font-size: .92rem; }
-  .hl-steps { list-style: none; padding: 0; margin: 2.5rem 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; counter-reset: s; }
-  .hl-step { position: relative; padding: 1.4rem; border-radius: 1.1rem; border: 1px solid var(--line); background: var(--void-2); min-width: 0; }
-  .hl-step:not(:last-child)::after { content: ''; position: absolute; top: 2.35rem; right: -0.9rem; width: .8rem; height: 1px; background: var(--line-2); }
+  .hl-link { display: inline-flex; align-items: center; gap: .35rem; margin-top: 1.5rem; color: var(--aurora); font-size: .92rem; }
+  .hl-steps { list-style: none; padding: 0; margin: 2.5rem 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--bone); }
+  .hl-step { position: relative; padding: 1.4rem 1.4rem 1.6rem 0; min-width: 0; }
+  .hl-step + .hl-step { padding-left: 1.4rem; border-left: 1px solid var(--line-2); }
+  .hl-step:first-child { border-top: 6px solid var(--agenti); margin-top: -2px; }
   .hl-step-top { display: flex; justify-content: space-between; align-items: center; }
-  .hl-step-icon { width: 2.6rem; height: 2.6rem; border-radius: .8rem; display: inline-flex; align-items: center; justify-content: center; color: var(--gold); background: rgba(232,177,79,.12); flex-shrink: 0; }
-  .hl-step-t { font-size: 1.35rem; margin-top: 1rem; }
-  .hl-step-d { color: var(--bone-dim); font-size: .92rem; line-height: 1.55; margin-top: .35rem; }
+  .hl-step-icon { width: 2.6rem; height: 2.6rem; display: inline-flex; align-items: center; justify-content: center; color: var(--void); background: var(--aurora); flex-shrink: 0; }
+  .hl-step-t { font-size: 2rem; margin-top: 1rem; }
+  .hl-step-d { color: var(--bone-dim); font-size: .95rem; line-height: 1.55; margin-top: .35rem; }
+  .hl-pi-hunt { position: absolute; right: .6rem; bottom: .5rem; font-family: var(--f-display); font-weight: 900; font-size: .9rem; color: var(--aurora); opacity: .35; cursor: help; }
+  .hl-pi-hunt:hover { opacity: 1; }
   .hl-mt { margin-top: 2rem; }
-  .hl-cosign { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 3rem; align-items: start; }
-  .hl-sticker { display: flex; gap: 1.1rem; align-items: center; margin-top: 2rem; padding: 1.1rem; border-radius: 1rem; border: 1px dashed var(--line-2); }
-  .hl-sticker-art { position: relative; flex-shrink: 0; width: 92px; height: 92px; border-radius: 50%; background: radial-gradient(circle, #1A2A48, var(--void)); border: 3px solid var(--gold); display: flex; align-items: center; justify-content: center; overflow: hidden; transform: rotate(-8deg); }
+
+  /* Runs on Agenti */
+  .hl-runs { background: var(--agenti); color: var(--void); padding: 4.5rem 0; }
+  .hl-runs-grid { display: grid; gap: 1.8rem; align-items: end; }
+  @media (min-width: 900px) { .hl-runs-grid { grid-template-columns: minmax(0, 1fr) auto; } }
+  .hl-ink { color: var(--void); }
+  .hl-ink-dim { color: rgba(5,6,26,.78); }
+  .hl-runs .hl-h2 { color: var(--void); }
+  .hl-cursor { display: inline-block; width: .42em; height: .1em; background: var(--void); margin-left: .08em; animation: hl-blink 1s steps(1) infinite; }
+  @keyframes hl-blink { 50% { opacity: 0; } }
+  .hl-runs-btn { display: inline-flex; align-items: center; gap: 1rem; background: var(--void); color: var(--bone); font-family: var(--f-display); font-weight: 900; text-transform: uppercase; font-size: 1.3rem; letter-spacing: .03em; padding: 1rem 1.3rem; justify-self: start; transition: transform .2s; }
+  .hl-runs-btn:hover { transform: translateX(4px); }
+
+  .hl-cosign { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 3rem; align-items: start; }
+  .hl-sticker { display: flex; gap: 1.1rem; align-items: center; margin-top: 2rem; padding: 1.1rem; border: 1px dashed var(--line-2); }
+  .hl-sticker-art { position: relative; flex-shrink: 0; width: 92px; height: 92px; border-radius: 50%; background: var(--void); border: 3px solid var(--aurora); display: flex; align-items: center; justify-content: center; overflow: hidden; transform: rotate(-8deg); }
   .hl-sticker-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .35; mix-blend-mode: screen; }
-  .hl-sticker-art span { position: relative; font-weight: 800; font-size: .72rem; line-height: 1.05; letter-spacing: .08em; color: var(--gold); text-align: center; }
-  .hl-form { display: grid; gap: .8rem; padding: 1.6rem; border-radius: 1.25rem; background: var(--void); border: 1px solid rgba(232,177,79,.45); box-shadow: 0 24px 60px -30px rgba(232,177,79,.35); }
+  .hl-sticker-art span { position: relative; font-family: var(--f-display); font-weight: 900; font-size: .95rem; line-height: 1; letter-spacing: .04em; color: var(--aurora); text-align: center; }
+  .hl-form { display: grid; gap: .8rem; padding: 1.6rem; background: var(--void); border: 1px solid var(--aurora); border-top: 6px solid var(--aurora); }
   .hl-check { display: flex; gap: .55rem; align-items: flex-start; font-size: .88rem; color: var(--bone); cursor: pointer; }
   .hl-check input { margin-top: .25rem; }
   .hl-check em { color: var(--bone-dim); font-style: normal; }
@@ -444,40 +519,43 @@ const HomeStyles = () => (
   .hl-fine { font-size: .75rem; color: var(--bone-dim); }
   .hl-done { text-align: center; justify-items: center; }
   .hl-done p { color: var(--bone-dim); }
-  .hl-event { width: 100%; display: flex; align-items: center; gap: 1.2rem; padding: 1.4rem 1.6rem; border-radius: 1.25rem; border: 1px solid var(--line-2); background: var(--void-2); text-align: left; transition: border-color .2s; }
-  .hl-event:hover { border-color: var(--gold); }
-  .hl-event-text { flex: 1; min-width: 0; display: grid; gap: .2rem; }
-  .hl-event-t { font-size: 1.5rem; color: var(--bone); }
-  .hl-event-cta { display: inline-flex; align-items: center; gap: .3rem; color: var(--gold); white-space: nowrap; font-size: .95rem; }
-  .hl-fm { padding: 1.6rem; border-radius: 1.25rem; border: 1px solid rgba(91,233,221,.35); background: linear-gradient(160deg, rgba(91,233,221,.08), transparent 60%), var(--void-2); scroll-margin-top: 120px; }
+  .hl-event { width: 100%; display: flex; align-items: center; gap: 1.2rem; padding: 1.4rem 1.6rem; border: 1px solid var(--line-2); background: var(--void-2); text-align: left; transition: border-color .2s; }
+  .hl-event:hover { border-color: var(--aurora); }
+  .hl-event-text { flex: 1; min-width: 0; display: grid; gap: .25rem; }
+  .hl-event-t { font-size: 2rem; color: var(--bone); text-transform: uppercase; }
+  .hl-event-cta { display: inline-flex; align-items: center; gap: .3rem; color: var(--aurora); white-space: nowrap; font-size: .95rem; }
+  .hl-fm { padding: 1.6rem; border: 1px solid var(--aurora); border-top: 6px solid var(--aurora); background: var(--void-2); scroll-margin-top: 120px; }
   .hl-fm-head { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
   .hl-fm-head .hl-event-text { flex: 1 1 320px; }
-  .hl-fm-btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .85rem 1.3rem; border-radius: 999px; font-weight: 700; font-size: .95rem; color: var(--void); background: var(--aurora); box-shadow: 0 10px 30px -12px rgba(91,233,221,.7); white-space: nowrap; transition: transform .15s, box-shadow .15s; }
-  .hl-fm-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 34px -12px rgba(91,233,221,.85); }
+  .hl-fm-btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .9rem 1.3rem; font-family: var(--f-display); font-weight: 900; text-transform: uppercase; letter-spacing: .03em; font-size: 1.1rem; color: var(--void); background: var(--aurora); white-space: nowrap; transition: transform .15s; }
+  .hl-fm-btn:hover { transform: translateY(-1px); }
   .hl-fm-btn:disabled { opacity: .7; transform: none; }
   .hl-fm-form { display: grid; gap: .9rem; margin-top: 1.4rem; padding-top: 1.4rem; border-top: 1px solid var(--line); }
   .hl-fm-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
-  .hl-fm-label { display: block; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--bone-dim); margin-bottom: .4rem; }
+  .hl-fm-label { display: block; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--bone-dim); margin-bottom: .4rem; }
   .hl-fm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
   .hl-fm-cancel { font-size: .88rem; color: var(--bone-dim); text-decoration: underline; text-underline-offset: 3px; }
   .hl-fm-cancel:hover { color: var(--bone); }
   .hl-fm-done { display: grid; gap: 1.3rem; margin-top: 1.4rem; padding-top: 1.4rem; border-top: 1px solid var(--line); }
   .hl-fm-done-head { display: flex; gap: .9rem; align-items: flex-start; }
   .hl-fm-next { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-  .hl-fm-next > div { padding: 1rem; border-radius: 1rem; background: var(--void); border: 1px solid var(--line); }
+  .hl-fm-next > div { padding: 1rem; background: var(--void); border: 1px solid var(--line); }
   .hl-fm-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .hl .rounded-xl { border-radius: 0; }
   @media (max-width: 640px) { .hl-fm-fields, .hl-fm-next { grid-template-columns: minmax(0, 1fr); } .hl-fm-btn { width: 100%; } }
   @media (max-width: 900px) {
     .hl-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .hl-step::after { display: none; }
+    .hl-step:nth-child(3) { padding-left: 0; border-left: 0; }
     .hl-cosign { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
   }
   @media (max-width: 640px) {
-    .hl-hero { padding: 4.5rem 0 3.5rem; }
+    .hl-hero { padding: 3rem 0 3.5rem; }
     .hl-section { padding: 4rem 0; }
     .hl-compare, .hl-steps { grid-template-columns: minmax(0, 1fr); }
+    .hl-step, .hl-step + .hl-step { padding-left: 0; border-left: 0; border-bottom: 1px solid var(--line-2); }
     .hl-acc-body { padding-left: .25rem; }
     .hl-event { flex-wrap: wrap; }
   }
+  @media (prefers-reduced-motion: reduce) { .hl-dial, .hl-cursor { animation: none; } }
   `}</style>
 );

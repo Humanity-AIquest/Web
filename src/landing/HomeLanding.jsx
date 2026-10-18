@@ -10,7 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowRight, ChevronDown, Calendar, Mic, PenLine, Vote, Lock, CheckCircle, Loader2, X as XIcon, Check, Share2, Copy, Users } from 'lucide-react';
 import { PRIME_PROMISE, PLEDGES } from '../v3/pledges.js';
 
-const AGENTI_URL = 'https://agenti-pm.humanity-ai-info.workers.dev/';
+const AGENTI_URL = 'https://agenti-pm.work/';
 const LEGACY = ['Nails', 'Snails', 'Corporate fiduciary duty', 'Quarterly earnings', 'Engagement metrics'];
 const HUMAN = ['Children first', 'Your data, owned by you', 'Your voice in every rule', 'Credit for your work, forever', 'A right to switch it off'];
 
@@ -222,9 +222,69 @@ export default function HomeLanding({ setPage, onOpenAgent, ui, single = false, 
           )}
         </div>
       </section>
+
+      {/* ENQUIRIES — saved in the Agenti brain for Humanity-AI and emailed to the team */}
+      <section id="enquire" className="hl-section hl-alt">
+        <div className="hl-wrap">
+          <EnquiryForm E={E} />
+        </div>
+      </section>
     </div>
   );
 }
+
+// "Start the conversation": the same enquiry form as Super-Human and Agenti. It posts to the Agenti brain
+// (app.humanity-ai.quest), which saves it for Humanity-AI and emails the team; the reply goes to the person.
+const ENQUIRY_URL = 'https://app.humanity-ai.quest/api/enquiry';
+const ENQUIRY_TOPICS = ['The Founders Series', 'Partnership', 'Research or academia', 'Press', 'Volunteering', 'Something else'];
+const EnquiryForm = ({ E }) => {
+  const [f, setF] = useState({ name: '', company: '', email: '', topic: ENQUIRY_TOPICS[0], message: '', website: '' });
+  const [status, setStatus] = useState('');
+  const [sending, setSending] = useState(false);
+  const set = (k) => (e) => setF(v => ({ ...v, [k]: e.target.value }));
+  const submit = async (e) => {
+    e.preventDefault();
+    if (f.name.trim().length < 2) return setStatus('Please add your name.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) return setStatus('Please add a valid email address.');
+    setSending(true); setStatus('Sending…');
+    try {
+      const r = await fetch(ENQUIRY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(f) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || 'Something went wrong. Please try again.');
+      setF(v => ({ ...v, name: '', company: '', email: '', message: '' }));
+      setStatus('Received. We reply within two working days.');
+    } catch (err) {
+      setStatus(err.message === 'Failed to fetch' ? 'We could not reach the server. Check your connection and try again.' : err.message);
+    } finally { setSending(false); }
+  };
+  const field = 'w-full px-4 py-3 rounded-xl text-sm outline-none';
+  const fs = { background: 'var(--void)', border: '1px solid var(--line-2)', color: 'var(--bone)' };
+  return (
+    <div className="hl-enq">
+      <div>
+        <div className="hl-label">Enquiries</div>
+        <h2 className="hl-h2 font-display"><E p="home2" k="enq_h" as="span">Start the conversation.</E></h2>
+        <E p="home2" k="enq_sub" as="p" className="hl-lede">Tell us where you are. We reply within two working days.</E>
+        <div className="hl-enq-topics">Partners · Research · Press · Volunteers</div>
+      </div>
+      <form onSubmit={submit} className="hl-enq-form" noValidate>
+        <div className="hl-fm-fields">
+          <div><label className="hl-fm-label" htmlFor="enq-name">Name</label><input id="enq-name" value={f.name} onChange={set('name')} autoComplete="name" maxLength={120} className={field} style={fs} /></div>
+          <div><label className="hl-fm-label" htmlFor="enq-co">Organisation</label><input id="enq-co" value={f.company} onChange={set('company')} autoComplete="organization" maxLength={120} className={field} style={fs} /></div>
+        </div>
+        <div><label className="hl-fm-label" htmlFor="enq-email">Email</label><input id="enq-email" type="email" value={f.email} onChange={set('email')} autoComplete="email" maxLength={254} className={field} style={fs} /></div>
+        <div><label className="hl-fm-label" htmlFor="enq-topic">I'm interested in</label>
+          <select id="enq-topic" value={f.topic} onChange={set('topic')} className={field} style={fs}>{ENQUIRY_TOPICS.map(t => <option key={t}>{t}</option>)}</select></div>
+        <div><label className="hl-fm-label" htmlFor="enq-msg">Message</label><textarea id="enq-msg" value={f.message} onChange={set('message')} maxLength={4000} className={field} style={fs} /></div>
+        <input className="hl-enq-hp" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" value={f.website} onChange={set('website')} />
+        <div className="hl-fm-actions">
+          <button type="submit" className="hl-fm-btn" disabled={sending}>{sending ? <Loader2 size={16} className="animate-spin" /> : null} Send enquiry <ArrowRight size={16} /></button>
+          <p className="text-sm text-bone-dim" role="status" style={{ margin: 0 }}>{status}</p>
+        </div>
+      </form>
+    </div>
+  );
+};
 
 // Inline Flash Mob registration: Register → form → thank-you, all inside one card.
 const FlashMobRegister = ({ ev, E, Turnstile, postJSON, fundUrl, backLabel, linkedinUrl }) => {
@@ -541,6 +601,12 @@ const HomeStyles = () => (
   .hl-fm-next { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
   .hl-fm-next > div { padding: 1rem; background: var(--void); border: 1px solid var(--line); }
   .hl-fm-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .hl-enq { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 3rem; align-items: start; }
+  .hl-enq-topics { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--bone-dim); margin-top: 1.4rem; }
+  .hl-enq-form { display: grid; gap: .9rem; }
+  .hl-enq-form textarea { min-height: 8rem; resize: vertical; }
+  .hl-enq-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+  @media (max-width: 900px) { .hl-enq { grid-template-columns: minmax(0, 1fr); gap: 2rem; } }
   .hl .rounded-xl { border-radius: 0; }
   @media (max-width: 640px) { .hl-fm-fields, .hl-fm-next { grid-template-columns: minmax(0, 1fr); } .hl-fm-btn { width: 100%; } }
   @media (max-width: 900px) {

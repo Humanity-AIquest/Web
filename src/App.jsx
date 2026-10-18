@@ -3942,7 +3942,11 @@ export default function HumanityAIQuest() {
               </svg>
               <span className="font-display text-lg tracking-tight text-bone hidden sm:inline">Humanity-AI<span className="text-aurora">.</span>Quest</span>
             </div>
-            <a href={CROWDFUND_URL} target="_blank" rel="noopener noreferrer" className="btn-aurora whitespace-nowrap" style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem' }}>{BACK_LABEL} <ArrowRight size={14} /></a>
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* The team's sign-in: the Agenti brain in Humanity-AI's colours (same sign-in as Agenti and Super-Human). */}
+              <a href="https://app.humanity-ai.quest/app" className="whitespace-nowrap font-mono uppercase text-bone hover:text-aurora transition-colors" style={{ padding: '0.5rem 0.9rem', fontSize: '0.72rem', letterSpacing: '0.18em', border: '1px solid var(--line-2)' }}>Sign in</a>
+              <a href={CROWDFUND_URL} target="_blank" rel="noopener noreferrer" className="btn-aurora whitespace-nowrap" style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem' }}>{BACK_LABEL} <ArrowRight size={14} /></a>
+            </div>
           </div>
         </header>
         <div className="h-16" />

@@ -9,7 +9,7 @@ what the site is, how to run it, and how it is deployed.
 > **This repository is public.** It holds no secrets and no internal team documents. API keys
 > live only in Cloudflare's encrypted environment variables. Project context for agents lives in
 > the project brain, which refuses any connection without a pre-registered, hashed client
-> certificate: **[brain context endpoint: link to be added]**.
+> certificate: **https://mcp.agenti-pm.work** (for registered agents only; it is not part of the public site).
 
 Antony sign-off: I agree this context is aligned to import. Signed by: ____ Date: ____
 (Treated as signed on Antony's instruction, 20 Oct 2026.)
@@ -21,7 +21,7 @@ Antony sign-off: I agree this context is aligned to import. Signed by: ____ Date
 doc_id: AGNT-V3-WEB-README
 title: Humanity-AI.Quest — Website README
 kind: README
-version: v3.1.1
+version: v3.1.2
 status: SIGNED_OFF
 owner: antony (staff_tony)
 author: claude_code
@@ -35,7 +35,7 @@ key_facts:
 rules_for_agents:
   - Read this block first. Internal context comes from the brain, never from this repo.
 open_questions:
-  - Q1: Public URL of the brain context endpoint to link above.
+  - Q1: none.
 stamp: sha256:[computed by the brain at sign-off; never typed]
 === END CONTEXT BLOCK ===
 ```
@@ -95,6 +95,8 @@ SCHEMA.md           Database tables and API endpoints
    - `ANTHROPIC_API_KEY`: required for the agent.
    - `ZEPTOMAIL_TOKEN`, `EMAIL_FROM`, `EMAIL_FROM_NAME`: email (optional).
    - `ZOHO_*`: CRM (optional).
+   - `AGENTI_ADMIN_URL`: the Agenti admin shell shown in the admin console's Agenti tab (optional;
+     served only to signed-in admins by `/api/admin/agenti`, never built into the public bundle).
    Missing optional secrets are safe: those features simply switch off.
 4. **Never commit a key.** If one is ever committed, rotate it at the provider immediately;
    deleting the commit is not enough on a public repo.
@@ -120,6 +122,7 @@ differently (a Cloudflare Worker), so changes there follow their own steps.
 ## Version change log
 | Version | Date | Source | What changed |
 |---|---|---|---|
+| v3.1.2 | 2026-10-20 | claude_code (Antony answers) | Brain link added; `AGENTI_ADMIN_URL` setting; stale files and committed build output removed; superseded docs archived |
 | v3.1.1 | 2026-10-20 | claude_code (Antony instruction) | Rewritten for the V3 site and the V3 doc standard; internal notes removed (public repo) |
 | v1 | 2026-05 | original | First deployment guide (10 pages, HRC Agent) |
 

@@ -2700,24 +2700,38 @@ const AuditTab = ({ auth, level }) => {
 
 /* ============================================================
    AGENTI — thin embed of the separate Agenti admin shell.
-   Override the URL with VITE_AGENTI_ADMIN_URL. The default deep-links
-   into the placeholder session (?as=antony) so the iframe opens on the
-   Agenti welcome shell. Point the env var at /admin/login to require
-   the in-iframe "Continue as Antony" click instead.
+   The URL is not in the code (this repo and its JS bundle are public):
+   it is read at runtime from /api/admin/agenti, which returns the
+   Cloudflare env var AGENTI_ADMIN_URL to admins only.
    Agenti's CSP frame-ancestors allows humanity-ai.quest and
    http://localhost (any port). Local preview must use localhost,
    not 127.0.0.1, or the iframe is refused.
    ============================================================ */
-const AGENTI_ADMIN_URL = import.meta.env.VITE_AGENTI_ADMIN_URL
-  || 'https://agenti-pm.humanity-ai-info.workers.dev/admin?as=antony';
+const AgentiTab = ({ auth }) => {
+  const [url, setUrl] = useState(null);
+  const [error, setError] = useState('');
 
-const AgentiTab = () => (
-  <iframe
-    title="Agenti admin"
-    src={AGENTI_ADMIN_URL}
-    style={{ width: '100%', height: '100%', border: 'none', display: 'block', background: '#f3efe6' }}
-  />
-);
+  useEffect(() => {
+    apiCall('/api/admin/agenti', 'GET', null, auth?.token)
+      .then(d => d.url ? setUrl(d.url) : setError('AGENTI_ADMIN_URL is not set in Cloudflare (Pages project → Settings → Environment variables).'))
+      .catch(e => setError(e.message));
+  }, [auth?.token]);
+
+  if (!url) {
+    return (
+      <div style={{ padding: 32, color: 'var(--bone-dim)' }}>
+        {error || 'Loading Agenti…'}
+      </div>
+    );
+  }
+  return (
+    <iframe
+      title="Agenti admin"
+      src={url}
+      style={{ width: '100%', height: '100%', border: 'none', display: 'block', background: '#f3efe6' }}
+    />
+  );
+};
 
 /* ============================================================
    MAIN EXPORT — AdminDashboard
@@ -2798,7 +2812,7 @@ export const AdminDashboard = ({ auth }) => {
       {/* Tab content. Agenti fills the area under the tab strip; every other tab keeps the existing column. */}
       {showAgenti ? (
         <div style={{ flex: 1, minHeight: 0 }}>
-          <AgentiTab />
+          <AgentiTab auth={auth} />
         </div>
       ) : (
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 0' }}>

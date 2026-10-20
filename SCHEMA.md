@@ -469,7 +469,7 @@ shared modules, not routes.
 | Agent | `chat` |
 | Public content | `content`, `count`, `ideas`, `sign` |
 | Movement | `quests`, `quests/[id]`, `quests/[id]/pitch`, `quests/[id]/questions`, `events`, `events/[id]/rsvp`, `surveys`, `surveys/[id]`, `surveys/[id]/vote`, `surveys/[id]/results`, `surveys/[id]/statements` |
-| Admin | `admin/users`, `admin/members`, `admin/segments`, `admin/conversations`, `admin/comments`, `admin/ideas`, `admin/notes`, `admin/surveys`, `admin/signatures`, `admin/quests`, `admin/events`, `admin/content`, `admin/audit` |
+| Admin | `admin/users`, `admin/members`, `admin/segments`, `admin/conversations`, `admin/comments`, `admin/ideas`, `admin/notes`, `admin/surveys`, `admin/signatures`, `admin/quests`, `admin/events`, `admin/content`, `admin/audit`, `admin/agenti` (GET, ACL 1+: returns the `AGENTI_ADMIN_URL` env var for the Agenti tab) |
 
 ---
 

@@ -10,6 +10,9 @@
 | Owner (builds it) | nuron (brain) / claude_code (web) |
 | Consumer (calls it) | e.g. Radio Show workspace page |
 | Agreed by | nuron ☐ · claude_code ☐ · date |
+| Data domain | `website` (D1: members, quests, content) or `brain` (users, projects, tasks, minutes) |
+| Tenant | e.g. humanity-ai.quest |
+| Visibility | public page · signed-in member · admin only |
 
 ## Purpose
 One sentence: what this endpoint does for the user.
@@ -29,6 +32,13 @@ House rule: HTTP 200 with an error body, so the page can always read it.
 ```json
 { "error": "Human-readable message" }
 ```
+
+## Data-domain rules
+- IDs from one domain are never reused in the other; a cross-domain link is an explicit field
+  (e.g. `brain_user_id` on a website member), never a shared key.
+- Brain-internal data (minutes, staff, agent sessions) never appears on a public page.
+- Same word, different thing: a website **Quest** is a public innovation bounty; a brain
+  **project/task** is internal work. Name fields so they cannot be confused.
 
 ## Notes
 Limits, timing expectations, auth (logged-in only? admin only?), anything the page must handle.

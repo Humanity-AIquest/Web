@@ -14,7 +14,7 @@ Antony sign-off: I agree this context is aligned to import. Signed by: ____ Date
 doc_id: AGNT-V3-WEB-CLAUDE
 title: Claude Code briefing for the Web repo
 kind: AGENT_INSTRUCTIONS
-version: v3.1.1
+version: v3.1.2
 status: SIGNED_OFF
 owner: antony (staff_tony)
 author: claude_code
@@ -28,7 +28,7 @@ key_facts:
 rules_for_agents:
   - Read this block first, then fetch internal context from the brain or the internal Drive.
 open_questions:
-  - Q1: Public URL of the brain context endpoint.
+  - Q1: none.
 stamp: sha256:[computed by the brain at sign-off; never typed]
 === END CONTEXT BLOCK ===
 ```
@@ -53,9 +53,14 @@ all on Cloudflare (Pages Functions + D1).
 - **Internal context is not in this repo.** Team roles, the document standard (AGNT-V3-STD-001),
   briefs, endpoint contracts and sprint specs live in the project brain and the internal Google
   Drive build folder ("3.0 signed off Docs for build"). Read them there (Google Drive connector).
-  The brain refuses connections without a pre-registered, hashed client certificate.
+  Brain context endpoint (agents only): https://mcp.agenti-pm.work. It refuses connections without a
+  pre-registered, hashed client certificate. The public site's browser code never calls it.
 - **Public-repo rule:** never commit secrets, internal docs, Drive links, internal rosters or
   anything marked INTERNAL. Check repo visibility before committing any document.
+- **Keep data domains apart.** Website members, website Quests (public innovation bounties) and
+  site content are *website* data in D1. Brain users, projects, tasks and minutes are *brain* data.
+  Every contract names its data domain and tenant, IDs are never shared across domains, and
+  internal brain data (minutes, staff, agent sessions) is never shown on public pages.
 - **Brain ↔ site integration** goes through endpoint contracts agreed with the brain's builder
   (template: `docs/contracts/_TEMPLATE.md`; filled contracts live in Drive). Build against sample
   data matching an agreed contract; never change an agreed contract alone.
@@ -126,8 +131,8 @@ destination.
   these same files manually — see "Deployment environments" below before assuming Pages semantics
   apply everywhere.**
 - **Database**: Cloudflare **D1** (SQLite), bound as `env.DB`. Schema self-migrates on first use.
-- **Entry point**: `index.html` loads `/src/main.js`. The root-level `App.jsx` and `main.js` are
-  stale copies not used by the build (candidates for removal; confirm with Antony first).
+- **Entry point**: `index.html` loads `/src/main.js`. Build output (`dist/`) is not committed;
+  Cloudflare builds it on deploy.
 - **AI**: Anthropic Messages API, called **server-side only** from `functions/api/chat.js`.
   Model constant `claude-sonnet-4-6`, `max_tokens: 2000`. The API key never reaches the browser.
 - **Email**: Zoho ZeptoMail HTTP API (`functions/api/_email.js`) — guarded, no-ops until secrets set.
@@ -152,7 +157,7 @@ humanity-ai-quest/
 │   ├── v3/                     ← PiV3.jsx (home, Back the Project), QuestV3.jsx, pledges.js
 │   ├── AdminDashboard.jsx      ← Admin console (consumes /api/admin/*)
 │   ├── useTTS.jsx              ← Agent text-to-speech
-│   └── main.jsx                ← Entry point
+│   └── main.js                 ← Entry point
 ├── SCHEMA.md                   ← Full DB + API reference (source of truth)
 ├── CLAUDE.md                   ← This file (orientation + intent)
 ├── index.html · package.json · vite.config.js
@@ -269,7 +274,7 @@ Staging deploy credentials and their renewal dates are internal: see the brain /
 - Push to `main` on **Web** auto-deploys via Cloudflare Pages. Build command `npm run build`, output dir `dist`.
 - Secrets (Cloudflare dashboard, encrypted env vars, set separately per project): `ANTHROPIC_API_KEY`
   (required for the agent); `ZEPTOMAIL_TOKEN` / `EMAIL_FROM` / `EMAIL_FROM_NAME` (email); `ZOHO_*`
-  (CRM). Missing integration secrets fail safe — the app keeps working, those features just no-op.
+  (CRM); `AGENTI_ADMIN_URL` (Agenti tab, served to admins only via `/api/admin/agenti`). Missing integration secrets fail safe — the app keeps working, those features just no-op.
 - `DB` is the D1 binding on both Web and Staging.
 
 ## Important notes
@@ -283,6 +288,7 @@ Staging deploy credentials and their renewal dates are internal: see the brain /
 ## Version change log
 | Version | Date | Source | What changed |
 |---|---|---|---|
+| v3.1.2 | 2026-10-20 | claude_code (Antony answers) | Brain link; data-domain rule; `AGENTI_ADMIN_URL`; stale files and `dist/` removed |
 | v3.1.1 | 2026-10-20 | claude_code (Antony instruction) | V3 facts (Uto-Pi, 12 pledges, pages, palette, Tailwind, entry point); role as web front-end developer; public-repo rule; internal detail removed |
 | pre-V3 | 2026-09 | earlier sessions | 10-page site, HRC Agent, original palette |
 

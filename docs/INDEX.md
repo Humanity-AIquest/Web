@@ -14,7 +14,7 @@ Antony sign-off: I agree this context is aligned to import. Signed by: ____ Date
 doc_id: AGNT-V3-WEB-IDX-001
 title: Web Repo Index (public)
 kind: INDEX
-version: v3.1.1
+version: v3.1.2
 status: SIGNED_OFF
 owner: antony (staff_tony)
 author: claude_code
@@ -25,7 +25,7 @@ key_facts:
 rules_for_agents:
   - Add a row here in the same commit as any new doc or code area.
 open_questions:
-  - Q1: Public URL of the brain context endpoint.
+  - Q1: none.
 stamp: sha256:[computed by the brain at sign-off; never typed]
 === END CONTEXT BLOCK ===
 ```
@@ -38,6 +38,7 @@ stamp: sha256:[computed by the brain at sign-off; never typed]
 | [`../CLAUDE.md`](../CLAUDE.md) | Briefing for Claude Code (web front-end developer) |
 | [`../SCHEMA.md`](../SCHEMA.md) | Database tables and API endpoints (ground truth) |
 | [`contracts/_TEMPLATE.md`](./contracts/_TEMPLATE.md) | Blank endpoint-contract template (filled contracts are internal) |
+| [`archive/`](./archive/) | Superseded docs, kept for history only (pre-V3 build spec, V3.0 handoff) |
 
 ## Code map
 | Path | What lives there |
@@ -54,14 +55,16 @@ stamp: sha256:[computed by the brain at sign-off; never typed]
 | What | Where |
 |---|---|
 | Live site | https://humanity-ai.quest (auto-deploys from `main`) |
+| Brain context endpoint | https://mcp.agenti-pm.work (registered agents only; certificate required) |
 | Bugs and tasks | GitHub issues on this repo (describe symptoms only; no internal detail) |
 
 ## Summary card
-Three documents, one template, the code map and the live URL. Everything else is internal.
+Three documents, one template, the archive, the code map and two URLs. Everything else is internal.
 
 ## Version change log
 | Version | Date | Source | What changed |
 |---|---|---|---|
+| v3.1.2 | 2026-10-20 | claude_code | Brain link; archive folder |
 | v3.1.1 | 2026-10-20 | claude_code | Public-safe index; internal docs moved out of the repo |
 
 ## Owen's Brain (legal, IP, security, money and TOC check)

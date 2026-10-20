@@ -1,208 +1,136 @@
-# Humanity-AI.Quest — Deployment Guide
+# Humanity-AI.Quest — Website (V3)
 
-This is the complete, production-ready website for **humanity-ai.quest**.
+**Trailer.** The public website for **humanity-ai.quest**: the home of the Humanity Rights
+Constitution (one Prime Promise and twelve Hippocratic pledges) and its guardian agent,
+**Uto-Pi** ("Ask Pi"). React + Vite on Cloudflare Pages, with Pages Functions and a D1 database
+for accounts, petition, ideas, surveys, quests, events and the admin CMS. This README explains
+what the site is, how to run it, and how it is deployed.
 
-- React + Vite single-page app
-- All 10 pages, interactive HRC explorer with 52 clauses, live HRC Agent
-- Cloudflare Pages Function as secure backend proxy to the Anthropic API
-- Total monthly cost: **$0** for hosting. Only Anthropic API usage costs anything, and only when people actually chat with the agent.
+> **This repository is public.** It holds no secrets and no internal team documents. API keys
+> live only in Cloudflare's encrypted environment variables. Project context for agents lives in
+> the project brain, which refuses any connection without a pre-registered, hashed client
+> certificate: **[brain context endpoint: link to be added]**.
 
----
+Antony sign-off: I agree this context is aligned to import. Signed by: ____ Date: ____
+(Treated as signed on Antony's instruction, 20 Oct 2026.)
 
-## Why this stack
+<details><summary>Document context block (AGENTI CONTEXT BLOCK v3.1)</summary>
 
-**10web.io won't work.** 10web is a WordPress + Elementor AI builder. It generates page content from prompts but cannot run a React application with interactive components or a live AI chat. Trying to force it would mean losing all interactivity.
+```
+=== AGENTI CONTEXT BLOCK v3.1 ===
+doc_id: AGNT-V3-WEB-README
+title: Humanity-AI.Quest — Website README
+kind: README
+version: v3.1.1
+status: SIGNED_OFF
+owner: antony (staff_tony)
+author: claude_code
+confidentiality: PUBLIC
+context_summary: Public README for the humanity-ai.quest website: what V3 contains, local dev,
+  deployment on Cloudflare Pages, secrets handling, operations and troubleshooting.
+key_facts:
+  - F1: Push to main auto-deploys humanity-ai.quest via Cloudflare Pages (build: npm run build, output: dist).
+  - F2: The agent calls /api/chat; the Anthropic key is a server-side secret and never reaches the browser.
+  - F3: The repo is public: no secrets, no internal docs.
+rules_for_agents:
+  - Read this block first. Internal context comes from the brain, never from this repo.
+open_questions:
+  - Q1: Public URL of the brain context endpoint to link above.
+stamp: sha256:[computed by the brain at sign-off; never typed]
+=== END CONTEXT BLOCK ===
+```
+</details>
 
-**Cloudflare Pages is the right answer.** It has unlimited bandwidth on the free tier (Vercel and Netlify cap at ~100GB/month), built-in serverless functions to securely proxy the Anthropic API, and is by far the cheapest way to run a public-facing React site with a live AI agent.
+## Summary card
+| | |
+|---|---|
+| **What** | The public website and its backend (Cloudflare Pages + Functions + D1) |
+| **Live** | https://humanity-ai.quest — every push to `main` deploys automatically |
+| **Agent** | Uto-Pi ("Ask Pi"), served by `functions/api/chat.js` (Anthropic API, server-side) |
+| **Cost** | Hosting $0 (Cloudflare free tier); the AI model is pay-per-use |
 
----
+## What's on the site (V3)
+| Page (`?page=`) | What it is |
+|---|---|
+| `home` (Genesis) | Pi hero, founding campaign, Guard / Attest / Audit / Amend, the Prime Promise and 12 pledges, how a rule is born, Ask Pi |
+| `constitution` | Tab 1: the 12 pledges in full. Tab 2: the original 52 draft clauses |
+| `back` | Back the Project: campaign meter (blank until goal and raised are set in the CMS), tiers, FAQ |
+| `petition` | Sign the founding petition, with a live signatory count |
+| `quest` | Quest OS: prize quests, startup quests and crowd campaigns; pitch and Q&A |
+| `surveys` | pol.is-style statements: agree / disagree / pass, one vote per person |
+| `events` | Pitch and networking events with RSVP |
+| `agent` · `os` · `community` · `ledger` · `manifesto` · `join` · `about` · `media` · `courses` · `terms` | Explainer, onboarding and policy pages |
+| `account` | The signed-in member's account |
+| `admin` | Admin console (admin role and ACL level required): members, ideas, CMS, quests, surveys, events |
+
+A demo notice on every public page says which parts are live and which are demonstrations.
+`/?legacy=1` shows the pre-V3 home page for comparison.
+
+## Run it locally
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # production build into dist/
+```
+Requires Node 20+. The agent and database endpoints only work when deployed (or with
+`wrangler pages dev`), because they run as Cloudflare Pages Functions.
 
 ## Project structure
-
 ```
-humanity-ai-quest/
-├── functions/
-│   └── api/
-│       └── chat.js          ← Secure Anthropic proxy (runs server-side)
-├── public/
-│   └── favicon.svg
-├── src/
-│   ├── App.jsx              ← The full website (all 10 pages + agent)
-│   └── main.jsx
-├── index.html
-├── package.json
-├── vite.config.js
-└── .gitignore
+functions/api/      Cloudflare Pages Functions (the backend), routed by file name
+  chat.js           Uto-Pi agent proxy: guardrails, memory, model call
+  auth/  admin/  quests/  surveys/  events/  ideas.js  sign.js  count.js  content.js
+src/
+  App.jsx           Public site (pages, constitution explorer, agent chat UI)
+  v3/               V3 home, Back the Project, Quest OS, the 12 pledges
+  AdminDashboard.jsx  Admin console
+public/             Static files, including the Pi brand images
+SCHEMA.md           Database tables and API endpoints
 ```
 
----
+## Deployment (Cloudflare Pages)
+1. **Build settings:** framework Vite, build command `npm run build`, output directory `dist`.
+2. **Database:** a D1 database bound as `DB`. Tables create themselves on first use.
+3. **Secrets** (Cloudflare → Pages project → Settings → Environment variables, encrypted):
+   - `ANTHROPIC_API_KEY`: required for the agent.
+   - `ZEPTOMAIL_TOKEN`, `EMAIL_FROM`, `EMAIL_FROM_NAME`: email (optional).
+   - `ZOHO_*`: CRM (optional).
+   Missing optional secrets are safe: those features simply switch off.
+4. **Never commit a key.** If one is ever committed, rotate it at the provider immediately;
+   deleting the commit is not enough on a public repo.
 
-## Step-by-step: Get it live
+A separate staging deployment exists for testing against its own database. It is set up
+differently (a Cloudflare Worker), so changes there follow their own steps.
 
-### Prerequisites (one-time)
-
-- A GitHub account (free) → https://github.com/signup
-- A Cloudflare account (free) → https://dash.cloudflare.com/sign-up
-- An Anthropic API key → https://console.anthropic.com (sign in, go to API Keys, create new key)
-- Node.js 18+ installed locally → https://nodejs.org
-
-### 1. Test the site locally (5 minutes)
-
-```bash
-cd humanity-ai-quest
-npm install
-npm run dev
-```
-
-Open http://localhost:5173 — the site runs but the HRC Agent will fail because `/api/chat` doesn't exist yet locally. That's fine. We'll fix it on deploy.
-
-### 2. Push to GitHub (3 minutes)
-
-```bash
-cd humanity-ai-quest
-git init
-git add .
-git commit -m "Initial commit — Humanity-AI.Quest"
-```
-
-Then on github.com, create a new empty repo (name it `humanity-ai-quest`, keep it public or private — your choice), and:
-
-```bash
-git remote add origin https://github.com/YOUR-USERNAME/humanity-ai-quest.git
-git branch -M main
-git push -u origin main
-```
-
-### 3. Deploy on Cloudflare Pages (5 minutes)
-
-1. Go to https://dash.cloudflare.com → **Workers & Pages** → **Create application** → **Pages** → **Connect to Git**.
-2. Authorize Cloudflare to access your GitHub, select the `humanity-ai-quest` repo.
-3. On the build config screen:
-   - **Framework preset**: Vite
-   - **Build command**: `npm run build`
-   - **Build output directory**: `dist`
-   - Leave everything else default
-4. Click **Save and Deploy**. First build takes ~2 minutes.
-5. You'll get a URL like `humanity-ai-quest.pages.dev` — open it. The site is live, but the agent won't work yet (no API key configured).
-
-### 4. Add the Anthropic API key as a secret (2 minutes)
-
-This is the critical security step. **Never put the API key in your code.**
-
-1. In Cloudflare dashboard → your Pages project → **Settings** → **Environment variables**.
-2. Under **Production**, click **Add variable**:
-   - **Variable name**: `ANTHROPIC_API_KEY`
-   - **Value**: paste your Anthropic API key (starts with `sk-ant-…`)
-   - **Encrypt**: yes (toggle on — this is essential)
-3. Click **Save**.
-4. Go to **Deployments** → click **Retry deployment** on the latest one so the function picks up the new variable.
-
-Now visit your `.pages.dev` URL again and try the HRC Agent. It should respond.
-
-### 5. Point the humanity-ai.quest domain at Cloudflare (10 minutes)
-
-If you bought the domain elsewhere (Namecheap, GoDaddy, etc.):
-
-1. Cloudflare dashboard → **Add a site** → enter `humanity-ai.quest` → choose Free plan.
-2. Cloudflare gives you two nameservers (e.g., `ada.ns.cloudflare.com`). Go to your domain registrar's control panel, find DNS / nameserver settings, and replace whatever's there with Cloudflare's nameservers. Save.
-3. Wait 5–60 minutes for DNS to propagate. Cloudflare's dashboard will show a green check when ready.
-
-If you didn't buy the domain yet, **buy it through Cloudflare Registrar** — it's at-cost pricing with no markup, currently about $10–15/year for `.quest`. Then it's already configured.
-
-### 6. Connect the domain to your Pages site (2 minutes)
-
-1. Cloudflare → your Pages project → **Custom domains** → **Set up a custom domain**.
-2. Enter `humanity-ai.quest` and `www.humanity-ai.quest` (one at a time).
-3. Cloudflare auto-creates the DNS records. SSL is automatic. Done.
-
-Visit https://humanity-ai.quest. Live.
-
----
-
-## Cost expectations
-
-| Item | Cost |
-|---|---|
-| Cloudflare Pages hosting | **$0/month** (free forever, unlimited bandwidth) |
-| Cloudflare Pages Functions | **$0/month** (100,000 requests/day free) |
-| Domain (humanity-ai.quest) | **~$10–15/year** |
-| Anthropic API (Sonnet 4 model) | Pay per use, ~$3 per million input tokens. A typical HRC Agent conversation uses 5–15k tokens. **First 1000 visitors who actually chat with the agent ≈ $5–15.** |
-
-For traffic spikes, the only thing that scales is your Anthropic bill. The hosting stays free. To cap your exposure, set a **spending limit** in your Anthropic console (Settings → Billing → Usage limits).
-
----
-
-## Operating the site after launch
-
-### To update the site
-
-Edit code locally, then:
-
-```bash
-git add .
-git commit -m "Your change description"
-git push
-```
-
-Cloudflare auto-rebuilds and redeploys in ~90 seconds. Every push to `main` goes live automatically.
-
-### To change the agent's behaviour
-
-Open `src/App.jsx`, find `buildSystemPrompt`, edit. Push.
-
-### To add new HRC clauses
-
-Open `src/App.jsx`, find the `HRC_CORE`, `HRC_GOV`, or `HRC_OPS` arrays at the top. Add new entries following the same shape: `{ n: 34, t: "...", s: "...", r: "..." }`. Update the clause counts in the homepage and constitution page text. Push.
-
-### To monitor cost and traffic
-
-- Cloudflare → your Pages project → **Analytics** for visitors
-- Anthropic Console → **Usage** for API spend
-
-### Safety extras worth adding later
-
-- **Rate limiting**: add a Cloudflare WAF rule to limit `/api/chat` to ~30 requests/minute per IP
-- **Captcha**: gate the HRC Agent behind Cloudflare Turnstile (free, invisible to humans) to prevent abuse
-- **Verified human auth**: when the project is ready, layer in real identity verification (WebAuthn or a service like Worldcoin)
-
----
-
-## Staging environment
-
-There is a second, separate deployment for testing: repo `Humanity-AIquest/Staging` (its own
-GitHub repo, not a branch of this one), live at `staging.humanity-ai-info.workers.dev`. It runs
-against its own D1 database (`humanity-ai-db-staging`) so testing never touches production data —
-**including CMS content**, which lives in the database, not in code. Editing content via the live
-site's admin CMS will never appear on staging (and vice versa) unless the `site_content` table is
-deliberately copied over.
-
-Unlike this repo, Staging is a genuine Cloudflare **Worker**, not a Pages project — see
-`CLAUDE.md`'s "Deployment environments" section for the architectural differences (most
-importantly: adding a new file under `functions/api/` requires a matching update to Staging's
-`src/index.js` router, which does not apply to this repo).
+## Operating the site
+- **Update:** commit on a branch, open a pull request; after review it is merged to `main` and
+  deploys in about 90 seconds.
+- **Edit words:** most visible text is editable in Admin → CMS without a code change.
+- **Change the agent's behaviour:** `functions/api/chat.js` (system prompt and guardrails).
+- **Monitor:** Cloudflare → Analytics for visitors; the model provider's console for AI spend.
+  Set a spending limit there.
 
 ## Troubleshooting
+- **Agent says it can't reach the constitution layer:** check `ANTHROPIC_API_KEY` is set for
+  Production, then redeploy. Function logs: Cloudflare → Pages → project → Functions.
+- **`Cannot read properties of undefined (reading 'prepare')`:** the D1 binding is missing or not
+  named `DB`.
+- **Build fails:** use Node 20+, run `npm install` again, and check the output directory is `dist`.
 
-**Agent returns "I couldn't reach the constitution layer"**
-- Check that `ANTHROPIC_API_KEY` is set in Cloudflare → Pages → Settings → Environment variables (Production tab).
-- Re-deploy after adding the variable.
-- Check the function logs: Cloudflare → Pages → your project → **Functions** tab → look for errors.
+## Version change log
+| Version | Date | Source | What changed |
+|---|---|---|---|
+| v3.1.1 | 2026-10-20 | claude_code (Antony instruction) | Rewritten for the V3 site and the V3 doc standard; internal notes removed (public repo) |
+| v1 | 2026-05 | original | First deployment guide (10 pages, HRC Agent) |
 
-**Site won't build**
-- Make sure Node 18+ is installed locally and try `npm install` again.
-- On Cloudflare, double-check the build output directory is `dist` not `build`.
+## Owen's Brain (legal, IP, security, money and TOC check)
+[To be completed by Owen / Antony.] Security note: no secrets are stored in this repository.
 
-**Custom domain shows "Not Secure" or wrong page**
-- Wait 10–15 minutes after adding the custom domain — SSL certificate provisioning takes a moment.
-- Check DNS is fully propagated using https://dnschecker.org
+## Minutes
+| Date | Context_resync meeting | What it changed |
+|---|---|---|
+| | | |
 
----
-
-## What you have now
-
-- A complete launch-ready website at zero monthly hosting cost
-- A live, secure HRC Agent backed by the Anthropic API
-- Auto-deploy from GitHub on every push
-- A foundation you can scale to millions of visitors without changing the architecture
-
-Welcome to the constitutional era of AI.
+## Agent reminder notes
+- [2026-10-20 · claude_code] LEARNED: this repo is public. NEXT TIME: put internal context in the
+  brain or Drive and link to it. DO NOT: commit secrets, internal docs or Drive links here.

@@ -1,19 +1,76 @@
-# Humanity-AI.Quest
+# Humanity-AI.Quest — Claude Code briefing (V3)
+
+**Trailer.** Session briefing for Claude Code, the web front-end developer on this repo. It says
+what the site is, the product goal, the stack and conventions, and the deployment setup. This repo
+is **public**: nothing internal or secret belongs in it, including in this file.
+
+Antony sign-off: I agree this context is aligned to import. Signed by: ____ Date: ____
+(Treated as signed on Antony's instruction, 20 Oct 2026.)
+
+<details><summary>Document context block (AGENTI CONTEXT BLOCK v3.1)</summary>
+
+```
+=== AGENTI CONTEXT BLOCK v3.1 ===
+doc_id: AGNT-V3-WEB-CLAUDE
+title: Claude Code briefing for the Web repo
+kind: AGENT_INSTRUCTIONS
+version: v3.1.1
+status: SIGNED_OFF
+owner: antony (staff_tony)
+author: claude_code
+confidentiality: PUBLIC
+context_summary: Orientation for Claude Code on the humanity-ai.quest website: role, working rules,
+  product goal, stack, conventions and deployment. Internal context is fetched, never stored here.
+key_facts:
+  - F1: Claude Code is the web front-end developer; the brain is built by another agent.
+  - F2: The repo is public: no secrets, no internal docs, no Drive links.
+  - F3: Push to main auto-deploys the live site; work on a branch and open a PR; Antony merges.
+rules_for_agents:
+  - Read this block first, then fetch internal context from the brain or the internal Drive.
+open_questions:
+  - Q1: Public URL of the brain context endpoint.
+stamp: sha256:[computed by the brain at sign-off; never typed]
+=== END CONTEXT BLOCK ===
+```
+</details>
 
 ## What this is
-The website **and backend** for **Humanity-AI.Quest** — the constitutional AI Operating System
-governed by the **Humanities-AI Rights Constitution (HRC)**, described as the "Hippocratic Oath
-for AI." The HRC is 52 clauses across 3 sections.
+The website **and backend** for **Humanity-AI.Quest**: the home of the **Humanity Rights
+Constitution** (one Prime Promise and twelve Hippocratic pledges; the original 52 draft clauses
+are kept on a second tab) and its guardian agent **Uto-Pi** (hyphenated, "Pi" for short, "Ask Pi"
+in the nav; never write "Utopi"). It has user accounts, a moderated agent chat with memory, an idea
+ledger, a petition, pol.is-style surveys, quests, events, a CRM hook, a CMS and an admin console,
+all on Cloudflare (Pages Functions + D1).
 
-What began as a static React marketing site has grown a full backend: user accounts, a moderated
-AI agent chat which remembers user context and interaction history, an idea "patent ledger," a petition, pol.is-style community surveys, innovation
-quests, events, a CRM, a CMS, and an admin console — all on Cloudflare (Pages Functions + D1).
-
-> **For the complete data model and API surface, see [`SCHEMA.md`](./SCHEMA.md).** That file is
-> the ground-truth reference (37 D1 tables, 33 endpoint files, auth/ACL, integrations). Keep it in
-> sync when you change the schema. This file is the orientation + intent doc; SCHEMA.md is the map.
+> **Data model and API:** see [`SCHEMA.md`](./SCHEMA.md). Keep it in sync when the schema changes.
 
 ---
+
+## Your role and working rules
+- **You are the web front-end developer.** Pages, UI design, dashboard upgrades, mockups,
+  full-screen workspaces, link health, and wiring pages to the brain's endpoints; you help debug.
+  You do **not** build brain logic. Work on a branch, open a PR; a QA agent reviews; Antony merges.
+- **Internal context is not in this repo.** Team roles, the document standard (AGNT-V3-STD-001),
+  briefs, endpoint contracts and sprint specs live in the project brain and the internal Google
+  Drive build folder ("3.0 signed off Docs for build"). Read them there (Google Drive connector).
+  The brain refuses connections without a pre-registered, hashed client certificate.
+- **Public-repo rule:** never commit secrets, internal docs, Drive links, internal rosters or
+  anything marked INTERNAL. Check repo visibility before committing any document.
+- **Brain ↔ site integration** goes through endpoint contracts agreed with the brain's builder
+  (template: `docs/contracts/_TEMPLATE.md`; filled contracts live in Drive). Build against sample
+  data matching an agreed contract; never change an agreed contract alone.
+- **Antony is new to development:** explain changes in plain language, coaching style.
+- **Links for approvals:** whenever you ask Antony to approve, review or sign off a document, give
+  its direct link in the same message.
+- **Doc-standard check on open:** when you open a document, check it against AGNT-V3-STD-001 and
+  add any missing fields (trailer, sign-off block, Context Block, Version Change Log, Summary
+  Card, Owen's Brain, Minutes, Agent Reminder Notes). In Google Docs, only as suggestions; use
+  `[placeholder]` for unknowns. Every update is saved at a higher version number.
+- **Role changes:** add a "Since this document was written" notice (as a suggestion) to every doc
+  in the internal Drive build folder.
+
+The "North star" below is the product goal. The agent's memory and idea logic are built in the
+brain; your part is the interface to it.
 
 ## North star: the Agent IS the interface
 The short-term goal is for the **constitutional Agent to become the primary UI to the site** —
@@ -60,14 +117,17 @@ destination.
 ## Stack
 - **Frontend**: React 18, Vite, Lucide React icons. Almost all public UI is in `src/App.jsx`;
   the admin console is `src/AdminDashboard.jsx`.
-- **Styling**: CSS-in-JS via a `<style>` tag / CSS custom properties (`var(--aurora)`, etc.).
-  A Tailwind config exists but the app is CSS-vars-first — no Tailwind classes in the UI.
+- **Styling**: CSS custom properties in a `<style>` tag (`var(--aurora)`, etc.) **plus Tailwind
+  utility classes**, loaded from the Tailwind CDN in `index.html`. V3 components in `src/v3/`
+  use namespaced `.v3-*` CSS.
 - **Fonts**: Fraunces (display serif), Manrope (body sans-serif) via Google Fonts.
 - **Backend**: Cloudflare **Pages Functions** under `functions/api/**` (file-based routing) — true
   for this (Web) repo. **The Staging repo is a different Cloudflare product (a Worker) and routes
   these same files manually — see "Deployment environments" below before assuming Pages semantics
   apply everywhere.**
 - **Database**: Cloudflare **D1** (SQLite), bound as `env.DB`. Schema self-migrates on first use.
+- **Entry point**: `index.html` loads `/src/main.js`. The root-level `App.jsx` and `main.js` are
+  stale copies not used by the build (candidates for removal; confirm with Antony first).
 - **AI**: Anthropic Messages API, called **server-side only** from `functions/api/chat.js`.
   Model constant `claude-sonnet-4-6`, `max_tokens: 2000`. The API key never reaches the browser.
 - **Email**: Zoho ZeptoMail HTTP API (`functions/api/_email.js`) — guarded, no-ops until secrets set.
@@ -88,7 +148,8 @@ humanity-ai-quest/
 │   ├── quests/  surveys/  events/   ← public movement endpoints
 │   └── admin/                  ← ACL-gated console API (members, conversations, ideas, …)
 ├── src/
-│   ├── App.jsx                 ← Public site: 10 pages + HRC explorer + HRCAgent chat
+│   ├── App.jsx                 ← Public site: pages, constitution explorer, Uto-Pi chat
+│   ├── v3/                     ← PiV3.jsx (home, Back the Project), QuestV3.jsx, pledges.js
 │   ├── AdminDashboard.jsx      ← Admin console (consumes /api/admin/*)
 │   ├── useTTS.jsx              ← Agent text-to-speech
 │   └── main.jsx                ← Entry point
@@ -127,17 +188,15 @@ humanity-ai-quest/
   That `||` is correct (De Morgan of the rule above). **Do not "fix" it to `&&`** — that inverts
   the rule and lets any admin, even L1, perform L5 actions. This has regressed before.
 
-## Key color palette
-- `--void`: #07101F (deep space background)
-- `--bone`: #F2EAD3 (primary text)
-- `--aurora`: #5BE9DD (primary accent — cyan)
-- `--gold`: #E8B14F (secondary accent)
-- `--terra`: #C97B5B (tertiary accent)
-- `--forest`: #1B3B2F (earth green)
-- `--cosmos`: #131F32 (section backgrounds)
+## Key color palette (V3, from `:root` in `src/App.jsx`)
+- `--void`: #0F1F3A (navy background) · `--void-2`: #16284A · `--cosmos`: #1E3358 (sections)
+- `--bone`: #FFFFFF (primary text) · `--bone-dim`: #C5CDDD
+- `--aurora` / `--gold`: #FFD60A (primary accent, yellow) · `--aurora-deep`: #E0B800 · `--bronze`: #CC9000
+- `--terra`: #E0A458 · `--forest`: #234555 · `--dust`: #8693AD
 
-## HRC data
-All 52 clauses are stored as three arrays at the top of `src/App.jsx`, which must be editable via the Admin CMS page:
+## Constitution data
+V3 shows **the Prime Promise and 12 pledges** by default (`src/v3/pledges.js`; home-page names
+and lines are CMS fields). The original 52 draft clauses are stored as three arrays at the top of `src/App.jsx`, which must be editable via the Admin CMS page:
 - `HRC_CORE` — 33 Core Rights & Protections (Section I)
 - `HRC_GOV` — 10 Governance & Evolution (Section II)
 - `HRC_OPS` — 9 Operational Mandates (Section III)
@@ -145,8 +204,10 @@ All 52 clauses are stored as three arrays at the top of `src/App.jsx`, which mus
 Each clause is `{ n: number, t: title, s: summary, r: reasoning }`. The community-voting loop is
 how *new* clauses are meant to enter this set — approved ideas become candidate clauses put to a vote.
 
-## The HRC Agent
-- Chat UI component `HRCAgent` in `src/App.jsx`; TTS via `src/useTTS.jsx`.
+## The agent (Uto-Pi, "Ask Pi")
+- Chat UI in `src/App.jsx` (call-style Uto-Pi panel); TTS via `src/useTTS.jsx`. The system
+  prompt introduces Pi and the 12 pledges, with the 52 clauses as reference.
+- Known bug to fix: the agent chat pane has no scroll bar or top/bottom buttons.
 - Calls `/api/chat` (the Cloudflare Function `functions/api/chat.js`), which:
   1. runs **input guardrails** (DB `guardrail_rules` if present, else hardcoded fallback) —
      blocked messages are still logged, flagged, and answered with a dignity-grounded refusal;
@@ -158,11 +219,12 @@ how *new* clauses are meant to enter this set — approved ideas become candidat
 - **Toward the north star:** memory today is per-thread; the goal is per-user recall across
   sessions, agent-driven idea capture, and agent-surfaced approved ideas for voting.
 
-## Pages (10 total)
-`home` · `constitution` (interactive 52-clause explorer) · `quest` (pitch competition) ·
-`agent` (Your Personal Agent explainer) · `os` (the OS architecture) · `community` ·
-`ledger` (Humanity's patent ledger) · `manifesto` (+ pledge) · `join` (three-door onboarding) ·
-`about`. Treat these as scaffolding around the agent, not the product's ceiling.
+## Pages (V3, `?page=` ids from `PAGES` in `src/App.jsx`)
+`home` (Genesis) · `petition` · `back` (Back the Project) · `constitution` (12 pledges + 52-clause
+tab) · `quest` (Quest OS) · `surveys` · `events` · `agent` · `os` · `community` · `ledger` ·
+`manifesto` · `join` · `about`, plus `media`, `courses`, `terms`, `account`, `admin`.
+A demo notice on every public page marks what is live. `/?legacy=1` shows the pre-V3 home.
+Treat pages as scaffolding around the agent, not the product's ceiling.
 
 ## Design principles
 - **Tone**: Civilizational, warm, manifesto-grade. Never corporate. Never AI-hype.
@@ -202,11 +264,7 @@ function suddenly throws `Cannot read properties of undefined (reading 'prepare'
 you're in for a binding name that doesn't match its own `wrangler.jsonc`/dashboard config before
 assuming it's a code bug.
 
-**Staging's `CLOUDFLARE_API_TOKEN`** (used by the build to run `wrangler deploy`, set as an
-environment variable on the Staging Cloudflare project) **expires 2027-09-01.** Cloudflare tokens
-can't be edited once expired — the fix is "roll" (regenerate) it from
-dash.cloudflare.com/profile/api-tokens *before* it expires, not after. If Staging deploys start
-failing with `Authentication error [code: 10000]`, this is the first thing to check.
+Staging deploy credentials and their renewal dates are internal: see the brain / internal Drive.
 
 - Push to `main` on **Web** auto-deploys via Cloudflare Pages. Build command `npm run build`, output dir `dist`.
 - Secrets (Cloudflare dashboard, encrypted env vars, set separately per project): `ANTHROPIC_API_KEY`
@@ -215,11 +273,28 @@ failing with `Authentication error [code: 10000]`, this is the first thing to ch
 - `DB` is the D1 binding on both Web and Staging.
 
 ## Important notes
-- The HRC Agent calls `/api/chat`, **not** Anthropic directly — the proxy adds the API key server-side.
+- The agent calls `/api/chat`, **not** Anthropic directly — the proxy adds the API key server-side.
 - **Update `SCHEMA.md` whenever you change the database or API.** Regenerate its map by grepping the
   Functions for `CREATE TABLE`, `ALTER TABLE`, and `env.DB.prepare(`.
 - Seed/mock data exists (3 quests, 2 surveys, 3 events, default email templates) — replace with real
   data as the movement grows.
 - The newest clause is I.33 "Right to Truthful Media & Pro-Humanity Content" (cross-refs I.4, I.12, II.4).
 
+## Version change log
+| Version | Date | Source | What changed |
+|---|---|---|---|
+| v3.1.1 | 2026-10-20 | claude_code (Antony instruction) | V3 facts (Uto-Pi, 12 pledges, pages, palette, Tailwind, entry point); role as web front-end developer; public-repo rule; internal detail removed |
+| pre-V3 | 2026-09 | earlier sessions | 10-page site, HRC Agent, original palette |
 
+## Owen's Brain (legal, IP, security, money and TOC check)
+[To be completed by Owen / Antony.] Security: no secrets in this repo; keys only in Cloudflare.
+
+## Minutes
+| Date | Context_resync meeting | What it changed |
+|---|---|---|
+| | | |
+
+## Agent reminder notes
+- [2026-10-20 · claude_code] LEARNED: the repo is public and internal docs had been committed to
+  a working branch. NEXT TIME: check visibility first; keep internal context in the brain/Drive.
+  DO NOT: commit Drive links, rosters, contracts with internal endpoints, or INTERNAL mirrors.
